@@ -179,6 +179,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 subtitle: 'Super Admin Overview & Global Analytics',
               ),
               const SizedBox(height: 16),
+              _buildAttendanceSection(),
               
               // MD KPIs Grid
               GridView.count(
@@ -187,7 +188,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 physics: const NeverScrollableScrollPhysics(),
                 crossAxisSpacing: 12,
                 mainAxisSpacing: 12,
-                childAspectRatio: 1.4,
+                childAspectRatio: 1.45,
                 children: [
                   _buildStatCard('Total State Leads', '${allLeads.length}', Icons.layers_outlined, Colors.blue),
                   _buildStatCard('Admissions Registered', '$admitted', Icons.check_circle_outline, Colors.green),
@@ -229,8 +230,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
               Container(
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: const Color(0xFFEFF1F3)),
                 ),
                 child: ListView.separated(
                   shrinkWrap: true,
@@ -239,50 +240,55 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   separatorBuilder: (context, index) => const Divider(height: 1, color: Color(0xFFF1F5F9)),
                   itemBuilder: (context, index) {
                     final u = hierarchyUsers[index];
-                    return Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    final String initials = u['name']!.split(' ').map((n) => n[0]).take(2).join();
+                    
+                    Color roleColor = AppColors.accentTeal;
+                    if (u['role'] == 'MD') roleColor = Colors.redAccent;
+                    if (u['role'] == 'ZM') roleColor = Colors.blueAccent;
+                    if (u['role'] == 'ASM') roleColor = Colors.purpleAccent;
+                    if (u['role'] == 'BDM') roleColor = Colors.orangeAccent;
+
+                    return ListTile(
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                      leading: CircleAvatar(
+                        radius: 18,
+                        backgroundColor: roleColor.withOpacity(0.08),
+                        child: Text(
+                          initials,
+                          style: TextStyle(color: roleColor, fontWeight: FontWeight.bold, fontSize: 12),
+                        ),
+                      ),
+                      title: Text(u['name']!, style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.textPrimary, fontSize: 13)),
+                      subtitle: Text('${u['role']} • ${u['scope']}', style: const TextStyle(color: AppColors.textSecondary, fontSize: 11)),
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(u['name']!, style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.textPrimary, fontSize: 13)),
-                              Text('${u['role']} • ${u['scope']}', style: const TextStyle(color: AppColors.textSecondary, fontSize: 11)),
-                            ],
-                          ),
-                          Row(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                decoration: BoxDecoration(
-                                  color: (u['status'] == 'In Field' || u['status'] == 'On Duty')
-                                      ? Colors.green.withOpacity(0.08)
-                                      : Colors.blue.withOpacity(0.08),
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                                child: Text(
-                                  u['status']!,
-                                  style: TextStyle(
-                                    color: (u['status'] == 'In Field' || u['status'] == 'On Duty') ? Colors.green : Colors.blue,
-                                    fontSize: 9,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: (u['status'] == 'In Field' || u['status'] == 'On Duty' || u['status'] == 'Active')
+                                  ? Colors.green.withOpacity(0.08)
+                                  : Colors.blue.withOpacity(0.08),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              u['status']!,
+                              style: TextStyle(
+                                color: (u['status'] == 'In Field' || u['status'] == 'On Duty' || u['status'] == 'Active') ? Colors.green : Colors.blue,
+                                fontSize: 9,
+                                fontWeight: FontWeight.bold,
                               ),
-                              const SizedBox(width: 8),
-                              IconButton(
-                                icon: const Icon(Icons.settings_outlined, size: 16, color: AppColors.textSecondary),
-                                padding: EdgeInsets.zero,
-                                constraints: const BoxConstraints(),
-                                onPressed: () {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(content: Text('Modifying profile/permissions for ${u['name']} (Simulated)')),
-                                  );
-                                },
-                              )
-                            ],
+                            ),
                           ),
+                          const SizedBox(width: 4),
+                          IconButton(
+                            icon: const Icon(Icons.settings_outlined, size: 16, color: AppColors.textSecondary),
+                            onPressed: () {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('Modifying profile/permissions for ${u['name']} (Simulated)')),
+                              );
+                            },
+                          )
                         ],
                       ),
                     );
@@ -301,8 +307,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: const Color(0xFFEFF1F3)),
                 ),
                 child: Column(
                   children: [
@@ -310,6 +316,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       title: 'Enforce GPS Beat Visit Logs',
                       subtitle: 'BDE check-ins require location verification',
                       value: _gpsLoggingEnforced,
+                      icon: Icons.location_searching_rounded,
+                      iconColor: Colors.blue,
                       onChanged: (val) {
                         setState(() => _gpsLoggingEnforced = val);
                         ScaffoldMessenger.of(context).showSnackBar(
@@ -317,11 +325,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         );
                       },
                     ),
-                    const Divider(height: 24, color: Color(0xFFE2E8F0)),
+                    const Divider(height: 24, color: Color(0xFFEFF1F3)),
                     _buildInteractiveSettingRow(
                       title: 'Biometric Attendance Lock',
                       subtitle: 'Face/Fingerprint verify on check-in',
                       value: _biometricEnforced,
+                      icon: Icons.fingerprint_rounded,
+                      iconColor: Colors.green,
                       onChanged: (val) {
                         setState(() => _biometricEnforced = val);
                         ScaffoldMessenger.of(context).showSnackBar(
@@ -329,11 +339,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         );
                       },
                     ),
-                    const Divider(height: 24, color: Color(0xFFE2E8F0)),
+                    const Divider(height: 24, color: Color(0xFFEFF1F3)),
                     _buildInteractiveSettingRow(
                       title: 'Auto Cloud Sync Logs',
                       subtitle: 'Sync local sales data to head servers',
                       value: _autoSyncActive,
+                      icon: Icons.cloud_sync_rounded,
+                      iconColor: Colors.teal,
                       onChanged: (val) {
                         setState(() => _autoSyncActive = val);
                         ScaffoldMessenger.of(context).showSnackBar(
@@ -355,49 +367,91 @@ class _DashboardScreenState extends State<DashboardScreen> {
   // Helper to build a zonal report card for MD
   Widget _buildZonalReportCard(String zoneName, int totalLeads, double conversion, Color color) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFEFF1F3)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.02),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Container(
-                width: 4,
-                height: 36,
-                decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(2)),
-              ),
-              const SizedBox(width: 12),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              Row(
                 children: [
-                  Text(zoneName, style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.textPrimary, fontSize: 13)),
-                  Text('$totalLeads Leads Assigned', style: const TextStyle(color: AppColors.textSecondary, fontSize: 11)),
+                  Container(
+                    width: 8,
+                    height: 8,
+                    decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+                  ),
+                  const SizedBox(width: 10),
+                  Text(
+                    zoneName,
+                    style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.textPrimary, fontSize: 13),
+                  ),
                 ],
+              ),
+              Text(
+                '${conversion.toStringAsFixed(1)}% Conv.',
+                style: TextStyle(fontWeight: FontWeight.w900, color: color, fontSize: 13),
               ),
             ],
           ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
+          const SizedBox(height: 12),
+          Row(
             children: [
-              Text('${conversion.toStringAsFixed(1)}%', style: TextStyle(fontWeight: FontWeight.w900, color: color, fontSize: 15)),
-              const Text('Conv. Rate', style: TextStyle(color: AppColors.textSecondary, fontSize: 9)),
+              Expanded(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: LinearProgressIndicator(
+                    value: conversion / 100,
+                    minHeight: 6,
+                    backgroundColor: const Color(0xFFF1F5F9),
+                    valueColor: AlwaysStoppedAnimation<Color>(color),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                '$totalLeads leads',
+                style: const TextStyle(color: AppColors.textSecondary, fontSize: 11, fontWeight: FontWeight.w600),
+              ),
             ],
-          )
+          ),
         ],
       ),
     );
   }
 
   // Interactive Switch Row for MD
-  Widget _buildInteractiveSettingRow({required String title, required String subtitle, required bool value, required ValueChanged<bool> onChanged}) {
+  Widget _buildInteractiveSettingRow({
+    required String title,
+    required String subtitle,
+    required bool value,
+    required IconData icon,
+    required Color iconColor,
+    required ValueChanged<bool> onChanged,
+  }) {
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
+        Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: iconColor.withOpacity(0.08),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(icon, color: iconColor, size: 18),
+        ),
+        const SizedBox(width: 14),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -467,19 +521,27 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 subtitle: 'Territory Reports & District Overview',
               ),
               const SizedBox(height: 16),
+              _buildAttendanceSection(),
 
               // District Filter Selector
               const Text(
                 'FILTER BY SPECIFIC DISTRICT',
                 style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.textSecondary, letterSpacing: 0.8),
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 8),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: const Color(0xFFEFF1F3)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.accentTeal.withOpacity(0.04),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
                 ),
                 child: DropdownButtonHideUnderline(
                   child: DropdownButton<String>(
@@ -487,6 +549,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     isExpanded: true,
                     dropdownColor: Colors.white,
                     style: const TextStyle(color: AppColors.textPrimary, fontSize: 13, fontWeight: FontWeight.bold),
+                    icon: const Icon(Icons.keyboard_arrow_down_rounded, color: AppColors.accentTeal),
                     items: districts.map((dist) {
                       return DropdownMenuItem<String>(
                         value: dist,
@@ -503,7 +566,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   ),
                 ),
               ),
-              const SizedBox(height: 18),
+              const SizedBox(height: 20),
 
               // ZM KPIs Grid
               GridView.count(
@@ -512,7 +575,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 physics: const NeverScrollableScrollPhysics(),
                 crossAxisSpacing: 12,
                 mainAxisSpacing: 12,
-                childAspectRatio: 1.4,
+                childAspectRatio: 1.45,
                 children: [
                   _buildStatCard('Zonal Leads', '$totalLeads', Icons.format_list_bulleted_rounded, Colors.teal),
                   _buildStatCard('Converted Admissions', '$admitted', Icons.school_outlined, Colors.green),
@@ -531,8 +594,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
               Container(
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: const Color(0xFFEFF1F3)),
                 ),
                 child: Column(
                   children: districts.where((d) => d != 'All Districts').map((d) {
@@ -542,34 +605,57 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     final double distConv = count > 0 ? (distAdmitted / count) * 100 : 0.0;
                     
                     final asmName = asmMapping[d] ?? 'No ASM Assigned';
-                    final bdeCount = distTasks.map((t) => t.assignedBdeEmail).toSet().length;
+                    final bdeCount = distTasks.map((t) => t.assignedBdeEmail).where((e) => e.isNotEmpty).toSet().length;
+                    final isLast = d == districts.where((x) => x != 'All Districts').last;
 
                     return Column(
                       children: [
                         Padding(
-                          padding: const EdgeInsets.all(16.0),
+                          padding: const EdgeInsets.all(18.0),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Row(
                                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [
-                                  Text(d, style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.textPrimary, fontSize: 13)),
-                                  Text('${distConv.toStringAsFixed(0)}% Conv.', style: const TextStyle(color: AppColors.accentTeal, fontSize: 12, fontWeight: FontWeight.bold)),
+                                  Row(
+                                    children: [
+                                      const Icon(Icons.location_city_rounded, color: AppColors.accentTeal, size: 16),
+                                      const SizedBox(width: 8),
+                                      Text(d, style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.textPrimary, fontSize: 13)),
+                                    ],
+                                  ),
+                                  Text('${distConv.toStringAsFixed(1)}% Conv.', style: const TextStyle(color: AppColors.accentTeal, fontSize: 12, fontWeight: FontWeight.w900)),
                                 ],
                               ),
-                              const SizedBox(height: 6),
+                              const SizedBox(height: 10),
                               Row(
                                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [
-                                  Text('ASM: $asmName', style: const TextStyle(color: AppColors.textSecondary, fontSize: 11)),
-                                  Text('$count Leads • $bdeCount BDEs', style: const TextStyle(color: AppColors.textSecondary, fontSize: 11)),
+                                  Row(
+                                    children: [
+                                      const Icon(Icons.person_pin_rounded, color: AppColors.textSecondary, size: 12),
+                                      const SizedBox(width: 4),
+                                      Text('ASM: $asmName', style: const TextStyle(color: AppColors.textSecondary, fontSize: 11)),
+                                    ],
+                                  ),
+                                  Text('$count Leads • $bdeCount BDEs', style: const TextStyle(color: AppColors.textSecondary, fontSize: 11, fontWeight: FontWeight.w600)),
                                 ],
+                              ),
+                              const SizedBox(height: 10),
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(4),
+                                child: LinearProgressIndicator(
+                                  value: distConv / 100,
+                                  minHeight: 5,
+                                  backgroundColor: const Color(0xFFF1F5F9),
+                                  valueColor: const AlwaysStoppedAnimation<Color>(AppColors.accentTeal),
+                                ),
                               ),
                             ],
                           ),
                         ),
-                        if (d != districts.last) const Divider(height: 1, color: Color(0xFFF1F5F9)),
+                        if (!isLast) const Divider(height: 1, color: Color(0xFFF1F5F9)),
                       ],
                     );
                   }).toList(),
@@ -610,6 +696,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 subtitle: 'District Head / Area Sales Manager',
               ),
               const SizedBox(height: 16),
+              _buildAttendanceSection(),
 
               // ASM KPIs Grid
               GridView.count(
@@ -618,7 +705,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 physics: const NeverScrollableScrollPhysics(),
                 crossAxisSpacing: 12,
                 mainAxisSpacing: 12,
-                childAspectRatio: 1.4,
+                childAspectRatio: 1.45,
                 children: [
                   _buildStatCard('District Leads', '$totalLeads', Icons.apartment_rounded, Colors.purple),
                   _buildStatCard('Admissions Registered', '$admitted', Icons.assignment_turned_in_outlined, Colors.green),
@@ -637,8 +724,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
               
               if (teamNames.isEmpty)
                 Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
+                  padding: const EdgeInsets.all(18),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: const Color(0xFFEFF1F3)),
+                  ),
                   child: const Center(child: Text('No active teams in this district', style: TextStyle(color: AppColors.textSecondary))),
                 )
               else
@@ -654,15 +745,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   if (teamName.contains('Team B')) bdmName = 'Greeshma P.';
                   if (teamName.contains('Trivandrum')) bdmName = 'Sanjay R.';
 
-                  final activeBdeCount = teamTasks.map((t) => t.assignedBdeEmail).toSet().length;
+                  final activeBdeCount = teamTasks.map((t) => t.assignedBdeEmail).where((e) => e.isNotEmpty).toSet().length;
 
                   return Container(
-                    margin: const EdgeInsets.only(bottom: 12),
-                    padding: const EdgeInsets.all(16),
+                    margin: const EdgeInsets.only(bottom: 14),
+                    padding: const EdgeInsets.all(18),
                     decoration: BoxDecoration(
                       color: Colors.white,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: const Color(0xFFEFF1F3)),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.purple.withOpacity(0.02),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -670,19 +768,47 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Text(teamName, style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.textPrimary, fontSize: 13)),
-                            Text('${teamConv.toStringAsFixed(1)}% Conv.', style: const TextStyle(color: Colors.purple, fontSize: 12, fontWeight: FontWeight.bold)),
+                            Row(
+                              children: [
+                                const Icon(Icons.group_work_rounded, color: Colors.purple, size: 16),
+                                const SizedBox(width: 8),
+                                Text(teamName, style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.textPrimary, fontSize: 13)),
+                              ],
+                            ),
+                            Text('${teamConv.toStringAsFixed(1)}% Conv.', style: const TextStyle(color: Colors.purple, fontSize: 12, fontWeight: FontWeight.w900)),
                           ],
                         ),
-                        const SizedBox(height: 4),
-                        Text('TL/BDM: $bdmName', style: const TextStyle(color: AppColors.textSecondary, fontSize: 11)),
-                        const Divider(height: 20, color: Color(0xFFE2E8F0)),
+                        const SizedBox(height: 6),
+                        Row(
+                          children: [
+                            const Icon(Icons.person_outline_rounded, color: AppColors.textSecondary, size: 11),
+                            const SizedBox(width: 4),
+                            Text('BDM/TL: $bdmName', style: const TextStyle(color: AppColors.textSecondary, fontSize: 11)),
+                          ],
+                        ),
+                        const Divider(height: 24, color: Color(0xFFF1F5F9)),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Text('Active BDEs: $activeBdeCount', style: const TextStyle(color: AppColors.textSecondary, fontSize: 11)),
+                            Row(
+                              children: [
+                                const Icon(Icons.people_alt_outlined, color: AppColors.textSecondary, size: 12),
+                                const SizedBox(width: 4),
+                                Text('Active BDEs: $activeBdeCount', style: const TextStyle(color: AppColors.textSecondary, fontSize: 11, fontWeight: FontWeight.w600)),
+                              ],
+                            ),
                             Text('$teamTotal Assigned Leads', style: const TextStyle(color: AppColors.textSecondary, fontSize: 11, fontWeight: FontWeight.bold)),
                           ],
+                        ),
+                        const SizedBox(height: 10),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(4),
+                          child: LinearProgressIndicator(
+                            value: teamConv / 100,
+                            minHeight: 5,
+                            backgroundColor: const Color(0xFFF1F5F9),
+                            valueColor: const AlwaysStoppedAnimation<Color>(Colors.purple),
+                          ),
                         ),
                       ],
                     ),
@@ -700,15 +826,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: const Color(0xFFEFF1F3)),
                 ),
                 child: Column(
                   children: [
                     _buildSystemRow('BDE Rahul R. V. Checked-in', '10:05 AM at Kakkanad', true),
-                    const Divider(height: 20, color: Color(0xFFE2E8F0)),
+                    const Divider(height: 20, color: Color(0xFFEFF1F3)),
                     _buildSystemRow('BDM Deepak S. uploaded 5 leads', '09:30 AM via bulk csv', true),
-                    const Divider(height: 20, color: Color(0xFFE2E8F0)),
+                    const Divider(height: 20, color: Color(0xFFEFF1F3)),
                     _buildSystemRow('GPS Audit Compliance', '100% Verified in district', true),
                   ],
                 ),
@@ -736,7 +862,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         final conversion = totalLeads > 0 ? (admitted / totalLeads) * 100 : 0.0;
 
         // BDE members under this team dynamically
-        final bdeEmails = filteredTasks.map((t) => t.assignedBdeEmail).toSet().toList();
+        final bdeEmails = filteredTasks.map((t) => t.assignedBdeEmail).where((e) => e.isNotEmpty).toSet().toList();
 
         // BDE status mock mapping
         final Map<String, Map<String, String>> bdeStatusMock = {
@@ -756,6 +882,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 subtitle: 'Team Leader Performance & Live BDE Tracking',
               ),
               const SizedBox(height: 16),
+              _buildAttendanceSection(),
 
               // BDM KPIs Grid
               GridView.count(
@@ -764,7 +891,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 physics: const NeverScrollableScrollPhysics(),
                 crossAxisSpacing: 12,
                 mainAxisSpacing: 12,
-                childAspectRatio: 1.4,
+                childAspectRatio: 1.45,
                 children: [
                   _buildStatCard('Team Leads', '$totalLeads', Icons.group_work_outlined, Colors.purple),
                   _buildStatCard('Team Admissions', '$admitted', Icons.offline_pin_outlined, Colors.green),
@@ -783,8 +910,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
               if (bdeEmails.isEmpty)
                 Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
+                  padding: const EdgeInsets.all(18),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: const Color(0xFFEFF1F3)),
+                  ),
                   child: const Center(child: Text('No active BDEs assigned to this team', style: TextStyle(color: AppColors.textSecondary))),
                 )
               else
@@ -803,12 +934,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   final bool isOnline = details['status'] == 'Checked In';
 
                   return Container(
-                    margin: const EdgeInsets.only(bottom: 12),
-                    padding: const EdgeInsets.all(16),
+                    margin: const EdgeInsets.only(bottom: 14),
+                    padding: const EdgeInsets.all(18),
                     decoration: BoxDecoration(
                       color: Colors.white,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: const Color(0xFFEFF1F3)),
+                      boxShadow: [
+                        BoxShadow(
+                          color: (isOnline ? Colors.green : Colors.grey).withOpacity(0.02),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -818,35 +956,72 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           children: [
                             Row(
                               children: [
-                                CircleAvatar(
-                                  radius: 6,
-                                  backgroundColor: isOnline ? Colors.green : Colors.grey,
+                                Container(
+                                  width: 8,
+                                  height: 8,
+                                  decoration: BoxDecoration(
+                                    color: isOnline ? Colors.green : Colors.grey,
+                                    shape: BoxShape.circle,
+                                    boxShadow: isOnline ? [
+                                      BoxShadow(
+                                        color: Colors.green.withOpacity(0.4),
+                                        blurRadius: 6,
+                                        spreadRadius: 2,
+                                      )
+                                    ] : null,
+                                  ),
                                 ),
-                                const SizedBox(width: 8),
-                                Text(details['name']!, style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.textPrimary, fontSize: 13)),
+                                const SizedBox(width: 10),
+                                Text(
+                                  details['name']!,
+                                  style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.textPrimary, fontSize: 13),
+                                ),
                               ],
                             ),
-                            Text('${bdeConv.toStringAsFixed(0)}% Conv.', style: TextStyle(color: isOnline ? Colors.green.shade700 : AppColors.textSecondary, fontSize: 12, fontWeight: FontWeight.bold)),
+                            Text(
+                              '${bdeConv.toStringAsFixed(1)}% Conv.',
+                              style: TextStyle(
+                                color: isOnline ? Colors.green.shade700 : AppColors.textSecondary,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
                           ],
                         ),
-                        const SizedBox(height: 6),
+                        const SizedBox(height: 8),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Text(isOnline ? 'Online: ${details['time']} @ ${details['loc']}' : 'Offline / Signed Out', style: const TextStyle(color: AppColors.textSecondary, fontSize: 11)),
-                            Text('$bdeTotal Leads Assigned', style: const TextStyle(color: AppColors.textSecondary, fontSize: 11)),
+                            Row(
+                              children: [
+                                Icon(
+                                  isOnline ? Icons.location_on_outlined : Icons.location_off_outlined,
+                                  color: AppColors.textSecondary,
+                                  size: 11,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  isOnline ? 'Active @ ${details['loc']}' : 'Offline / Check-out complete',
+                                  style: const TextStyle(color: AppColors.textSecondary, fontSize: 11),
+                                ),
+                              ],
+                            ),
+                            Text(
+                              '$bdeTotal Leads',
+                              style: const TextStyle(color: AppColors.textSecondary, fontSize: 11, fontWeight: FontWeight.w600),
+                            ),
                           ],
                         ),
-                        const SizedBox(height: 10),
+                        const SizedBox(height: 12),
                         ClipRRect(
                           borderRadius: BorderRadius.circular(4),
                           child: LinearProgressIndicator(
                             value: bdeTotal > 0 ? (bdeAdmitted / bdeTotal) : 0.0,
-                            minHeight: 4,
+                            minHeight: 5,
                             backgroundColor: const Color(0xFFF1F5F9),
-                            valueColor: AlwaysStoppedAnimation<Color>(isOnline ? Colors.green.shade600 : Colors.grey.shade400),
+                            valueColor: AlwaysStoppedAnimation<Color>(isOnline ? Colors.green : Colors.grey.shade400),
                           ),
-                        )
+                        ),
                       ],
                     ),
                   );
@@ -860,21 +1035,37 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.textSecondary, letterSpacing: 0.8),
               ),
               const SizedBox(height: 10),
-              SizedBox(
+              Container(
                 width: double.infinity,
+                height: 52,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(16),
+                  gradient: const LinearGradient(
+                    colors: AppColors.accentGradient,
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.accentTeal.withOpacity(0.25),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
                 child: ElevatedButton.icon(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    foregroundColor: AppColors.accentTeal,
-                    elevation: 0,
-                    side: const BorderSide(color: AppColors.accentTeal),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    backgroundColor: Colors.transparent,
+                    foregroundColor: Colors.white,
+                    shadowColor: Colors.transparent,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                   ),
-                  icon: const Icon(Icons.cloud_upload_outlined, size: 20),
-                  label: const Text('Bulk Lead Upload & Assign', style: TextStyle(fontWeight: FontWeight.bold)),
+                  icon: const Icon(Icons.cloud_upload_outlined, size: 20, color: Colors.white),
+                  label: const Text(
+                    'Bulk Lead Upload & Assign',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, letterSpacing: 0.5),
+                  ),
                   onPressed: () {
-                    // Navigate to tasks tab (index 1) where upload features are exposed
                     setState(() => _currentIndex = 1);
                   },
                 ),
@@ -910,120 +1101,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Top Highlight Header
-          const Text(
-            'Daily Attendance Activity',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textPrimary, letterSpacing: 0.5),
-          ),
-          const SizedBox(height: 12),
-
-          ListenableBuilder(
-            listenable: AttendanceProvider.instance,
-            builder: (context, _) {
-              final attProvider = AttendanceProvider.instance;
-              final att = attProvider.currentAttendance;
-              final bool checkedIn = att.isPresent || att.isCompleted;
-              final bool checkedOut = att.isCompleted;
-              final String checkInTime = att.isAbsent ? '--:--' : DateFormat('hh:mm a').format(att.checkInTime);
-              final String checkOutTime = (att.checkOutTime == null) ? '--:--' : DateFormat('hh:mm a').format(att.checkOutTime!);
-
-              return Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(24),
-                  border: Border.all(color: const Color(0xFFE2E8F0)),
-                ),
-                child: Column(
-                  children: [
-                    Row(
-                      children: [
-                        CircleAvatar(
-                          radius: 20,
-                          backgroundColor: (checkedIn ? Colors.green.shade50 : Colors.amber.shade50),
-                          child: Icon(
-                            checkedIn ? Icons.verified_user_rounded : Icons.lock_clock,
-                            color: checkedIn ? Colors.green.shade700 : Colors.amber.shade800,
-                            size: 20,
-                          ),
-                        ),
-                        const SizedBox(width: 14),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                checkedIn ? 'Logged Checked In' : 'Attendance Required',
-                                style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.textPrimary, fontSize: 14),
-                              ),
-                              Text(
-                                checkedIn ? 'Face verification ID linked' : 'No biometric token registered today',
-                                style: const TextStyle(color: AppColors.textSecondary, fontSize: 11),
-                              ),
-                            ],
-                          ),
-                        ),
-                        ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: checkedIn ? Colors.green.shade50 : AppColors.accentTeal,
-                            foregroundColor: checkedIn ? Colors.green.shade700 : Colors.white,
-                            elevation: 0,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                            minimumSize: Size.zero,
-                          ),
-                          onPressed: checkedOut
-                              ? null
-                              : () {
-                                  Navigator.pushNamed(context, AttendanceScreen.path);
-                                },
-                          child: Text(
-                            checkedOut
-                                ? 'Done'
-                                : checkedIn
-                                    ? 'Check Out'
-                                    : 'Check In',
-                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const Divider(height: 30, color: Color(0xFFE2E8F0)),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text('Check-In Time', style: TextStyle(color: AppColors.textSecondary, fontSize: 10, fontWeight: FontWeight.bold)),
-                            const SizedBox(height: 2),
-                            Text(checkInTime, style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.textPrimary, fontSize: 12)),
-                          ],
-                        ),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text('Check-Out Time', style: TextStyle(color: AppColors.textSecondary, fontSize: 10, fontWeight: FontWeight.bold)),
-                            const SizedBox(height: 2),
-                            Text(checkOutTime, style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.textPrimary, fontSize: 12)),
-                          ],
-                        ),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text('Shift Hours', style: TextStyle(color: AppColors.textSecondary, fontSize: 10, fontWeight: FontWeight.bold)),
-                            const SizedBox(height: 2),
-                            Text(checkedIn ? 'Active' : 'Offline', style: TextStyle(fontWeight: FontWeight.bold, color: checkedIn ? Colors.green.shade700 : AppColors.textPrimary, fontSize: 12)),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              );
-            },
-          ),
-          const SizedBox(height: 20),
+          _buildAttendanceSection(),
 
           // EOD Sync
           InkWell(
@@ -1034,7 +1112,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(24),
-                border: Border.all(color: const Color(0xFFE2E8F0)),
+                border: Border.all(color: const Color(0xFFEFF1F3)),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.accentTeal.withOpacity(0.02),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -1042,11 +1127,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Row(
+                      Row(
                         children: [
-                          Icon(Icons.analytics_outlined, color: AppColors.accentTeal, size: 20),
-                          SizedBox(width: 8),
-                          Text(
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: AppColors.accentTeal.withOpacity(0.08),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(Icons.analytics_outlined, color: AppColors.accentTeal, size: 18),
+                          ),
+                          const SizedBox(width: 10),
+                          const Text(
                             'End of Day (EOD) Sync',
                             style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.textPrimary, fontSize: 13),
                           ),
@@ -1061,7 +1153,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         child: Text(
                           operationsProvider.todayEod.isSubmitted 
                               ? 'EOD Compiled' 
-                              : '${(progressPct * 100).toStringAsFixed(0)}% Tasks Completed',
+                              : '${(progressPct * 100).toStringAsFixed(0)}% Completed',
                           style: TextStyle(
                             color: operationsProvider.todayEod.isSubmitted ? Colors.green : AppColors.accentTeal,
                             fontSize: 10,
@@ -1071,30 +1163,30 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 16),
                   ClipRRect(
                     borderRadius: BorderRadius.circular(10),
                     child: LinearProgressIndicator(
                       value: progressPct,
                       minHeight: 8,
-                      backgroundColor: const Color(0xFFE2E8F0),
+                      backgroundColor: const Color(0xFFF1F5F9),
                       valueColor: AlwaysStoppedAnimation<Color>(
                         operationsProvider.todayEod.isSubmitted ? Colors.green : AppColors.accentTeal,
                       ),
                     ),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 14),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
                         'Tasks Completed: $completedTasks / $totalTasks Done',
-                        style: const TextStyle(color: AppColors.textSecondary, fontSize: 11),
+                        style: const TextStyle(color: AppColors.textSecondary, fontSize: 11, fontWeight: FontWeight.w600),
                       ),
                       Row(
                         children: [
                           Text(
-                            operationsProvider.todayEod.isSubmitted ? 'View summary' : 'Tap to submit EOD',
+                            operationsProvider.todayEod.isSubmitted ? 'View Summary' : 'Tap to Compile EOD',
                             style: TextStyle(
                               color: operationsProvider.todayEod.isSubmitted ? Colors.green : AppColors.accentTeal,
                               fontSize: 11,
@@ -1103,7 +1195,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           ),
                           const SizedBox(width: 4),
                           Icon(
-                            Icons.chevron_right, 
+                            Icons.chevron_right_rounded, 
                             color: operationsProvider.todayEod.isSubmitted ? Colors.green : AppColors.accentTeal, 
                             size: 14,
                           ),
@@ -1177,6 +1269,145 @@ class _DashboardScreenState extends State<DashboardScreen> {
           const SizedBox(height: 40),
         ],
       ),
+    );
+  }
+
+  Widget _buildAttendanceSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Daily Attendance Activity',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textPrimary, letterSpacing: 0.5),
+        ),
+        const SizedBox(height: 12),
+        ListenableBuilder(
+          listenable: AttendanceProvider.instance,
+          builder: (context, _) {
+            final attProvider = AttendanceProvider.instance;
+            final att = attProvider.currentAttendance;
+            final bool checkedIn = att.isPresent || att.isCompleted;
+            final bool checkedOut = att.isCompleted;
+            final String checkInTime = att.isAbsent ? '--:--' : DateFormat('hh:mm a').format(att.checkInTime);
+            final String checkOutTime = (att.checkOutTime == null) ? '--:--' : DateFormat('hh:mm a').format(att.checkOutTime!);
+
+            return Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(color: const Color(0xFFEFF1F3)),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.02),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Column(
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: checkedIn ? Colors.green.shade50 : Colors.amber.shade50,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          checkedIn ? Icons.face_retouching_natural_rounded : Icons.lock_clock_rounded,
+                          color: checkedIn ? Colors.green.shade700 : Colors.amber.shade800,
+                          size: 20,
+                        ),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              checkedIn ? 'Attendance Logged' : 'Attendance Required',
+                              style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.textPrimary, fontSize: 13),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              checkedIn ? 'Biometric verification linked' : 'No biometric token registered today',
+                              style: const TextStyle(color: AppColors.textSecondary, fontSize: 11),
+                            ),
+                          ],
+                        ),
+                      ),
+                      ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: (checkedIn && !checkedOut) ? Colors.green.shade50 : AppColors.accentTeal,
+                          foregroundColor: (checkedIn && !checkedOut) ? Colors.green.shade700 : Colors.white,
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                          minimumSize: Size.zero,
+                        ),
+                        onPressed: () {
+                          Navigator.pushNamed(context, AttendanceScreen.path);
+                        },
+                        child: Text(
+                          (checkedIn && !checkedOut) ? 'Check Out' : 'Check In',
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const Divider(height: 32, color: Color(0xFFF1F5F9)),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('CHECK-IN TIME', style: TextStyle(color: AppColors.textSecondary, fontSize: 9, fontWeight: FontWeight.w800, letterSpacing: 0.5)),
+                          const SizedBox(height: 4),
+                          Text(checkInTime, style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.textPrimary, fontSize: 13)),
+                        ],
+                      ),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('CHECK-OUT TIME', style: TextStyle(color: AppColors.textSecondary, fontSize: 9, fontWeight: FontWeight.w800, letterSpacing: 0.5)),
+                          const SizedBox(height: 4),
+                          Text(checkOutTime, style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.textPrimary, fontSize: 13)),
+                        ],
+                      ),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('SHIFT STATUS', style: TextStyle(color: AppColors.textSecondary, fontSize: 9, fontWeight: FontWeight.w800, letterSpacing: 0.5)),
+                          const SizedBox(height: 4),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: (checkedIn && !checkedOut) ? Colors.green.withOpacity(0.08) : Colors.grey.withOpacity(0.08),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              checkedOut ? 'COMPLETED' : checkedIn ? 'ACTIVE' : 'OFFLINE',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold, 
+                                color: checkedOut ? Colors.grey : checkedIn ? Colors.green.shade700 : AppColors.textPrimary, 
+                                fontSize: 10,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            );
+          },
+        ),
+        const SizedBox(height: 20),
+      ],
     );
   }
 

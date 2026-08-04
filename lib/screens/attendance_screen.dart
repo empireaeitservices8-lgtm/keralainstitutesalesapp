@@ -320,7 +320,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> with SingleTickerPr
                       _buildActionButtons(provider, attendance),
                     ] else ...[
                       // Summary view when checked out
-                      _buildCompletedSummary(attendance),
+                      _buildCompletedSummary(provider, attendance),
                     ],
 
                     // Sync log card
@@ -685,7 +685,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> with SingleTickerPr
     );
   }
 
-  Widget _buildCompletedSummary(AttendanceModel attendance) {
+  Widget _buildCompletedSummary(AttendanceProvider provider, AttendanceModel attendance) {
     final timeFormat = DateFormat('hh:mm a');
     final dateFormat = DateFormat('dd MMM yyyy');
 
@@ -753,6 +753,40 @@ class _AttendanceScreenState extends State<AttendanceScreen> with SingleTickerPr
                 ),
               ),
             ],
+          ),
+          const Divider(color: Color(0xFFE2E8F0), height: 32),
+          const SizedBox(height: 8),
+          Container(
+            width: double.infinity,
+            height: 48,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              gradient: const LinearGradient(
+                colors: AppColors.accentGradient,
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+            ),
+            child: ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.transparent,
+                shadowColor: Colors.transparent,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              onPressed: () async {
+                await provider.resetAttendance();
+                setState(() {
+                  _isSelfieCaptured = false;
+                  _selfiePath = '';
+                  _capturedAt = null;
+                });
+              },
+              icon: const Icon(Icons.add_circle_outline_rounded, color: Colors.white, size: 18),
+              label: const Text(
+                'Start New Shift (Check-In Again)',
+                style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+              ),
+            ),
           ),
         ],
       ),
