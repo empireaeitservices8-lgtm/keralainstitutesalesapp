@@ -6,6 +6,7 @@ import '../widgets/glass_container.dart';
 import '../utils/validators.dart';
 import '../utils/helpers.dart';
 import 'dashboard_screen.dart';
+import 'set_password_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   static const String path = '/login';
@@ -20,8 +21,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   
-  bool _obscurePassword = true;
-  bool _rememberMe = true;
+
 
   @override
   void dispose() {
@@ -30,23 +30,33 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  // Handle Email & Password Login
+  // Handle Employee ID & Password Login
   Future<void> _handleEmailLogin() async {
     if (!_formKey.currentState!.validate()) return;
 
     final success = await AuthProvider.instance.loginWithEmail(
       _emailController.text.trim(),
       _passwordController.text,
-      _rememberMe,
+      AuthProvider.instance.rememberMe,
     );
 
     if (success && mounted) {
-      UiHelpers.showSnackBar(context, 'Login Successful!', Colors.greenAccent, textColor: Colors.black87);
-      _navigateToDashboard();
+      if (AuthProvider.instance.requirePasswordChange) {
+        UiHelpers.showSnackBar(
+          context,
+          'Password change required!',
+          Colors.orangeAccent,
+          textColor: Colors.black87,
+        );
+        Navigator.pushReplacementNamed(context, SetPasswordScreen.path);
+      } else {
+        UiHelpers.showSnackBar(context, 'Login Successful!', Colors.greenAccent, textColor: Colors.black87);
+        _navigateToDashboard();
+      }
     } else if (mounted) {
       UiHelpers.showSnackBar(
         context,
-        'Invalid Credentials. Use a valid email and >= 6 char password.',
+        'Invalid Credentials. Please enter a valid Employee ID and Password.',
         Colors.redAccent,
         textColor: Colors.white,
       );
@@ -369,11 +379,11 @@ class _LoginScreenState extends State<LoginScreen> {
                                         TextFormField(
                                           controller: _emailController,
                                           style: const TextStyle(color: AppColors.textPrimary),
-                                          keyboardType: TextInputType.emailAddress,
+                                          keyboardType: TextInputType.text,
                                           decoration: InputDecoration(
-                                            labelText: 'Email Address',
+                                            labelText: 'Employee ID',
                                             labelStyle: const TextStyle(color: AppColors.textSecondary),
-                                            prefixIcon: const Icon(Icons.email_outlined, color: AppColors.accentTeal),
+                                            prefixIcon: const Icon(Icons.badge_outlined, color: AppColors.accentTeal),
                                             filled: true,
                                             fillColor: AppColors.bgInput,
                                             enabledBorder: OutlineInputBorder(
@@ -393,26 +403,24 @@ class _LoginScreenState extends State<LoginScreen> {
                                               borderSide: const BorderSide(color: Colors.redAccent),
                                             ),
                                           ),
-                                          validator: Validators.validateEmail,
+                                          validator: Validators.validateEmployeeId,
                                         ),
                                         const SizedBox(height: 18),
                                         TextFormField(
                                           controller: _passwordController,
                                           style: const TextStyle(color: AppColors.textPrimary),
-                                          obscureText: _obscurePassword,
+                                          obscureText: authProvider.obscurePassword,
                                           decoration: InputDecoration(
                                             labelText: 'Password',
                                             labelStyle: const TextStyle(color: AppColors.textSecondary),
                                             prefixIcon: const Icon(Icons.lock_outline, color: AppColors.accentTeal),
                                             suffixIcon: IconButton(
                                               icon: Icon(
-                                                _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                                                authProvider.obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
                                                 color: AppColors.textSecondary,
                                               ),
                                               onPressed: () {
-                                                setState(() {
-                                                  _obscurePassword = !_obscurePassword;
-                                                });
+                                                authProvider.toggleObscurePassword();
                                               },
                                             ),
                                             filled: true,
@@ -446,14 +454,12 @@ class _LoginScreenState extends State<LoginScreen> {
                                                   width: 24,
                                                   height: 24,
                                                   child: Checkbox(
-                                                    value: _rememberMe,
+                                                    value: authProvider.rememberMe,
                                                     activeColor: AppColors.accentTeal,
                                                     checkColor: Colors.white,
                                                     side: const BorderSide(color: AppColors.textSecondary),
                                                     onChanged: (val) {
-                                                      setState(() {
-                                                        _rememberMe = val ?? true;
-                                                      });
+                                                      authProvider.setRememberMe(val ?? true);
                                                     },
                                                   ),
                                                 ),

@@ -1,10 +1,17 @@
+import 'package:json_annotation/json_annotation.dart';
+
+part 'user_session.g.dart';
+
+@JsonSerializable()
 class UserSession {
   final String email;
+  @JsonKey(name: 'auth_type')
   final String authType;
+  @JsonKey(name: 'device_token')
   final String deviceToken;
   final String name;
-  final String role; // 'MD' | 'ZM' | 'ASM' | 'BDM' | 'BDE'
-  final String? zone; // 'South Zone' | 'Central Zone' | 'North Zone'
+  final String role;
+  final String? zone;
   final String? district;
   final String? team;
 
@@ -19,11 +26,14 @@ class UserSession {
     this.team,
   });
 
+  factory UserSession.fromJson(Map<String, dynamic> json) => _$UserSessionFromJson(json);
+  Map<String, dynamic> toJson() => _$UserSessionToJson(this);
+
   factory UserSession.fromMap(Map<String, String> map) {
     return UserSession(
       email: map['email'] ?? 'Unknown User',
-      authType: map['authType'] ?? 'Unknown',
-      deviceToken: map['deviceToken'] ?? 'N/A',
+      authType: map['authType'] ?? map['auth_type'] ?? 'Unknown',
+      deviceToken: map['deviceToken'] ?? map['device_token'] ?? 'N/A',
       name: map['name'] ?? 'Unknown User',
       role: map['role'] ?? 'BDE',
       zone: map['zone'] != null && map['zone']!.isNotEmpty ? map['zone'] : null,

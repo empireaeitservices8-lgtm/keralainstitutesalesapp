@@ -7,6 +7,8 @@ import '../providers/attendance_provider.dart';
 import '../providers/operations_provider.dart';
 import '../widgets/dashboard_module_card.dart';
 import '../models/task_model.dart';
+import '../models/home_dashboard_model.dart';
+import '../providers/home_provider.dart';
 import 'attendance_screen.dart';
 import 'login_screen.dart';
 import 'task_screen.dart';
@@ -35,6 +37,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     super.initState();
     // Preload data
     OperationsProvider.instance.loadOperationsData();
+    HomeProvider.instance.fetchHomeData();
   }
 
   void _handleLogout() async {
@@ -101,13 +104,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, letterSpacing: 1.5),
               ),
               centerTitle: true,
-              actions: [
-                IconButton(
-                  icon: const Icon(Icons.power_settings_new_rounded, color: Colors.redAccent, size: 20),
-                  tooltip: 'Logout Session',
-                  onPressed: _handleLogout,
-                )
-              ],
             )
           : null,
       body: currentBody,
@@ -116,20 +112,75 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _buildHomeOverview() {
-    final user = AuthProvider.instance.session;
-    switch (user.role) {
-      case 'MD':
-        return _buildMdDashboard();
-      case 'ZM':
-        return _buildZmDashboard(user);
-      case 'ASM':
-        return _buildAsmDashboard(user);
-      case 'BDM':
-        return _buildBdmDashboard(user);
-      case 'BDE':
-      default:
-        return _buildBdeDashboard();
-    }
+    return ListenableBuilder(
+      listenable: HomeProvider.instance,
+      builder: (context, _) {
+        final homeState = HomeProvider.instance.state;
+
+        if (homeState.isLoading) {
+          return const Center(
+            child: CircularProgressIndicator(
+              valueColor: AlwaysStoppedAnimation<Color>(AppColors.accentTeal),
+            ),
+          );
+        }
+
+        if (homeState.isError) {
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24.0),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.error_outline_rounded, color: Colors.redAccent, size: 48),
+                  const SizedBox(height: 16),
+                  Text(
+                    homeState.message ?? 'An unexpected error occurred.',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(color: AppColors.textPrimary, fontSize: 14),
+                  ),
+                  const SizedBox(height: 20),
+                  ElevatedButton.icon(
+                    onPressed: () => HomeProvider.instance.fetchHomeData(isRefresh: true),
+                    icon: const Icon(Icons.refresh_rounded),
+                    label: const Text('Retry'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.accentTeal,
+                      foregroundColor: Colors.white,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+
+        final data = homeState.data;
+        if (data == null) {
+          return const Center(
+            child: Text(
+              'No dashboard data available.',
+              style: TextStyle(color: AppColors.textSecondary),
+            ),
+          );
+        }
+
+        final user = AuthProvider.instance.session;
+        switch (user.role) {
+          case 'MD':
+            return _buildMdDashboard();
+          case 'ZM':
+            return _buildZmDashboard(user);
+          case 'ASM':
+            return _buildAsmDashboard(user);
+          case 'BDM':
+            return _buildBdmDashboard(user);
+          case 'BDE':
+          default:
+            return _buildBdeDashboard(data);
+        }
+      },
+    );
   }
 
   // --- MD DASHBOARD VIEW (Unrestricted Super Admin) ---
@@ -1079,29 +1130,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   // --- BDE DASHBOARD VIEW (Field Officer View) ---
-  Widget _buildBdeDashboard() {
-    final operationsProvider = OperationsProvider.instance;
-    final totalVisits = operationsProvider.totalVisitsCount;
-    final completedVisits = operationsProvider.completedVisitsCount;
-    final totalTasks = operationsProvider.tasks.length;
-    final completedTasks = operationsProvider.completedTasksCount;
+  Widget _buildBdeDashboard(HomeDashboardModel data) {
+    final totalTasks = data.eodSync.totalTasks;
+    final completedTasks = data.eodSync.tasksCompleted;
+    final progressPct = data.eodSync.completionPercentage / 100.0;
     
-    // BDE leads status filters
-    final followUpLeads = operationsProvider.tasks.where((t) => t.leadStatus == 'Interested').length;
-    final closedLeads = operationsProvider.tasks.where((t) => t.leadStatus == 'Admitted' || t.leadStatus == 'Closed').length;
-
-    final totalPTOLeft = operationsProvider.leaveBalanceCasual + 
-                         operationsProvider.leaveBalanceMedical + 
-                         operationsProvider.leaveBalanceEarned;
-
-    final progressPct = totalTasks > 0 ? (completedTasks / totalTasks) : 0.0;
+    final assignedLeads = data.operationalOverview.assignedLeads;
+    final followUpLeads = data.operationalOverview.followUpLeads;
+    final closedLeads = data.operationalOverview.closedLeads;
+    final incentives = data.operationalOverview.incentivesEarned;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildAttendanceSection(),
+          _buildAttendanceSection(data.attendance),
 
           // EOD Sync
           InkWell(
@@ -1147,15 +1191,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
-                          color: (operationsProvider.todayEod.isSubmitted ? Colors.green : AppColors.accentTeal).withOpacity(0.08),
+                          color: (progressPct >= 1.0 ? Colors.green : AppColors.accentTeal).withOpacity(0.08),
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: Text(
-                          operationsProvider.todayEod.isSubmitted 
+                          progressPct >= 1.0 
                               ? 'EOD Compiled' 
                               : '${(progressPct * 100).toStringAsFixed(0)}% Completed',
                           style: TextStyle(
-                            color: operationsProvider.todayEod.isSubmitted ? Colors.green : AppColors.accentTeal,
+                            color: progressPct >= 1.0 ? Colors.green : AppColors.accentTeal,
                             fontSize: 10,
                             fontWeight: FontWeight.bold,
                           ),
@@ -1171,7 +1215,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       minHeight: 8,
                       backgroundColor: const Color(0xFFF1F5F9),
                       valueColor: AlwaysStoppedAnimation<Color>(
-                        operationsProvider.todayEod.isSubmitted ? Colors.green : AppColors.accentTeal,
+                        progressPct >= 1.0 ? Colors.green : AppColors.accentTeal,
                       ),
                     ),
                   ),
@@ -1186,9 +1230,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       Row(
                         children: [
                           Text(
-                            operationsProvider.todayEod.isSubmitted ? 'View Summary' : 'Tap to Compile EOD',
+                            progressPct >= 1.0 ? 'View Summary' : 'Tap to Compile EOD',
                             style: TextStyle(
-                              color: operationsProvider.todayEod.isSubmitted ? Colors.green : AppColors.accentTeal,
+                              color: progressPct >= 1.0 ? Colors.green : AppColors.accentTeal,
                               fontSize: 11,
                               fontWeight: FontWeight.bold,
                             ),
@@ -1196,7 +1240,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           const SizedBox(width: 4),
                           Icon(
                             Icons.chevron_right_rounded, 
-                            color: operationsProvider.todayEod.isSubmitted ? Colors.green : AppColors.accentTeal, 
+                            color: progressPct >= 1.0 ? Colors.green : AppColors.accentTeal, 
                             size: 14,
                           ),
                         ],
@@ -1226,7 +1270,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             children: [
               DashboardModuleCard(
                 title: 'Assigned Leads',
-                value: '$totalTasks Active',
+                value: '$assignedLeads Active',
                 icon: Icons.task_alt_rounded,
                 iconColor: Colors.cyan,
                 onTap: () => setState(() => _currentIndex = 1),
@@ -1258,7 +1302,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
               DashboardModuleCard(
                 title: 'Incentives',
-                value: '₹${operationsProvider.totalEarnedIncentives.toStringAsFixed(0)} Earn.',
+                value: '₹${incentives.toStringAsFixed(0)} Earn.',
                 icon: Icons.auto_graph_rounded,
                 iconColor: Colors.amber,
                 onTap: () => setState(() => _currentIndex = 2),
@@ -1272,7 +1316,147 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _buildAttendanceSection() {
+  Widget _buildAttendanceCard({
+    required bool checkedIn,
+    required bool checkedOut,
+    required String checkInTime,
+    required String checkOutTime,
+    required String shiftStatus,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: const Color(0xFFEFF1F3)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.02),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: checkedIn ? Colors.green.shade50 : Colors.amber.shade50,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  checkedIn ? Icons.face_retouching_natural_rounded : Icons.lock_clock_rounded,
+                  color: checkedIn ? Colors.green.shade700 : Colors.amber.shade800,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      checkedIn ? 'Attendance Logged' : 'Attendance Required',
+                      style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.textPrimary, fontSize: 13),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      checkedIn ? 'Biometric verification linked' : 'No biometric token registered today',
+                      style: const TextStyle(color: AppColors.textSecondary, fontSize: 11),
+                    ),
+                  ],
+                ),
+              ),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: (checkedIn && !checkedOut) ? Colors.green.shade50 : AppColors.accentTeal,
+                  foregroundColor: (checkedIn && !checkedOut) ? Colors.green.shade700 : Colors.white,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  minimumSize: Size.zero,
+                ),
+                onPressed: () {
+                  Navigator.pushNamed(context, AttendanceScreen.path);
+                },
+                child: Text(
+                  (checkedIn && !checkedOut) ? 'Check Out' : 'Check In',
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11),
+                ),
+              ),
+            ],
+          ),
+          const Divider(height: 32, color: Color(0xFFF1F5F9)),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('CHECK-IN TIME', style: TextStyle(color: AppColors.textSecondary, fontSize: 9, fontWeight: FontWeight.w800, letterSpacing: 0.5)),
+                  const SizedBox(height: 4),
+                  Text(checkInTime, style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.textPrimary, fontSize: 13)),
+                ],
+              ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('CHECK-OUT TIME', style: TextStyle(color: AppColors.textSecondary, fontSize: 9, fontWeight: FontWeight.w800, letterSpacing: 0.5)),
+                  const SizedBox(height: 4),
+                  Text(checkOutTime, style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.textPrimary, fontSize: 13)),
+                ],
+              ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('SHIFT STATUS', style: TextStyle(color: AppColors.textSecondary, fontSize: 9, fontWeight: FontWeight.w800, letterSpacing: 0.5)),
+                  const SizedBox(height: 4),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: (checkedIn && !checkedOut) ? Colors.green.withOpacity(0.08) : Colors.grey.withOpacity(0.08),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      shiftStatus,
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold, 
+                        color: checkedOut ? Colors.grey : checkedIn ? Colors.green.shade700 : AppColors.textPrimary, 
+                        fontSize: 10,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAttendanceSection([HomeAttendance? apiAttendance]) {
+    if (apiAttendance != null) {
+      final bool checkedIn = apiAttendance.isCheckedIn;
+      final bool checkedOut = apiAttendance.shiftStatus == 'COMPLETED' || apiAttendance.shiftStatus == 'CHECKED_OUT';
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildAttendanceCard(
+            checkedIn: checkedIn,
+            checkedOut: checkedOut,
+            checkInTime: apiAttendance.checkInTime,
+            checkOutTime: apiAttendance.checkOutTime,
+            shiftStatus: apiAttendance.shiftStatus,
+          ),
+          const SizedBox(height: 20),
+        ],
+      );
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1291,118 +1475,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
             final String checkInTime = att.isAbsent ? '--:--' : DateFormat('hh:mm a').format(att.checkInTime);
             final String checkOutTime = (att.checkOutTime == null) ? '--:--' : DateFormat('hh:mm a').format(att.checkOutTime!);
 
-            return Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(24),
-                border: Border.all(color: const Color(0xFFEFF1F3)),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.02),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: Column(
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: checkedIn ? Colors.green.shade50 : Colors.amber.shade50,
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(
-                          checkedIn ? Icons.face_retouching_natural_rounded : Icons.lock_clock_rounded,
-                          color: checkedIn ? Colors.green.shade700 : Colors.amber.shade800,
-                          size: 20,
-                        ),
-                      ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              checkedIn ? 'Attendance Logged' : 'Attendance Required',
-                              style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.textPrimary, fontSize: 13),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              checkedIn ? 'Biometric verification linked' : 'No biometric token registered today',
-                              style: const TextStyle(color: AppColors.textSecondary, fontSize: 11),
-                            ),
-                          ],
-                        ),
-                      ),
-                      ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: (checkedIn && !checkedOut) ? Colors.green.shade50 : AppColors.accentTeal,
-                          foregroundColor: (checkedIn && !checkedOut) ? Colors.green.shade700 : Colors.white,
-                          elevation: 0,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                          minimumSize: Size.zero,
-                        ),
-                        onPressed: () {
-                          Navigator.pushNamed(context, AttendanceScreen.path);
-                        },
-                        child: Text(
-                          (checkedIn && !checkedOut) ? 'Check Out' : 'Check In',
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const Divider(height: 32, color: Color(0xFFF1F5F9)),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text('CHECK-IN TIME', style: TextStyle(color: AppColors.textSecondary, fontSize: 9, fontWeight: FontWeight.w800, letterSpacing: 0.5)),
-                          const SizedBox(height: 4),
-                          Text(checkInTime, style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.textPrimary, fontSize: 13)),
-                        ],
-                      ),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text('CHECK-OUT TIME', style: TextStyle(color: AppColors.textSecondary, fontSize: 9, fontWeight: FontWeight.w800, letterSpacing: 0.5)),
-                          const SizedBox(height: 4),
-                          Text(checkOutTime, style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.textPrimary, fontSize: 13)),
-                        ],
-                      ),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text('SHIFT STATUS', style: TextStyle(color: AppColors.textSecondary, fontSize: 9, fontWeight: FontWeight.w800, letterSpacing: 0.5)),
-                          const SizedBox(height: 4),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: (checkedIn && !checkedOut) ? Colors.green.withOpacity(0.08) : Colors.grey.withOpacity(0.08),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: Text(
-                              checkedOut ? 'COMPLETED' : checkedIn ? 'ACTIVE' : 'OFFLINE',
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold, 
-                                color: checkedOut ? Colors.grey : checkedIn ? Colors.green.shade700 : AppColors.textPrimary, 
-                                fontSize: 10,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ],
-              ),
+            return _buildAttendanceCard(
+              checkedIn: checkedIn,
+              checkedOut: checkedOut,
+              checkInTime: checkInTime,
+              checkOutTime: checkOutTime,
+              shiftStatus: checkedOut ? 'COMPLETED' : checkedIn ? 'ACTIVE' : 'OFFLINE',
             );
           },
         ),

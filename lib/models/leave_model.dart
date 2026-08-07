@@ -1,10 +1,19 @@
+import 'package:json_annotation/json_annotation.dart';
+
+part 'leave_model.g.dart';
+
+@JsonSerializable()
 class LeaveModel {
   final String id;
-  final String leaveType; // 'Casual Leave' | 'Medical Leave' | 'Earned Leave'
+  @JsonKey(name: 'leave_type')
+  final String leaveType;
+  @JsonKey(name: 'from_date')
   final DateTime fromDate;
+  @JsonKey(name: 'to_date')
   final DateTime toDate;
   final String reason;
-  final String status; // 'Pending' | 'Approved' | 'Rejected'
+  final String status;
+  @JsonKey(name: 'applied_date')
   final DateTime appliedDate;
 
   LeaveModel({
@@ -16,6 +25,9 @@ class LeaveModel {
     this.status = 'Pending',
     required this.appliedDate,
   });
+
+  factory LeaveModel.fromJson(Map<String, dynamic> json) => _$LeaveModelFromJson(json);
+  Map<String, dynamic> toJson() => _$LeaveModelToJson(this);
 
   LeaveModel copyWith({
     String? status,

@@ -4,6 +4,7 @@ import '../services/auth_service.dart';
 import '../providers/permission_provider.dart';
 import 'dashboard_screen.dart';
 import 'login_screen.dart';
+import 'set_password_screen.dart';
 
 class SplashScreen extends StatefulWidget {
   static const String path = '/';
@@ -42,7 +43,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     // Wait for splash animation first phase
     await Future.delayed(const Duration(milliseconds: 1500));
     
-    // Ask all permissions sequentially before going further
+    // Ask all permissions required by the application before going further
     await PermissionProvider.instance.requestAll();
     
     // Small buffer delay for smooth transition
@@ -51,13 +52,19 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     if (!mounted) return;
 
     final bool isLoggedIn = await AuthService.instance.isUserLoggedIn();
+    final bool requirePasswordChange = await AuthService.instance.hasPendingPasswordChange();
 
     if (!mounted) return;
 
-    Navigator.pushReplacementNamed(
-      context,
-      isLoggedIn ? DashboardScreen.path : LoginScreen.path,
-    );
+    if (isLoggedIn) {
+      if (requirePasswordChange) {
+        Navigator.pushReplacementNamed(context, SetPasswordScreen.path);
+      } else {
+        Navigator.pushReplacementNamed(context, DashboardScreen.path);
+      }
+    } else {
+      Navigator.pushReplacementNamed(context, LoginScreen.path);
+    }
   }
 
   @override

@@ -1,11 +1,17 @@
+import 'package:json_annotation/json_annotation.dart';
+
+part 'incentive_model.g.dart';
+
+@JsonSerializable()
 class IncentiveModel {
   final String id;
-  final String category; // 'Sales Target' | 'New Client' | 'Route Bonus' | 'High-Value Booking' | 'Promotional'
+  final String category;
   final double amount;
   final String remarks;
   final DateTime date;
-  final String? achievementProofPath; // Snapshot or Invoice proof
-  final String status; // 'Pending' | 'Approved' | 'Paid'
+  @JsonKey(name: 'achievement_proof_path')
+  final String? achievementProofPath;
+  final String status;
 
   IncentiveModel({
     required this.id,
@@ -16,6 +22,9 @@ class IncentiveModel {
     this.achievementProofPath,
     this.status = 'Pending',
   });
+
+  factory IncentiveModel.fromJson(Map<String, dynamic> json) => _$IncentiveModelFromJson(json);
+  Map<String, dynamic> toJson() => _$IncentiveModelToJson(this);
 
   IncentiveModel copyWith({
     String? status,

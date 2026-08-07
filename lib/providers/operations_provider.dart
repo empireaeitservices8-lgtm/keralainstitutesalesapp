@@ -1,5 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:keralainstitutesalesapp/api/api_response.dart';
+import 'package:keralainstitutesalesapp/models/user_profile_model.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:intl/intl.dart';
+import '../api/api_client.dart';
+import '../api/api_endpoints.dart';
+import '../api/exceptions/api_exception.dart';
+import '../api/exceptions/network_exception.dart';
 import '../models/beat_plan_model.dart';
 import '../models/task_model.dart';
 import '../models/incentive_model.dart';
@@ -7,6 +14,7 @@ import '../models/leave_model.dart';
 import '../models/eod_model.dart';
 import '../models/training_video_model.dart';
 import 'auth_provider.dart';
+import 'user_profile_provider.dart';
 
 class OperationsProvider extends ChangeNotifier {
   static final OperationsProvider instance = OperationsProvider._internal();
@@ -25,6 +33,7 @@ class OperationsProvider extends ChangeNotifier {
 
   // Selected district filter for ZM Dashboard
   String? _selectedDistrictFilter;
+  bool _isLeavesLoaded = false;
 
   // Getters (filtered dynamically based on user session role & zone/district)
   List<BeatPlanModel> get beatPlans {
@@ -54,16 +63,21 @@ class OperationsProvider extends ChangeNotifier {
   int get completedVisitsCount => beatPlans.where((v) => v.isVisited).length;
   int get pendingVisitsCount => beatPlans.where((v) => !v.isVisited).length;
   int get totalVisitsCount => beatPlans.length;
-  
-  int get completedTasksCount => tasks.where((t) => t.status == 'Completed').length;
-  int get pendingTasksCount => tasks.where((t) => t.status != 'Completed').length;
-  
+
+  int get completedTasksCount =>
+      tasks.where((t) => t.status == 'Completed').length;
+  int get pendingTasksCount =>
+      tasks.where((t) => t.status != 'Completed').length;
+
   double get totalEarnedIncentives => _incentives
       .where((i) => i.status == 'Approved' || i.status == 'Paid')
       .fold(0.0, (sum, item) => sum + item.amount);
 
   int get totalLeavesTakenThisMonth => _leaves
-      .where((l) => l.status == 'Approved' && l.fromDate.month == DateTime.now().month)
+      .where(
+        (l) =>
+            l.status == 'Approved' && l.fromDate.month == DateTime.now().month,
+      )
       .length;
 
   // ZM filter setter
@@ -83,8 +97,11 @@ class OperationsProvider extends ChangeNotifier {
         return _tasks;
       case 'ZM':
         var list = _tasks.where((t) => t.zone == user.zone).toList();
-        if (_selectedDistrictFilter != null && _selectedDistrictFilter!.isNotEmpty) {
-          list = list.where((t) => t.district == _selectedDistrictFilter).toList();
+        if (_selectedDistrictFilter != null &&
+            _selectedDistrictFilter!.isNotEmpty) {
+          list = list
+              .where((t) => t.district == _selectedDistrictFilter)
+              .toList();
         }
         return list;
       case 'ASM':
@@ -93,7 +110,13 @@ class OperationsProvider extends ChangeNotifier {
         return _tasks.where((t) => t.team == user.team).toList();
       case 'BDE':
       default:
-        return _tasks.where((t) => t.assignedBdeEmail == user.email || t.creatorEmail == user.email).toList();
+        return _tasks
+            .where(
+              (t) =>
+                  t.assignedBdeEmail == user.email ||
+                  t.creatorEmail == user.email,
+            )
+            .toList();
     }
   }
 
@@ -104,8 +127,11 @@ class OperationsProvider extends ChangeNotifier {
         return _beatPlans;
       case 'ZM':
         var list = _beatPlans.where((v) => v.zone == user.zone).toList();
-        if (_selectedDistrictFilter != null && _selectedDistrictFilter!.isNotEmpty) {
-          list = list.where((v) => v.district == _selectedDistrictFilter).toList();
+        if (_selectedDistrictFilter != null &&
+            _selectedDistrictFilter!.isNotEmpty) {
+          list = list
+              .where((v) => v.district == _selectedDistrictFilter)
+              .toList();
         }
         return list;
       case 'ASM':
@@ -114,14 +140,16 @@ class OperationsProvider extends ChangeNotifier {
         return _beatPlans.where((v) => v.team == user.team).toList();
       case 'BDE':
       default:
-        return _beatPlans.where((v) => v.assignedBdeEmail == user.email).toList();
+        return _beatPlans
+            .where((v) => v.assignedBdeEmail == user.email)
+            .toList();
     }
   }
 
   /// Load data from local persistence or generate defaults
-  Future<void> loadOperationsData() async {
+  Future<void> loadOperationsData({bool isRefresh = false}) async {
     final prefs = await SharedPreferences.getInstance();
-    
+
     // Load Leaves & Balances
     _leaveBalanceCasual = prefs.getInt('leave_bal_casual') ?? 8;
     _leaveBalanceMedical = prefs.getInt('leave_bal_medical') ?? 4;
@@ -187,7 +215,8 @@ class OperationsProvider extends ChangeNotifier {
         TrainingVideoModel(
           id: 'VID_001',
           title: 'KIDE Advanced AI & ML Pitching',
-          description: 'Learn the core syllabus details for AI/ML, career prospects, and post-graduate placements to pitch parents.',
+          description:
+              'Learn the core syllabus details for AI/ML, career prospects, and post-graduate placements to pitch parents.',
           duration: '6 min 15 sec',
           difficulty: 'Beginner',
           videoUrl: 'https://www.youtube.com/watch?v=2ePf97aNfCo',
@@ -195,7 +224,8 @@ class OperationsProvider extends ChangeNotifier {
         TrainingVideoModel(
           id: 'VID_002',
           title: 'Handling Parent & Fee Concerns',
-          description: 'How to handle common questions regarding course fees, monthly installment options, and scholarship criteria.',
+          description:
+              'How to handle common questions regarding course fees, monthly installment options, and scholarship criteria.',
           duration: '5 min 45 sec',
           difficulty: 'Intermediate',
           videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
@@ -203,7 +233,8 @@ class OperationsProvider extends ChangeNotifier {
         TrainingVideoModel(
           id: 'VID_003',
           title: 'Pitching Cyber Security & Dev Ops',
-          description: 'Guide to explaining online-hybrid program tracks, industrial tie-ups, and placement eligibility checks.',
+          description:
+              'Guide to explaining online-hybrid program tracks, industrial tie-ups, and placement eligibility checks.',
           duration: '4 min 30 sec',
           difficulty: 'Intermediate',
           videoUrl: 'https://www.youtube.com/watch?v=nz20e0Q6ZkE',
@@ -211,7 +242,8 @@ class OperationsProvider extends ChangeNotifier {
         TrainingVideoModel(
           id: 'VID_004',
           title: 'Logging Biometric Reports & Proofs',
-          description: 'Tutorial on capturing correct document/selfie proof and selecting the appropriate status for student leads.',
+          description:
+              'Tutorial on capturing correct document/selfie proof and selecting the appropriate status for student leads.',
           duration: '3 min 12 sec',
           difficulty: 'Beginner',
           videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
@@ -228,10 +260,12 @@ class OperationsProvider extends ChangeNotifier {
           studentName: 'Sujith Kumar',
           location: 'Kakkanad Junction, Kochi (Opp. Sunrise Hospital)',
           course: 'Diploma in Advanced AI & ML',
-          description: 'Introduce KIDE career programs, verify school records, and check scholarship eligibility.',
+          description:
+              'Introduce KIDE career programs, verify school records, and check scholarship eligibility.',
           status: 'Completed',
           leadStatus: 'Admitted',
-          remarks: 'Parent checked fee installment options, registered first term admission.',
+          remarks:
+              'Parent checked fee installment options, registered first term admission.',
           assignedDate: DateTime.now().subtract(const Duration(days: 2)),
           completedDate: DateTime.now().subtract(const Duration(days: 1)),
           completionProofPath: 'receipt_sujith.jpg',
@@ -245,10 +279,12 @@ class OperationsProvider extends ChangeNotifier {
           studentName: 'Akhila Pillai',
           location: 'Vyttila Hub Road, Ernakulam (Behind Metro Station)',
           course: 'Executive MBA & Digital Business',
-          description: 'Explain business program curriculum, flexible online-hybrid classes, and career opportunities.',
+          description:
+              'Explain business program curriculum, flexible online-hybrid classes, and career opportunities.',
           status: 'Completed',
           leadStatus: 'Interested',
-          remarks: 'Applicant is working full-time. Will discuss hybrid program schedule next Monday.',
+          remarks:
+              'Applicant is working full-time. Will discuss hybrid program schedule next Monday.',
           assignedDate: DateTime.now().subtract(const Duration(days: 2)),
           completedDate: DateTime.now().subtract(const Duration(days: 1)),
           completionProofPath: 'callback_akhila.jpg',
@@ -262,7 +298,8 @@ class OperationsProvider extends ChangeNotifier {
           studentName: 'Sneha Mary John',
           location: 'Palarivattom Metro Exit, Kochi (Green Villa Lane)',
           course: 'Certified Digital Marketing Specialist',
-          description: 'Introduce KIDE career scholarship benefits, discuss internship tracks.',
+          description:
+              'Introduce KIDE career scholarship benefits, discuss internship tracks.',
           status: 'Pending',
           assignedDate: DateTime.now(),
           assignedBdeEmail: 'bde.ernakulam.b1@keralainstitute.org',
@@ -275,7 +312,8 @@ class OperationsProvider extends ChangeNotifier {
           studentName: 'Abhishek Nair',
           location: 'Edappally Toll, Kochi',
           course: 'M.Tech in Cyber Security',
-          description: 'Counselling regarding scholarship criteria & placement track record.',
+          description:
+              'Counselling regarding scholarship criteria & placement track record.',
           status: 'Pending',
           assignedDate: DateTime.now(),
           assignedBdeEmail: 'bde.ernakulam.a1@keralainstitute.org',
@@ -288,7 +326,8 @@ class OperationsProvider extends ChangeNotifier {
           studentName: 'Rinu Joseph',
           location: 'Angamaly Town, Ernakulam',
           course: 'B.Tech in Artificial Intelligence',
-          description: 'Discuss post-graduate placement statistics and schedule entry exam.',
+          description:
+              'Discuss post-graduate placement statistics and schedule entry exam.',
           status: 'Pending',
           assignedDate: DateTime.now(),
           assignedBdeEmail: 'bde.ernakulam.a2@keralainstitute.org',
@@ -296,14 +335,15 @@ class OperationsProvider extends ChangeNotifier {
           district: 'Ernakulam',
           zone: 'Central Zone',
         ),
-        
+
         // --- South Zone (Thiruvananthapuram District) ---
         TaskModel(
           id: 'LD_301',
           studentName: 'Ajay Kumar',
           location: 'Technopark Phase-3 Gate, Kazhakoottam, TVM',
           course: 'Post-Graduate Program in Devops',
-          description: 'Brief details on course modules, flexible online classes.',
+          description:
+              'Brief details on course modules, flexible online classes.',
           status: 'Pending',
           assignedDate: DateTime.now(),
           assignedBdeEmail: 'bde.trivandrum.a1@keralainstitute.org',
@@ -333,7 +373,8 @@ class OperationsProvider extends ChangeNotifier {
           studentName: 'Abhirami Suresh',
           location: 'Kazhakoottam Bypass Road, Thiruvananthapuram',
           course: 'Post-Graduate Program in Devops',
-          description: 'Explain hybrid learning options, verify standard criteria.',
+          description:
+              'Explain hybrid learning options, verify standard criteria.',
           status: 'Pending',
           assignedDate: DateTime.now(),
           assignedBdeEmail: 'bde.trivandrum.a1@keralainstitute.org',
@@ -361,7 +402,8 @@ class OperationsProvider extends ChangeNotifier {
           studentName: 'Devanand R.',
           location: 'MG Road, Kozhikode (Near City Mall)',
           course: 'Full Stack Web Development & UI/UX',
-          description: 'Discuss post-graduate placement statistics and schedule entry exam.',
+          description:
+              'Discuss post-graduate placement statistics and schedule entry exam.',
           status: 'Pending',
           assignedDate: DateTime.now(),
           assignedBdeEmail: 'bde.kozhikode.a1@keralainstitute.org',
@@ -404,7 +446,8 @@ class OperationsProvider extends ChangeNotifier {
           studentName: 'Nikhil Raj',
           location: 'MG Road, Kozhikode',
           course: 'Certified Digital Marketing Specialist',
-          description: 'Parent meeting regarding course features and loan option.',
+          description:
+              'Parent meeting regarding course features and loan option.',
           status: 'Pending',
           assignedDate: DateTime.now(),
           assignedBdeEmail: 'bde.kozhikode.a2@keralainstitute.org',
@@ -418,7 +461,8 @@ class OperationsProvider extends ChangeNotifier {
           studentName: 'Aswathy S.',
           location: 'Swaraj Round, Thrissur',
           course: 'Certified Digital Marketing Specialist',
-          description: 'Parent meeting regarding course features and career prospects.',
+          description:
+              'Parent meeting regarding course features and career prospects.',
           status: 'Pending',
           assignedDate: DateTime.now(),
           assignedBdeEmail: 'bde.thrissur.a1@keralainstitute.org',
@@ -431,10 +475,12 @@ class OperationsProvider extends ChangeNotifier {
           studentName: 'Gokul Das',
           location: 'West Fort, Thrissur',
           course: 'B.Tech in Artificial Intelligence',
-          description: 'Counselling session and scholarship documents verification.',
+          description:
+              'Counselling session and scholarship documents verification.',
           status: 'Completed',
           leadStatus: 'Admitted',
-          remarks: 'Registered under scholarship quota. Paid registration token.',
+          remarks:
+              'Registered under scholarship quota. Paid registration token.',
           assignedDate: DateTime.now().subtract(const Duration(days: 3)),
           completedDate: DateTime.now().subtract(const Duration(days: 1)),
           completionProofPath: 'thrissur_gokul_receipt.jpg',
@@ -465,7 +511,8 @@ class OperationsProvider extends ChangeNotifier {
           description: 'Verify certificates for 15% regional discount.',
           status: 'Completed',
           leadStatus: 'Interested',
-          remarks: 'Candidate is highly interested. Discussion with father scheduled next Tuesday.',
+          remarks:
+              'Candidate is highly interested. Discussion with father scheduled next Tuesday.',
           assignedDate: DateTime.now().subtract(const Duration(days: 4)),
           completedDate: DateTime.now().subtract(const Duration(days: 2)),
           completionProofPath: 'kollam_hari_status.jpg',
@@ -523,7 +570,8 @@ class OperationsProvider extends ChangeNotifier {
           isVisited: true,
           checkInTime: DateTime.now().subtract(const Duration(hours: 3)),
           selfiePath: 'campus_selfie.jpg',
-          visitNotes: 'Completed counselling session, 12 admissions registered.',
+          visitNotes:
+              'Completed counselling session, 12 admissions registered.',
           orderValue: 150000.0,
           status: 'Completed',
           assignedBdeEmail: 'bde.ernakulam.a1@keralainstitute.org',
@@ -543,7 +591,8 @@ class OperationsProvider extends ChangeNotifier {
           isVisited: true,
           checkInTime: DateTime.now().subtract(const Duration(hours: 1)),
           selfiePath: 'college_drive.jpg',
-          visitNotes: 'Document collection drive completed. Verified 18 applications.',
+          visitNotes:
+              'Document collection drive completed. Verified 18 applications.',
           orderValue: 0.0,
           status: 'Completed',
           assignedBdeEmail: 'bde.kozhikode.a1@keralainstitute.org',
@@ -591,7 +640,8 @@ class OperationsProvider extends ChangeNotifier {
           isVisited: true,
           checkInTime: DateTime.now().subtract(const Duration(hours: 4)),
           selfiePath: 'thrissur_survey.jpg',
-          visitNotes: 'Collected feedback from 15 merchants. Registered 3 follow-ups.',
+          visitNotes:
+              'Collected feedback from 15 merchants. Registered 3 follow-ups.',
           status: 'Completed',
           assignedBdeEmail: 'bde.thrissur.a1@keralainstitute.org',
           team: 'Thrissur Team A',
@@ -639,14 +689,102 @@ class OperationsProvider extends ChangeNotifier {
         pendingVisits: prefs.getInt('eod_pending') ?? 0,
         remarks: prefs.getString('eod_remarks') ?? '',
         dailySummary: prefs.getString('eod_summary') ?? '',
-        submissionTime: DateTime.parse(prefs.getString('eod_time') ?? DateTime.now().toIso8601String()),
+        submissionTime: DateTime.parse(
+          prefs.getString('eod_time') ?? DateTime.now().toIso8601String(),
+        ),
         isSubmitted: true,
       );
     } else {
       _todayEod = EodModel.empty();
     }
 
+    // Fetch live leaves from API
+    await fetchLeaves(isRefresh: isRefresh);
+
     notifyListeners();
+  }
+
+  /// Fetch leaves from remote API GET /api/leaves
+  Future<void> fetchLeaves({bool isRefresh = false}) async {
+    if (!isRefresh && _isLeavesLoaded) return;
+
+    try {
+      final response = await ApiClient.instance.get(ApiEndpoints.leaves);
+      if (response.data != null && response.data['success'] == true) {
+        final data = response.data['data'];
+
+        // Update balances
+        if (data['balances'] != null) {
+          final balances = data['balances'];
+          _leaveBalanceCasual = balances['casual'] ?? _leaveBalanceCasual;
+          _leaveBalanceMedical = balances['medical'] ?? _leaveBalanceMedical;
+          _leaveBalanceEarned = balances['earned'] ?? _leaveBalanceEarned;
+
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setInt('leave_bal_casual', _leaveBalanceCasual);
+          await prefs.setInt('leave_bal_medical', _leaveBalanceMedical);
+          await prefs.setInt('leave_bal_earned', _leaveBalanceEarned);
+        }
+
+        // Update leave history list
+        if (data['history'] != null) {
+          final List<dynamic> history = data['history'];
+          _leaves = history.map((item) {
+            final id = item['id'].toString();
+            final typeName = item['type_name'] ?? '';
+            String mappedLeaveType = typeName;
+            if (mappedLeaveType.isNotEmpty &&
+                !mappedLeaveType.toLowerCase().contains('leave')) {
+              mappedLeaveType = '$mappedLeaveType Leave';
+            }
+            final fromDate =
+                DateTime.tryParse(item['start_date'] ?? '') ?? DateTime.now();
+            final toDate =
+                DateTime.tryParse(item['end_date'] ?? '') ?? DateTime.now();
+            final reason = item['reason'] ?? '';
+            final status = item['status_name'] ?? 'Pending';
+            final appliedDate =
+                DateTime.tryParse(item['applied_on'] ?? '') ?? DateTime.now();
+
+            return LeaveModel(
+              id: id,
+              leaveType: mappedLeaveType,
+              fromDate: fromDate,
+              toDate: toDate,
+              reason: reason,
+              status: status,
+              appliedDate: appliedDate,
+            );
+          }).toList();
+        }
+
+        // Update UserProfileProvider leave balances to keep them in sync
+        final profileState = UserProfileProvider.instance.state;
+        if (profileState.data != null) {
+          final profile = profileState.data!;
+          final updatedProfile = UserProfileModel(
+            name: profile.name,
+            designation: profile.designation,
+            email: profile.email,
+            contactNumber: profile.contactNumber,
+            employeeId: profile.employeeId,
+            leaveBalances: LeaveBalances(
+              casual: _leaveBalanceCasual,
+              medical: _leaveBalanceMedical,
+              earned: _leaveBalanceEarned,
+            ),
+          );
+          UserProfileProvider.instance.setState(
+            ApiResponse.success(updatedProfile),
+          );
+        }
+
+        _isLeavesLoaded = true;
+        notifyListeners();
+      }
+    } catch (e) {
+      debugPrint('Error fetching leaves: $e');
+    }
   }
 
   /// Reset all simulation logs to defaults (testing shortcut)
@@ -673,14 +811,20 @@ class OperationsProvider extends ChangeNotifier {
     _leaves.clear();
     _todayEod = EodModel.empty();
     _selectedDistrictFilter = null;
+    _isLeavesLoaded = false;
 
     await loadOperationsData();
   }
 
   // --- Beat Plan Actions ---
-  
+
   /// Check-in at a customer location
-  Future<void> checkInVisit(String id, String selfie, double lat, double lng) async {
+  Future<void> checkInVisit(
+    String id,
+    String selfie,
+    double lat,
+    double lng,
+  ) async {
     final index = _beatPlans.indexWhere((v) => v.id == id);
     if (index != -1) {
       _beatPlans[index] = _beatPlans[index].copyWith(
@@ -694,7 +838,13 @@ class OperationsProvider extends ChangeNotifier {
   }
 
   /// Log activities during visit
-  Future<void> logVisitActivities(String id, {required String notes, required double orderValue, required String followUp, String? attachment}) async {
+  Future<void> logVisitActivities(
+    String id, {
+    required String notes,
+    required double orderValue,
+    required String followUp,
+    String? attachment,
+  }) async {
     final index = _beatPlans.indexWhere((v) => v.id == id);
     if (index != -1) {
       _beatPlans[index] = _beatPlans[index].copyWith(
@@ -708,7 +858,7 @@ class OperationsProvider extends ChangeNotifier {
   }
 
   // --- Task Actions ---
-  
+
   /// Update task status (Student Lead admission)
   Future<void> updateTaskStatus(
     String id,
@@ -745,9 +895,14 @@ class OperationsProvider extends ChangeNotifier {
   }
 
   // --- Incentive Actions ---
-  
+
   /// Create new incentive claim
-  Future<void> createIncentive(String category, double amount, String remarks, String? proofPath) async {
+  Future<void> createIncentive(
+    String category,
+    double amount,
+    String remarks,
+    String? proofPath,
+  ) async {
     final newInc = IncentiveModel(
       id: 'INC_${DateTime.now().millisecondsSinceEpoch.toString().substring(8)}',
       category: category,
@@ -762,7 +917,7 @@ class OperationsProvider extends ChangeNotifier {
   }
 
   // --- Training Video Actions ---
-  
+
   /// Mark video as completed/watched
   void toggleVideoCompleted(String id) {
     final index = _trainingVideos.indexWhere((v) => v.id == id);
@@ -773,20 +928,56 @@ class OperationsProvider extends ChangeNotifier {
   }
 
   // --- Leave Actions ---
-  
+
   /// Apply for a new leave request
-  Future<bool> applyLeave(String type, DateTime from, DateTime to, String reason) async {
+  Future<bool> applyLeave(
+    String type,
+    DateTime from,
+    DateTime to,
+    String reason,
+  ) async {
     final diff = to.difference(from).inDays + 1;
-    
-    // Deduct from balance check
-    if (type == 'Casual Leave' && _leaveBalanceCasual >= diff) {
-      _leaveBalanceCasual -= diff;
-    } else if (type == 'Medical Leave' && _leaveBalanceMedical >= diff) {
-      _leaveBalanceMedical -= diff;
-    } else if (type == 'Earned Leave' && _leaveBalanceEarned >= diff) {
-      _leaveBalanceEarned -= diff;
-    } else {
-      return false; // insufficient balance
+
+    // Map string leaveType to API integer code
+    int apiTypeCode = 1;
+    if (type == 'Medical Leave') {
+      apiTypeCode = 2;
+    } else if (type == 'Earned Leave') {
+      apiTypeCode = 3;
+    }
+
+    final formattedFrom = DateFormat('yyyy-MM-dd').format(from);
+    final formattedTo = DateFormat('yyyy-MM-dd').format(to);
+
+    try {
+      final response = await ApiClient.instance.post(
+        ApiEndpoints.applyLeave,
+        data: {
+          'type': apiTypeCode,
+          'start_date': formattedFrom,
+          'end_date': formattedTo,
+          'reason': reason,
+        },
+      );
+
+      if (response.data != null && response.data['success'] == true) {
+        // Refresh profile to fetch updated leave balances from the server
+        await UserProfileProvider.instance.fetchUserProfile(isRefresh: true);
+      }
+    } on NetworkException catch (_) {
+      // Offline/TLS decryption fallback: locally decrease mock balances to maintain function
+      if (type == 'Casual Leave' && _leaveBalanceCasual >= diff) {
+        _leaveBalanceCasual -= diff;
+      } else if (type == 'Medical Leave' && _leaveBalanceMedical >= diff) {
+        _leaveBalanceMedical -= diff;
+      } else if (type == 'Earned Leave' && _leaveBalanceEarned >= diff) {
+        _leaveBalanceEarned -= diff;
+      } else {
+        return false; // insufficient balance
+      }
+    } catch (e) {
+      // Rethrow validation or other API errors so the UI can catch and display the exact error message
+      rethrow;
     }
 
     final newLeave = LeaveModel(
@@ -811,7 +1002,7 @@ class OperationsProvider extends ChangeNotifier {
   }
 
   // --- EOD Actions ---
-  
+
   /// Submit End of Day Report
   Future<void> submitEodReport(String remarks, String summary) async {
     final completedVisits = completedVisitsCount;
@@ -819,7 +1010,14 @@ class OperationsProvider extends ChangeNotifier {
     final time = DateTime.now();
 
     final leads = completedVisits;
-    final followups = beatPlans.where((v) => v.isVisited && v.followUpDate != null && v.followUpDate!.isNotEmpty).length;
+    final followups = beatPlans
+        .where(
+          (v) =>
+              v.isVisited &&
+              v.followUpDate != null &&
+              v.followUpDate!.isNotEmpty,
+        )
+        .length;
 
     _todayEod = EodModel(
       id: 'EOD_TODAY',

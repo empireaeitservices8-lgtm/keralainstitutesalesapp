@@ -1,5 +1,11 @@
+import 'package:flutter/foundation.dart';
 import 'package:local_auth/local_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../api/api_client.dart';
+import '../api/api_endpoints.dart';
+import '../api/exceptions/api_exception.dart';
+import '../storage/secure_storage_service.dart';
+import '../models/user_session.dart';
 
 class AuthService {
   static final AuthService instance = AuthService._internal();
@@ -18,6 +24,7 @@ class AuthService {
   static const String _keyUserZone = 'user_zone';
   static const String _keyUserDistrict = 'user_district';
   static const String _keyUserTeam = 'user_team';
+  static const String _keyRequirePasswordChange = 'require_password_change';
 
   // Preconfigured roles database for Kerala Institute Sales App SFA
   static const Map<String, Map<String, String>> mockUsers = {
@@ -238,13 +245,15 @@ class AuthService {
   /// Helper to save user profile in preferences
   Future<void> _saveUserProfile(SharedPreferences prefs, String email) async {
     final cleanEmail = email.trim().toLowerCase();
-    final profile = mockUsers[cleanEmail] ?? {
-      'name': email.split('@').first.toUpperCase(),
-      'role': 'BDE',
-      'zone': 'Central Zone',
-      'district': 'Ernakulam',
-      'team': 'Ernakulam Team A',
-    };
+    final profile =
+        mockUsers[cleanEmail] ??
+        {
+          'name': email.split('@').first.toUpperCase(),
+          'role': 'BDE',
+          'zone': 'Central Zone',
+          'district': 'Ernakulam',
+          'team': 'Ernakulam Team A',
+        };
 
     await prefs.setString(_keyUserEmail, cleanEmail);
     await prefs.setString(_keyUserName, profile['name'] ?? 'User');
@@ -255,17 +264,109 @@ class AuthService {
   }
 
   /// Authenticate using Email and Password
-  Future<bool> loginWithEmail(String email, String password, bool rememberMe) async {
-    // For demo/sales app purposes, we allow any valid-looking email with password longer than 5 chars
-    if (email.contains('@') && password.length >= 6) {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setBool(_keyIsLoggedIn, true);
-      await prefs.setString(_keyAuthType, 'Email & Password');
-      await prefs.setBool(_keyRememberMe, rememberMe);
-      await _saveUserProfile(prefs, email);
-      // Generate a mock secure session/device token
-      await prefs.setString(_keyDeviceToken, 'email_session_${DateTime.now().millisecondsSinceEpoch}');
-      return true;
+  Future<bool> loginWithEmail(
+    String email,
+    String password,
+    bool rememberMe,
+  ) async {
+    try {
+      final response = await ApiClient.instance.post(
+        ApiEndpoints.login,
+        data: {'employee_id': email, 'password': password},
+      );
+
+      if (response.statusCode == 200 && response.data != null) {
+        final Map<String, dynamic> body = response.data as Map<String, dynamic>;
+        if (body['success'] == true) {
+          final data = body['data'] as Map<String, dynamic>;
+          final String token = data['token'] as String;
+          final Map<String, dynamic> user =
+              data['user'] as Map<String, dynamic>;
+
+          // Save the token to SecureStorageService
+          await SecureStorageService.instance.saveAccessToken(token);
+
+          // Extract require_password_change key
+          final bool requirePasswordChange =
+              body['require_password_change'] == true ||
+              data['require_password_change'] == true ||
+              user['require_password_change'] == true;
+
+          // Get SharedPreferences instance
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setBool(_keyIsLoggedIn, true);
+          await prefs.setString(_keyAuthType, 'Email & Password');
+          await prefs.setBool(_keyRememberMe, rememberMe);
+          await prefs.setBool(_keyRequirePasswordChange, requirePasswordChange);
+
+          // Extract user details
+          final String name = user['name'] ?? 'User';
+          final String userEmail = user['email'] ?? email;
+          final String designation = user['designation_name'] ?? 'BDE';
+
+          // Map designation to user role code: 'MD' | 'ZM' | 'ASM' | 'BDM' | 'BDE'
+          String role = 'BDE';
+          final cleanDes = designation.toLowerCase();
+          if (cleanDes.contains('managing director') ||
+              cleanDes.contains('super admin') ||
+              cleanDes.contains('admin')) {
+            role = 'MD';
+          } else if (cleanDes.contains('zonal')) {
+            role = 'ZM';
+          } else if (cleanDes.contains('area sales') ||
+              cleanDes.contains('district')) {
+            role = 'ASM';
+          } else if (cleanDes.contains('business development manager') ||
+              cleanDes.contains('team leader')) {
+            role = 'BDM';
+          } else {
+            role = 'BDE';
+          }
+
+          // Use mapped zone/district/team from mock users if they exist to keep compatibility
+          final cleanEmail = userEmail.trim().toLowerCase();
+          final mockProfile = mockUsers[cleanEmail];
+          final String zone = mockProfile?['zone'] ?? '';
+          final String district = mockProfile?['district'] ?? '';
+          final String team = mockProfile?['team'] ?? '';
+
+          await prefs.setString(_keyUserEmail, userEmail);
+          await prefs.setString(_keyUserName, name);
+          await prefs.setString(_keyUserRole, role);
+          await prefs.setString(_keyUserZone, zone);
+          await prefs.setString(_keyUserDistrict, district);
+          await prefs.setString(_keyUserTeam, team);
+          await prefs.setString(_keyDeviceToken, token);
+
+          // Save UserSession to SecureStorage too
+          await SecureStorageService.instance.saveUserSession(
+            UserSession(
+              email: userEmail,
+              authType: 'Email & Password',
+              deviceToken: token,
+              name: name,
+              role: role,
+              zone: zone.isNotEmpty ? zone : null,
+              district: district.isNotEmpty ? district : null,
+              team: team.isNotEmpty ? team : null,
+            ),
+          );
+
+          return true;
+        }
+      }
+    } catch (e) {
+      // Log error for debugging
+      debugPrint('================= LOGIN FAILED =================');
+      debugPrint('Error Details: $e');
+      if (e is ApiException) {
+        debugPrint('Status Code: ${e.statusCode}');
+        debugPrint('Message: ${e.message}');
+        if (e.details != null) {
+          debugPrint('Details: ${e.details}');
+        }
+      }
+      debugPrint('================================================');
     }
     return false;
   }
@@ -273,12 +374,14 @@ class AuthService {
   /// Trigger Biometric/Device Authentication
   Future<bool> authenticateWithDevice() async {
     try {
-      final bool canAuthenticateWithBiometrics = await _localAuth.canCheckBiometrics;
+      final bool canAuthenticateWithBiometrics =
+          await _localAuth.canCheckBiometrics;
       final bool isDeviceSupported = await _localAuth.isDeviceSupported();
 
       if (canAuthenticateWithBiometrics || isDeviceSupported) {
         final bool didAuthenticate = await _localAuth.authenticate(
-          localizedReason: 'Please authenticate to access Kerala Institute Sales App',
+          localizedReason:
+              'Please authenticate to access Kerala Institute Sales App',
           options: const AuthenticationOptions(
             stickyAuth: true,
             biometricOnly: false,
@@ -288,30 +391,51 @@ class AuthService {
         if (didAuthenticate) {
           final prefs = await SharedPreferences.getInstance();
           await prefs.setBool(_keyIsLoggedIn, true);
-          await prefs.setString(_keyAuthType, 'Device Authentication (Biometrics)');
+          await prefs.setString(
+            _keyAuthType,
+            'Device Authentication (Biometrics)',
+          );
           await prefs.setBool(_keyRememberMe, true);
-          await _saveUserProfile(prefs, 'bde.ernakulam.a1@keralainstitute.org'); // Default biometric user
-          await prefs.setString(_keyDeviceToken, 'biometric_session_${DateTime.now().millisecondsSinceEpoch}');
+          await _saveUserProfile(
+            prefs,
+            'bde.ernakulam.a1@keralainstitute.org',
+          ); // Default biometric user
+          await prefs.setString(
+            _keyDeviceToken,
+            'biometric_session_${DateTime.now().millisecondsSinceEpoch}',
+          );
           return true;
         }
       } else {
         await Future.delayed(const Duration(seconds: 1));
         final prefs = await SharedPreferences.getInstance();
         await prefs.setBool(_keyIsLoggedIn, true);
-        await prefs.setString(_keyAuthType, 'Device Authentication (Simulated Hardware ID)');
+        await prefs.setString(
+          _keyAuthType,
+          'Device Authentication (Simulated Hardware ID)',
+        );
         await prefs.setBool(_keyRememberMe, true);
         await _saveUserProfile(prefs, 'bde.ernakulam.a1@keralainstitute.org');
-        await prefs.setString(_keyDeviceToken, 'sim_device_token_${DateTime.now().millisecondsSinceEpoch}');
+        await prefs.setString(
+          _keyDeviceToken,
+          'sim_device_token_${DateTime.now().millisecondsSinceEpoch}',
+        );
         return true;
       }
     } catch (e) {
       await Future.delayed(const Duration(seconds: 1));
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool(_keyIsLoggedIn, true);
-      await prefs.setString(_keyAuthType, 'Device Authentication (Fallback Token)');
+      await prefs.setString(
+        _keyAuthType,
+        'Device Authentication (Fallback Token)',
+      );
       await prefs.setBool(_keyRememberMe, true);
       await _saveUserProfile(prefs, 'bde.ernakulam.a1@keralainstitute.org');
-      await prefs.setString(_keyDeviceToken, 'fallback_token_${DateTime.now().millisecondsSinceEpoch}');
+      await prefs.setString(
+        _keyDeviceToken,
+        'fallback_token_${DateTime.now().millisecondsSinceEpoch}',
+      );
       return true;
     }
     return false;
@@ -328,16 +452,69 @@ class AuthService {
 
   /// Logout and clear user session
   Future<bool> logout() async {
+    try {
+      final session = await getSessionDetails();
+      final email = session['email'] ?? '';
+
+      // Skip API logout call for mock demo accounts
+      if (!mockUsers.containsKey(email.trim().toLowerCase()) && email.isNotEmpty) {
+        await ApiClient.instance.post(ApiEndpoints.logout);
+      }
+    } catch (e) {
+      debugPrint('Logout API failed: $e');
+    }
+
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_keyIsLoggedIn, false);
-    await prefs.remove(_keyUserEmail);
-    await prefs.remove(_keyAuthType);
-    await prefs.remove(_keyDeviceToken);
-    await prefs.remove(_keyUserName);
-    await prefs.remove(_keyUserRole);
-    await prefs.remove(_keyUserZone);
-    await prefs.remove(_keyUserDistrict);
-    await prefs.remove(_keyUserTeam);
+    await prefs.clear(); // Clear all SharedPreferences settings, flags and logs
+    await SecureStorageService.instance.clearAllData(); // Clear all SecureStorage credentials
     return true;
+  }
+
+  /// Check if the current user session has a pending password change requirement
+  Future<bool> hasPendingPasswordChange() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_keyRequirePasswordChange) ?? false;
+  }
+
+  /// Set/Change password for the logged in user
+  Future<bool> changePassword(String newPassword) async {
+    try {
+      final session = await getSessionDetails();
+      final email = session['email'] ?? '';
+
+      // Fallback/Mock bypass for demo accounts to ease development
+      if (mockUsers.containsKey(email.trim().toLowerCase()) || email.isEmpty) {
+        await Future.delayed(const Duration(milliseconds: 1000));
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setBool(_keyRequirePasswordChange, false);
+        return true;
+      }
+
+      final response = await ApiClient.instance.post(
+        ApiEndpoints.changePassword,
+        data: {
+          'password': newPassword,
+          'password_confirmation': newPassword,
+        },
+      );
+
+      if (response.statusCode == 200 && response.data != null) {
+        final Map<String, dynamic> body = response.data as Map<String, dynamic>;
+        if (body['success'] == true) {
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setBool(_keyRequirePasswordChange, false);
+          return true;
+        }
+      }
+    } catch (e) {
+      debugPrint('================= CHANGE PASSWORD FAILED =================');
+      debugPrint('Error Details: $e');
+      if (e is ApiException) {
+        debugPrint('Status Code: ${e.statusCode}');
+        debugPrint('Message: ${e.message}');
+      }
+      debugPrint('===========================================================');
+    }
+    return false;
   }
 }

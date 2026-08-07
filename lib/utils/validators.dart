@@ -9,6 +9,13 @@ class Validators {
     return null;
   }
 
+  static String? validateEmployeeId(String? value) {
+    if (value == null || value.trim().isEmpty) {
+      return 'Please enter Employee ID';
+    }
+    return null;
+  }
+
   static String? validatePassword(String? value) {
     if (value == null || value.isEmpty) {
       return 'Please enter password';

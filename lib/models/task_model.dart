@@ -1,22 +1,34 @@
+import 'package:json_annotation/json_annotation.dart';
+
+part 'task_model.g.dart';
+
+@JsonSerializable()
 class TaskModel {
   final String id;
+  @JsonKey(name: 'student_name')
   final String studentName;
   final String location;
   final String course;
   final String description;
-  final String status; // 'Pending' | 'Completed'
-  final String leadStatus; // 'Pending' | 'Interested' | 'Admitted' | 'Closed'
+  final String status;
+  @JsonKey(name: 'lead_status')
+  final String leadStatus;
+  @JsonKey(name: 'assigned_date')
   final DateTime assignedDate;
+  @JsonKey(name: 'completed_date')
   final DateTime? completedDate;
+  @JsonKey(name: 'completion_proof_path')
   final String? completionProofPath;
   final String? remarks;
+  @JsonKey(name: 'follow_up_date')
   final String? followUpDate;
   
-  // Assignment details
+  @JsonKey(name: 'assigned_bde_email')
   final String assignedBdeEmail;
   final String team;
   final String district;
   final String zone;
+  @JsonKey(name: 'creator_email')
   final String creatorEmail;
 
   TaskModel({
@@ -38,6 +50,9 @@ class TaskModel {
     required this.zone,
     this.creatorEmail = 'md@keralainstitute.org',
   });
+
+  factory TaskModel.fromJson(Map<String, dynamic> json) => _$TaskModelFromJson(json);
+  Map<String, dynamic> toJson() => _$TaskModelToJson(this);
 
   TaskModel copyWith({
     String? status,

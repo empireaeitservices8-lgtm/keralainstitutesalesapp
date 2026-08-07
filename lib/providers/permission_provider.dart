@@ -15,15 +15,20 @@ class PermissionProvider extends ChangeNotifier {
   Future<void> loadStatuses() async {
     _isLoading = true;
     notifyListeners();
-    
+
     _statuses = await PermissionService.instance.getAllPermissionStatuses();
-    
+
     _isLoading = false;
     notifyListeners();
   }
 
-  Future<PermissionStatus> requestPermission(String name, Permission permission) async {
-    final status = await PermissionService.instance.requestPermission(permission);
+  Future<PermissionStatus> requestPermission(
+    String name,
+    Permission permission,
+  ) async {
+    final status = await PermissionService.instance.requestPermission(
+      permission,
+    );
     _statuses[name] = status;
     notifyListeners();
     return status;
@@ -32,9 +37,9 @@ class PermissionProvider extends ChangeNotifier {
   Future<void> requestAll() async {
     _isLoading = true;
     notifyListeners();
-    
+
     _statuses = await PermissionService.instance.requestAllPermissions();
-    
+
     _isLoading = false;
     notifyListeners();
   }

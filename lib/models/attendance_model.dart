@@ -1,15 +1,29 @@
+import 'package:json_annotation/json_annotation.dart';
+
+part 'attendance_model.g.dart';
+
+@JsonSerializable()
 class AttendanceModel {
+  @JsonKey(name: 'employee_id')
   final String employeeId;
+  @JsonKey(name: 'employee_name')
   final String employeeName;
-  final String checkInSelfie; // Mock Selfie Path or Indicator
+  @JsonKey(name: 'check_in_selfie')
+  final String checkInSelfie;
+  @JsonKey(name: 'check_in_time')
   final DateTime checkInTime;
+  @JsonKey(name: 'check_in_latitude')
   final double checkInLatitude;
+  @JsonKey(name: 'check_in_longitude')
   final double checkInLongitude;
   
+  @JsonKey(name: 'check_out_selfie')
   final String? checkOutSelfie;
+  @JsonKey(name: 'check_out_time')
   final DateTime? checkOutTime;
+  @JsonKey(name: 'working_hours')
   final double? workingHours;
-  final String status; // 'Absent' | 'Present' (Checked In) | 'Completed' (Checked Out)
+  final String status;
 
   AttendanceModel({
     required this.employeeId,
@@ -23,6 +37,9 @@ class AttendanceModel {
     this.workingHours,
     required this.status,
   });
+
+  factory AttendanceModel.fromJson(Map<String, dynamic> json) => _$AttendanceModelFromJson(json);
+  Map<String, dynamic> toJson() => _$AttendanceModelToJson(this);
 
   AttendanceModel copyWith({
     String? checkOutSelfie,

@@ -1,24 +1,38 @@
+import 'package:json_annotation/json_annotation.dart';
+
+part 'beat_plan_model.g.dart';
+
+@JsonSerializable()
 class BeatPlanModel {
   final String id;
+  @JsonKey(name: 'customer_name')
   final String customerName;
   final String address;
   final int sequence;
+  @JsonKey(name: 'schedule_time')
   final String scheduleTime;
+  @JsonKey(name: 'distance_km')
   final double distanceKm;
   final double latitude;
   final double longitude;
   
-  // Visit status/log
+  @JsonKey(name: 'is_visited')
   final bool isVisited;
+  @JsonKey(name: 'check_in_time')
   final DateTime? checkInTime;
+  @JsonKey(name: 'selfie_path')
   final String? selfiePath;
+  @JsonKey(name: 'visit_notes')
   final String? visitNotes;
+  @JsonKey(name: 'order_value')
   final double? orderValue;
+  @JsonKey(name: 'follow_up_date')
   final String? followUpDate;
+  @JsonKey(name: 'attachment_path')
   final String? attachmentPath;
-  final String status; // 'Pending' | 'Completed'
+  final String status;
 
-  // Assignment details
+  @JsonKey(name: 'assigned_bde_email')
   final String assignedBdeEmail;
   final String team;
   final String district;
@@ -46,6 +60,9 @@ class BeatPlanModel {
     required this.district,
     required this.zone,
   });
+
+  factory BeatPlanModel.fromJson(Map<String, dynamic> json) => _$BeatPlanModelFromJson(json);
+  Map<String, dynamic> toJson() => _$BeatPlanModelToJson(this);
 
   BeatPlanModel copyWith({
     bool? isVisited,
