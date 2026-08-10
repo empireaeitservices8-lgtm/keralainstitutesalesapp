@@ -7,20 +7,14 @@ part of 'leave_model.dart';
 // **************************************************************************
 
 LeaveModel _$LeaveModelFromJson(Map<String, dynamic> json) => LeaveModel(
-      id: json['id'] as String? ?? '',
-      leaveType: json['leave_type'] as String? ?? '',
-      fromDate: json['from_date'] != null
-          ? DateTime.parse(json['from_date'] as String)
-          : DateTime.now(),
-      toDate: json['to_date'] != null
-          ? DateTime.parse(json['to_date'] as String)
-          : DateTime.now(),
-      reason: json['reason'] as String? ?? '',
-      status: json['status'] as String? ?? 'Pending',
-      appliedDate: json['applied_date'] != null
-          ? DateTime.parse(json['applied_date'] as String)
-          : DateTime.now(),
-    );
+  id: json['id'] as String,
+  leaveType: json['leave_type'] as String,
+  fromDate: DateTime.parse(json['from_date'] as String),
+  toDate: DateTime.parse(json['to_date'] as String),
+  reason: json['reason'] as String,
+  status: json['status'] as String? ?? 'Pending',
+  appliedDate: DateTime.parse(json['applied_date'] as String),
+);
 
 Map<String, dynamic> _$LeaveModelToJson(LeaveModel instance) =>
     <String, dynamic>{

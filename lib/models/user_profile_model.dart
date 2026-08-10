@@ -1,17 +1,9 @@
-import 'package:json_annotation/json_annotation.dart';
-
-part 'user_profile_model.g.dart';
-
-@JsonSerializable()
 class UserProfileModel {
   final String name;
   final String designation;
   final String email;
-  @JsonKey(name: 'contact_number')
   final String contactNumber;
-  @JsonKey(name: 'employee_id')
   final String employeeId;
-  @JsonKey(name: 'leave_balances')
   final LeaveBalances leaveBalances;
 
   UserProfileModel({
@@ -23,11 +15,29 @@ class UserProfileModel {
     required this.leaveBalances,
   });
 
-  factory UserProfileModel.fromJson(Map<String, dynamic> json) => _$UserProfileModelFromJson(json);
-  Map<String, dynamic> toJson() => _$UserProfileModelToJson(this);
+  factory UserProfileModel.fromJson(Map<String, dynamic> json) {
+    return UserProfileModel(
+      name: json['name'] as String? ?? 'User',
+      designation: json['designation'] as String? ?? json['designation_name'] as String? ?? 'BDE',
+      email: json['email'] as String? ?? '',
+      contactNumber: json['contact_number'] as String? ?? json['phone'] as String? ?? '',
+      employeeId: json['employee_id'] as String? ?? '',
+      leaveBalances: json['leave_balances'] != null && json['leave_balances'] is Map
+          ? LeaveBalances.fromJson(json['leave_balances'] as Map<String, dynamic>)
+          : LeaveBalances(casual: 0, medical: 0, earned: 0),
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'name': name,
+        'designation': designation,
+        'email': email,
+        'contact_number': contactNumber,
+        'employee_id': employeeId,
+        'leave_balances': leaveBalances.toJson(),
+      };
 }
 
-@JsonSerializable()
 class LeaveBalances {
   final int casual;
   final int medical;
@@ -39,6 +49,17 @@ class LeaveBalances {
     required this.earned,
   });
 
-  factory LeaveBalances.fromJson(Map<String, dynamic> json) => _$LeaveBalancesFromJson(json);
-  Map<String, dynamic> toJson() => _$LeaveBalancesToJson(this);
+  factory LeaveBalances.fromJson(Map<String, dynamic> json) {
+    return LeaveBalances(
+      casual: (json['casual'] as num? ?? 0).toInt(),
+      medical: (json['medical'] as num? ?? 0).toInt(),
+      earned: (json['earned'] as num? ?? 0).toInt(),
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'casual': casual,
+        'medical': medical,
+        'earned': earned,
+      };
 }

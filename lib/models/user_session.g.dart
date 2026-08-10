@@ -7,15 +7,15 @@ part of 'user_session.dart';
 // **************************************************************************
 
 UserSession _$UserSessionFromJson(Map<String, dynamic> json) => UserSession(
-      email: json['email'] as String? ?? '',
-      authType: json['auth_type'] as String? ?? 'Unknown',
-      deviceToken: json['device_token'] as String? ?? 'N/A',
-      name: json['name'] as String? ?? 'Unknown User',
-      role: json['role'] as String? ?? 'BDE',
-      zone: json['zone'] as String?,
-      district: json['district'] as String?,
-      team: json['team'] as String?,
-    );
+  email: json['email'] as String,
+  authType: json['auth_type'] as String,
+  deviceToken: json['device_token'] as String,
+  name: json['name'] as String? ?? 'Unknown User',
+  role: json['role'] as String? ?? 'BDE',
+  zone: json['zone'] as String?,
+  district: json['district'] as String?,
+  team: json['team'] as String?,
+);
 
 Map<String, dynamic> _$UserSessionToJson(UserSession instance) =>
     <String, dynamic>{

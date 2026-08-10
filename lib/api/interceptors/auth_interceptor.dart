@@ -32,10 +32,11 @@ class AuthInterceptor extends Interceptor {
     DioException err,
     ErrorInterceptorHandler handler,
   ) async {
-    // Intercept 401 or 403 authorization failures, skipping auth endpoints to prevent loops
+    // Intercept 401 or 403 authorization failures, skipping auth/logout endpoints to prevent loops
     if ((err.response?.statusCode == 401 || err.response?.statusCode == 403) &&
         err.requestOptions.path != ApiEndpoints.login &&
-        err.requestOptions.path != ApiEndpoints.refreshToken) {
+        err.requestOptions.path != ApiEndpoints.refreshToken &&
+        err.requestOptions.path != ApiEndpoints.logout) {
       
       final bool isRefreshed = await _attemptTokenRefresh();
       

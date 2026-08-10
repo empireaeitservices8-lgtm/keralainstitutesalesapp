@@ -8,12 +8,13 @@ part of 'training_video_model.dart';
 
 TrainingVideoModel _$TrainingVideoModelFromJson(Map<String, dynamic> json) =>
     TrainingVideoModel(
-      id: json['id'] as String? ?? '',
-      title: json['title'] as String? ?? '',
-      description: json['description'] as String? ?? '',
-      duration: json['duration'] as String? ?? '',
+      id: json['id'] as String,
+      title: json['title'] as String,
+      description: json['description'] as String,
+      duration: json['duration'] as String,
       difficulty: json['difficulty'] as String? ?? 'Beginner',
-      videoUrl: json['video_url'] as String? ??
+      videoUrl:
+          json['video_url'] as String? ??
           'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
       isCompleted: json['is_completed'] as bool? ?? false,
     );

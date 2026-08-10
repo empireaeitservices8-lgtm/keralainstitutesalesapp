@@ -8,14 +8,14 @@ part of 'beat_plan_model.dart';
 
 BeatPlanModel _$BeatPlanModelFromJson(Map<String, dynamic> json) =>
     BeatPlanModel(
-      id: json['id'] as String? ?? '',
-      customerName: json['customer_name'] as String? ?? '',
-      address: json['address'] as String? ?? '',
-      sequence: (json['sequence'] as num? ?? 0).toInt(),
-      scheduleTime: json['schedule_time'] as String? ?? '',
-      distanceKm: (json['distance_km'] as num? ?? 0.0).toDouble(),
-      latitude: (json['latitude'] as num? ?? 0.0).toDouble(),
-      longitude: (json['longitude'] as num? ?? 0.0).toDouble(),
+      id: json['id'] as String,
+      customerName: json['customer_name'] as String,
+      address: json['address'] as String,
+      sequence: (json['sequence'] as num).toInt(),
+      scheduleTime: json['schedule_time'] as String,
+      distanceKm: (json['distance_km'] as num).toDouble(),
+      latitude: (json['latitude'] as num).toDouble(),
+      longitude: (json['longitude'] as num).toDouble(),
       isVisited: json['is_visited'] as bool? ?? false,
       checkInTime: json['check_in_time'] == null
           ? null
@@ -26,10 +26,10 @@ BeatPlanModel _$BeatPlanModelFromJson(Map<String, dynamic> json) =>
       followUpDate: json['follow_up_date'] as String?,
       attachmentPath: json['attachment_path'] as String?,
       status: json['status'] as String? ?? 'Pending',
-      assignedBdeEmail: json['assigned_bde_email'] as String? ?? '',
-      team: json['team'] as String? ?? '',
-      district: json['district'] as String? ?? '',
-      zone: json['zone'] as String? ?? '',
+      assignedBdeEmail: json['assigned_bde_email'] as String,
+      team: json['team'] as String,
+      district: json['district'] as String,
+      zone: json['zone'] as String,
     );
 
 Map<String, dynamic> _$BeatPlanModelToJson(BeatPlanModel instance) =>

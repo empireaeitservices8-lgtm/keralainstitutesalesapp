@@ -8,13 +8,11 @@ part of 'incentive_model.dart';
 
 IncentiveModel _$IncentiveModelFromJson(Map<String, dynamic> json) =>
     IncentiveModel(
-      id: json['id'] as String? ?? '',
-      category: json['category'] as String? ?? '',
-      amount: (json['amount'] as num? ?? 0.0).toDouble(),
-      remarks: json['remarks'] as String? ?? '',
-      date: json['date'] != null
-          ? DateTime.parse(json['date'] as String)
-          : DateTime.now(),
+      id: json['id'] as String,
+      category: json['category'] as String,
+      amount: (json['amount'] as num).toDouble(),
+      remarks: json['remarks'] as String,
+      date: DateTime.parse(json['date'] as String),
       achievementProofPath: json['achievement_proof_path'] as String?,
       status: json['status'] as String? ?? 'Pending',
     );

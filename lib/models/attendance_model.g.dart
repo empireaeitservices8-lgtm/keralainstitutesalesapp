@@ -8,20 +8,18 @@ part of 'attendance_model.dart';
 
 AttendanceModel _$AttendanceModelFromJson(Map<String, dynamic> json) =>
     AttendanceModel(
-      employeeId: json['employee_id'] as String? ?? '',
-      employeeName: json['employee_name'] as String? ?? '',
-      checkInSelfie: json['check_in_selfie'] as String? ?? '',
-      checkInTime: json['check_in_time'] != null
-          ? DateTime.parse(json['check_in_time'] as String)
-          : DateTime.now(),
-      checkInLatitude: (json['check_in_latitude'] as num? ?? 0.0).toDouble(),
-      checkInLongitude: (json['check_in_longitude'] as num? ?? 0.0).toDouble(),
+      employeeId: json['employee_id'] as String,
+      employeeName: json['employee_name'] as String,
+      checkInSelfie: json['check_in_selfie'] as String,
+      checkInTime: DateTime.parse(json['check_in_time'] as String),
+      checkInLatitude: (json['check_in_latitude'] as num).toDouble(),
+      checkInLongitude: (json['check_in_longitude'] as num).toDouble(),
       checkOutSelfie: json['check_out_selfie'] as String?,
       checkOutTime: json['check_out_time'] == null
           ? null
           : DateTime.parse(json['check_out_time'] as String),
       workingHours: (json['working_hours'] as num?)?.toDouble(),
-      status: json['status'] as String? ?? 'Absent',
+      status: json['status'] as String,
     );
 
 Map<String, dynamic> _$AttendanceModelToJson(AttendanceModel instance) =>

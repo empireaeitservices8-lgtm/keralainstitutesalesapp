@@ -16,6 +16,7 @@ class DioClient {
         connectTimeout: ApiConstants.connectTimeout,
         receiveTimeout: ApiConstants.receiveTimeout,
         sendTimeout: ApiConstants.sendTimeout,
+        persistentConnection: false,
         headers: {
           'Accept': ApiConstants.acceptHeader,
           'Content-Type': ApiConstants.contentTypeHeader,

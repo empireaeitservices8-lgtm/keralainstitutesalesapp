@@ -42,8 +42,23 @@ class UserProfileProvider extends BaseProvider<UserProfileModel> {
         cancelToken: token,
       );
       if (response.data != null) {
-        final data = response.data['data'] as Map<String, dynamic>;
-        final model = UserProfileModel.fromJson(data);
+        final rawData = response.data['data'];
+        if (rawData == null) {
+          throw Exception('User profile data is empty on the server.');
+        }
+
+        final Map<String, dynamic> dataMap;
+        if (rawData is Map<String, dynamic>) {
+          if (rawData.containsKey('user') && rawData['user'] is Map<String, dynamic>) {
+            dataMap = rawData['user'] as Map<String, dynamic>;
+          } else {
+            dataMap = rawData;
+          }
+        } else {
+          throw Exception('Invalid user profile data format.');
+        }
+
+        final model = UserProfileModel.fromJson(dataMap);
 
         // Save fresh data to local cache
         await prefs.setString('cached_user_profile', jsonEncode(model.toJson()));

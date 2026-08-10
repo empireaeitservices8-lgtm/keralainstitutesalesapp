@@ -284,7 +284,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         const Text(
-                          'LEAVE BALANCES & HR MODULE',
+                          'LEAVE MANAGEMENT',
                           style: TextStyle(color: AppColors.textMuted, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 0.8),
                         ),
                         const Icon(
@@ -294,16 +294,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ),
                       ],
                     ),
-                    const Divider(color: Color(0xFFE2E8F0), height: 28),
-                    
-                    // Balances grid
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceAround,
-                      children: [
-                        _buildLeaveBalanceItem('Casual', profile.leaveBalances.casual, Colors.blue),
-                        _buildLeaveBalanceItem('Medical', profile.leaveBalances.medical, Colors.orange),
-                        _buildLeaveBalanceItem('Earned', profile.leaveBalances.earned, Colors.purple),
-                      ],
+                    const SizedBox(height: 6),
+                    const Text(
+                      'Apply for leaves and view your leave application history.',
+                      style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
                     ),
                   ],
                 ),
@@ -312,35 +306,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
         ),
       ),
-    );
-  }
-
-  Widget _buildLeaveBalanceItem(String type, int days, Color accentColor) {
-    return Column(
-      children: [
-        Text(
-          type.toUpperCase(),
-          style: const TextStyle(color: AppColors.textSecondary, fontSize: 9, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 6),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          decoration: BoxDecoration(
-            color: accentColor.withOpacity(0.06),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: accentColor.withOpacity(0.12)),
-          ),
-          child: Text(
-            '$days',
-            style: TextStyle(color: accentColor, fontSize: 18, fontWeight: FontWeight.bold),
-          ),
-        ),
-        const SizedBox(height: 4),
-        const Text(
-          'Days Left',
-          style: TextStyle(color: AppColors.textMuted, fontSize: 8),
-        ),
-      ],
     );
   }
 

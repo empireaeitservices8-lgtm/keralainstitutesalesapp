@@ -946,7 +946,17 @@ class OperationsProvider extends ChangeNotifier {
       apiTypeCode = 3;
     }
 
-    final formattedFrom = DateFormat('yyyy-MM-dd').format(from);
+    // Combine selected from-date with current hour/minute/second to match API ISO 8601 example (e.g. 2026-08-07T10:31:59)
+    final now = DateTime.now();
+    final startDateTime = DateTime(
+      from.year,
+      from.month,
+      from.day,
+      now.hour,
+      now.minute,
+      now.second,
+    );
+    final formattedFrom = DateFormat("yyyy-MM-dd'T'HH:mm:ss").format(startDateTime);
     final formattedTo = DateFormat('yyyy-MM-dd').format(to);
 
     try {

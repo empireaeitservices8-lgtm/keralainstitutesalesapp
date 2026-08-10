@@ -20,4 +20,6 @@ class ApiEndpoints {
   static const String walletWithdraw = '/wallet/withdraw';
   static const String leaves = '/leaves';
   static const String applyLeave = '/leaves/apply';
+  static const String designations = '/designations';
+  static const String register = '/register';
 }

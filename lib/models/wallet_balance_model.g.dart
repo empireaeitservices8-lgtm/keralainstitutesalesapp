@@ -12,7 +12,8 @@ WalletBalanceModel _$WalletBalanceModelFromJson(Map<String, dynamic> json) =>
       totalPaid: _doubleFromString(json['total_paid']),
       totalEarned: _doubleFromString(json['total_earned']),
       withdrawRequestsWrapper: WithdrawRequestsWrapper.fromJson(
-          json['withdraw_requests'] as Map<String, dynamic>),
+        json['withdraw_requests'] as Map<String, dynamic>,
+      ),
     );
 
 Map<String, dynamic> _$WalletBalanceModelToJson(WalletBalanceModel instance) =>
@@ -24,29 +25,25 @@ Map<String, dynamic> _$WalletBalanceModelToJson(WalletBalanceModel instance) =>
     };
 
 WithdrawRequestsWrapper _$WithdrawRequestsWrapperFromJson(
-        Map<String, dynamic> json) =>
-    WithdrawRequestsWrapper(
-      data: (json['data'] as List<dynamic>)
-          .map((e) => WithdrawRequest.fromJson(e as Map<String, dynamic>))
-          .toList(),
-    );
+  Map<String, dynamic> json,
+) => WithdrawRequestsWrapper(
+  data: (json['data'] as List<dynamic>)
+      .map((e) => WithdrawRequest.fromJson(e as Map<String, dynamic>))
+      .toList(),
+);
 
 Map<String, dynamic> _$WithdrawRequestsWrapperToJson(
-        WithdrawRequestsWrapper instance) =>
-    <String, dynamic>{
-      'data': instance.data,
-    };
+  WithdrawRequestsWrapper instance,
+) => <String, dynamic>{'data': instance.data};
 
 WithdrawRequest _$WithdrawRequestFromJson(Map<String, dynamic> json) =>
     WithdrawRequest(
       id: (json['id'] as num).toInt(),
-      referenceId: json['reference_id'] as String? ?? '',
+      referenceId: json['reference_id'] as String,
       amount: _doubleFromString(json['amount']),
-      status: (json['status'] as num? ?? 1).toInt(),
+      status: (json['status'] as num).toInt(),
       remarks: json['remarks'] as String?,
-      createdAt: json['created_at'] != null
-          ? DateTime.parse(json['created_at'] as String)
-          : DateTime.now(),
+      createdAt: DateTime.parse(json['created_at'] as String),
     );
 
 Map<String, dynamic> _$WithdrawRequestToJson(WithdrawRequest instance) =>

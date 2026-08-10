@@ -9,12 +9,15 @@ part of 'home_dashboard_model.dart';
 HomeDashboardModel _$HomeDashboardModelFromJson(Map<String, dynamic> json) =>
     HomeDashboardModel(
       user: HomeUser.fromJson(json['user'] as Map<String, dynamic>),
-      designationId: (json['designation_id'] as num? ?? 0).toInt(),
-      designationName: json['designation_name'] as String? ?? '',
-      attendance: HomeAttendance.fromJson(json['attendance'] as Map<String, dynamic>),
+      designationId: (json['designation_id'] as num).toInt(),
+      designationName: json['designation_name'] as String,
+      attendance: HomeAttendance.fromJson(
+        json['attendance'] as Map<String, dynamic>,
+      ),
       eodSync: HomeEodSync.fromJson(json['eod_sync'] as Map<String, dynamic>),
       operationalOverview: HomeOperationalOverview.fromJson(
-          json['operational_overview'] as Map<String, dynamic>),
+        json['operational_overview'] as Map<String, dynamic>,
+      ),
     );
 
 Map<String, dynamic> _$HomeDashboardModelToJson(HomeDashboardModel instance) =>
@@ -28,23 +31,23 @@ Map<String, dynamic> _$HomeDashboardModelToJson(HomeDashboardModel instance) =>
     };
 
 HomeUser _$HomeUserFromJson(Map<String, dynamic> json) => HomeUser(
-      id: (json['id'] as num? ?? 0).toInt(),
-      name: json['name'] as String? ?? '',
-      email: json['email'] as String? ?? '',
-    );
+  id: (json['id'] as num).toInt(),
+  name: json['name'] as String,
+  email: json['email'] as String,
+);
 
 Map<String, dynamic> _$HomeUserToJson(HomeUser instance) => <String, dynamic>{
-      'id': instance.id,
-      'name': instance.name,
-      'email': instance.email,
-    };
+  'id': instance.id,
+  'name': instance.name,
+  'email': instance.email,
+};
 
 HomeAttendance _$HomeAttendanceFromJson(Map<String, dynamic> json) =>
     HomeAttendance(
-      checkInTime: json['check_in_time'] as String? ?? '--:--',
-      checkOutTime: json['check_out_time'] as String? ?? '--:--',
-      shiftStatus: json['shift_status'] as String? ?? 'OFFLINE',
-      isCheckedIn: json['is_checked_in'] as bool? ?? false,
+      checkInTime: json['check_in_time'] as String,
+      checkOutTime: json['check_out_time'] as String,
+      shiftStatus: json['shift_status'] as String,
+      isCheckedIn: json['is_checked_in'] as bool,
     );
 
 Map<String, dynamic> _$HomeAttendanceToJson(HomeAttendance instance) =>
@@ -56,10 +59,10 @@ Map<String, dynamic> _$HomeAttendanceToJson(HomeAttendance instance) =>
     };
 
 HomeEodSync _$HomeEodSyncFromJson(Map<String, dynamic> json) => HomeEodSync(
-      tasksCompleted: (json['tasks_completed'] as num? ?? 0).toInt(),
-      totalTasks: (json['total_tasks'] as num? ?? 0).toInt(),
-      completionPercentage: json['completion_percentage'] as num? ?? 0,
-    );
+  tasksCompleted: (json['tasks_completed'] as num).toInt(),
+  totalTasks: (json['total_tasks'] as num).toInt(),
+  completionPercentage: json['completion_percentage'] as num,
+);
 
 Map<String, dynamic> _$HomeEodSyncToJson(HomeEodSync instance) =>
     <String, dynamic>{
@@ -69,19 +72,19 @@ Map<String, dynamic> _$HomeEodSyncToJson(HomeEodSync instance) =>
     };
 
 HomeOperationalOverview _$HomeOperationalOverviewFromJson(
-        Map<String, dynamic> json) =>
-    HomeOperationalOverview(
-      assignedLeads: (json['assigned_leads'] as num? ?? 0).toInt(),
-      followUpLeads: (json['follow_up_leads'] as num? ?? 0).toInt(),
-      closedLeads: (json['closed_leads'] as num? ?? 0).toInt(),
-      incentivesEarned: json['incentives_earned'] as num? ?? 0,
-    );
+  Map<String, dynamic> json,
+) => HomeOperationalOverview(
+  assignedLeads: (json['assigned_leads'] as num).toInt(),
+  followUpLeads: (json['follow_up_leads'] as num).toInt(),
+  closedLeads: (json['closed_leads'] as num).toInt(),
+  incentivesEarned: json['incentives_earned'] as num,
+);
 
 Map<String, dynamic> _$HomeOperationalOverviewToJson(
-        HomeOperationalOverview instance) =>
-    <String, dynamic>{
-      'assigned_leads': instance.assignedLeads,
-      'follow_up_leads': instance.followUpLeads,
-      'closed_leads': instance.closedLeads,
-      'incentives_earned': instance.incentivesEarned,
-    };
+  HomeOperationalOverview instance,
+) => <String, dynamic>{
+  'assigned_leads': instance.assignedLeads,
+  'follow_up_leads': instance.followUpLeads,
+  'closed_leads': instance.closedLeads,
+  'incentives_earned': instance.incentivesEarned,
+};

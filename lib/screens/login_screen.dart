@@ -20,8 +20,6 @@ class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  
-
 
   @override
   void dispose() {
@@ -129,146 +127,7 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  // Quick Switch / Developer Roles Switcher Sheet
-  void _showQuickDemoLoginSheet() {
-    final List<Map<String, String>> demoAccounts = [
-      {
-        'role': 'MD',
-        'title': 'MD (Managing Director / Super Admin)',
-        'email': 'md@keralainstitute.org',
-        'desc': 'Unrestricted access, state-wide analytics, user control.',
-        'icon': '👑',
-      },
-      {
-        'role': 'ZM',
-        'title': 'ZM (Zonal Sales Manager - Central Zone)',
-        'email': 'zm.central@keralainstitute.org',
-        'desc': 'Central Zone overview (5 districts), district filters.',
-        'icon': '🗺️',
-      },
-      {
-        'role': 'ASM',
-        'title': 'ASM (Area Sales Manager - Ernakulam)',
-        'email': 'asm.ernakulam@keralainstitute.org',
-        'desc': 'District Head, view all teams under Ernakulam.',
-        'icon': '🏢',
-      },
-      {
-        'role': 'BDM',
-        'title': 'BDM (Team Leader - Ernakulam Team A)',
-        'email': 'bdm.ernakulam.a@keralainstitute.org',
-        'desc': 'Manage BDEs in Team A, Bulk Upload & Assign Leads.',
-        'icon': '👥',
-      },
-      {
-        'role': 'BDE',
-        'title': 'BDE (Sales Executive - Ernakulam A1)',
-        'email': 'bde.ernakulam.a1@keralainstitute.org',
-        'desc': 'Ground executive, view/update self leads, check-in, EOD.',
-        'icon': '🏃',
-      },
-    ];
 
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (context) {
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(24.0),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text(
-                      'Demo Quick Sign-In',
-                      style: TextStyle(
-                        color: AppColors.textPrimary,
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.close_rounded, color: AppColors.textSecondary),
-                      onPressed: () => Navigator.pop(context),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                const Text(
-                  'Select a preconfigured user profile to test role-specific dashboards, permissions, and zonal scopes.',
-                  style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
-                ),
-                const SizedBox(height: 16),
-                Flexible(
-                  child: ListView.separated(
-                    shrinkWrap: true,
-                    itemCount: demoAccounts.length,
-                    separatorBuilder: (context, index) => const SizedBox(height: 10),
-                    itemBuilder: (context, index) {
-                      final acc = demoAccounts[index];
-                      return InkWell(
-                        onTap: () {
-                          Navigator.pop(context);
-                          _emailController.text = acc['email']!;
-                          _passwordController.text = 'password123';
-                          _handleEmailLogin();
-                        },
-                        child: Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFF8FAFC),
-                            borderRadius: BorderRadius.circular(14),
-                            border: Border.all(color: const Color(0xFFE2E8F0)),
-                          ),
-                          child: Row(
-                            children: [
-                              Text(acc['icon']!, style: const TextStyle(fontSize: 24)),
-                              const SizedBox(width: 14),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      acc['title']!,
-                                      style: const TextStyle(
-                                        color: AppColors.textPrimary,
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 13,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 2),
-                                    Text(
-                                      acc['desc']!,
-                                      style: const TextStyle(
-                                        color: AppColors.textSecondary,
-                                        fontSize: 11,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              const Icon(Icons.chevron_right_rounded, color: AppColors.textSecondary, size: 18),
-                            ],
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
 
   void _navigateToDashboard() {
     Navigator.pushReplacementNamed(
@@ -533,21 +392,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                                   ),
                                           ),
                                         ),
-                                        const SizedBox(height: 16),
-                                        Center(
-                                          child: TextButton.icon(
-                                            onPressed: _showQuickDemoLoginSheet,
-                                            icon: const Icon(Icons.supervisor_account_rounded, color: AppColors.accentTeal, size: 18),
-                                            label: const Text(
-                                              'Quick Demo Sign-In / Role Switcher',
-                                              style: TextStyle(
-                                                color: AppColors.accentTeal,
-                                                fontSize: 13,
-                                                fontWeight: FontWeight.bold,
-                                              ),
-                                            ),
-                                          ),
-                                        ),
+
                                       ],
                                     ),
                                   ),

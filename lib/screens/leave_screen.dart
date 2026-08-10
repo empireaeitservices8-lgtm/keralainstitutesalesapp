@@ -51,37 +51,6 @@ class _LeaveScreenState extends State<LeaveScreen> {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Leave Type Dropdown
-                    const Text('LEAVE TYPE', style: TextStyle(color: AppColors.textSecondary, fontSize: 10, fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 6),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF8FAFC),
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: const Color(0xFFE2E8F0)),
-                      ),
-                      child: DropdownButtonHideUnderline(
-                        child: DropdownButton<String>(
-                          value: leaveType,
-                          isExpanded: true,
-                          dropdownColor: Colors.white,
-                          onChanged: (val) {
-                            if (val != null) {
-                              setDialogState(() {
-                                leaveType = val;
-                              });
-                            }
-                          },
-                          items: const [
-                            DropdownMenuItem(value: 'Casual Leave', child: Text('Casual Leave', style: TextStyle(fontSize: 13))),
-                            DropdownMenuItem(value: 'Medical Leave', child: Text('Medical Leave', style: TextStyle(fontSize: 13))),
-                            DropdownMenuItem(value: 'Earned Leave', child: Text('Earned Leave', style: TextStyle(fontSize: 13))),
-                          ],
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 14),
 
                     // Date Selectors
                     Row(
@@ -357,18 +326,6 @@ class _LeaveScreenState extends State<LeaveScreen> {
                 icon: const Icon(Icons.add, color: Colors.white),
                 label: const Text('Apply Leave', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                 onPressed: () {
-                  final totalLeave = profile.leaveBalances.casual +
-                      profile.leaveBalances.medical +
-                      profile.leaveBalances.earned;
-                  if (totalLeave <= 0) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        backgroundColor: Colors.redAccent,
-                        content: Text("You don't have any leave balance remaining."),
-                      ),
-                    );
-                    return;
-                  }
                   _showApplyLeaveDialog(provider, profile);
                 },
               ),
@@ -380,38 +337,7 @@ class _LeaveScreenState extends State<LeaveScreen> {
                 },
                 child: Column(
                   children: [
-                    // Premium Leave Balances Header Card
-                    Padding(
-                      padding: const EdgeInsets.all(20),
-                      child: Container(
-                        width: double.infinity,
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: const Color(0xFFE2E8F0)),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.02),
-                              blurRadius: 10,
-                              offset: const Offset(0, 4),
-                            ),
-                          ],
-                        ),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 16),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceAround,
-                            children: [
-                              _buildHeaderBalanceItem('Casual', profile.leaveBalances.casual, Colors.blue),
-                              Container(width: 1, height: 40, color: const Color(0xFFE2E8F0)),
-                              _buildHeaderBalanceItem('Medical', profile.leaveBalances.medical, Colors.orange),
-                              Container(width: 1, height: 40, color: const Color(0xFFE2E8F0)),
-                              _buildHeaderBalanceItem('Earned', profile.leaveBalances.earned, Colors.purple),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
+
 
                     // Leaves list area
                     Expanded(
@@ -565,27 +491,6 @@ class _LeaveScreenState extends State<LeaveScreen> {
           },
         );
       },
-    );
-  }
-
-  Widget _buildHeaderBalanceItem(String title, int days, Color color) {
-    return Column(
-      children: [
-        Text(
-          title,
-          style: const TextStyle(color: AppColors.textSecondary, fontSize: 10, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 6),
-        Text(
-          '$days',
-          style: TextStyle(color: color, fontSize: 20, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 2),
-        const Text(
-          'Days Left',
-          style: TextStyle(color: AppColors.textMuted, fontSize: 8),
-        ),
-      ],
     );
   }
 }
