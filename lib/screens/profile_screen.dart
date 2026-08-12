@@ -10,6 +10,7 @@ import '../providers/user_profile_provider.dart';
 import 'login_screen.dart';
 import 'training_videos_screen.dart';
 import 'leave_screen.dart';
+import 'attendance_history_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   static const String path = '/profile';
@@ -20,20 +21,13 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  bool _isLoggingOut = false;
-
   @override
   void initState() {
     super.initState();
     OperationsProvider.instance.loadOperationsData();
-    UserProfileProvider.instance.fetchUserProfile();
   }
 
-
-
   Future<void> _handleLogout() async {
-    setState(() => _isLoggingOut = true);
-
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -167,6 +161,33 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     style: TextStyle(color: AppColors.textMuted, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 0.8),
                   ),
                   const Divider(color: Color(0xFFE2E8F0), height: 28),
+
+                  // Action Row: Attendance History
+                  InkWell(
+                    onTap: () {
+                      Navigator.pushNamed(
+                        context,
+                        AttendanceHistoryScreen.path,
+                      );
+                    },
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Row(
+                            children: [
+                              Icon(Icons.history_rounded, color: AppColors.accentTeal, size: 20),
+                              SizedBox(width: 12),
+                              Text('Attendance Sign-in History', style: TextStyle(color: AppColors.textPrimary, fontSize: 13, fontWeight: FontWeight.w500)),
+                            ],
+                          ),
+                          Icon(Icons.chevron_right_rounded, color: Colors.grey.shade400),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const Divider(color: Color(0xFFF1F5F9), height: 16),
                   
                   // Action Row: Training Videos
                   InkWell(
@@ -527,23 +548,30 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           const SizedBox(height: 28),
 
                           // Log out Button
-                          SizedBox(
-                            width: double.infinity,
-                            height: 48,
-                            child: ElevatedButton.icon(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.red.shade50,
-                                foregroundColor: Colors.red,
-                                elevation: 0,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                  side: BorderSide(color: Colors.red.shade100),
+                          ListenableBuilder(
+                            listenable: AuthProvider.instance,
+                            builder: (context, _) {
+                              final auth = AuthProvider.instance;
+                              final isLoggingOut = auth.isLoggingOut;
+                              return SizedBox(
+                                width: double.infinity,
+                                height: 48,
+                                child: ElevatedButton.icon(
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.red.shade50,
+                                    foregroundColor: Colors.red,
+                                    elevation: 0,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                      side: BorderSide(color: Colors.red.shade100),
+                                    ),
+                                  ),
+                                  icon: const Icon(Icons.logout_rounded, size: 18),
+                                  label: const Text('Log Out Session', style: TextStyle(fontWeight: FontWeight.bold)),
+                                  onPressed: isLoggingOut ? null : _handleLogout,
                                 ),
-                              ),
-                              icon: const Icon(Icons.logout_rounded, size: 18),
-                              label: const Text('Log Out Session', style: TextStyle(fontWeight: FontWeight.bold)),
-                              onPressed: _isLoggingOut ? null : _handleLogout,
-                            ),
+                              );
+                            },
                           ),
                           const SizedBox(height: 24),
                         ],

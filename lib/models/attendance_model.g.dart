@@ -19,7 +19,8 @@ AttendanceModel _$AttendanceModelFromJson(Map<String, dynamic> json) =>
           ? null
           : DateTime.parse(json['check_out_time'] as String),
       workingHours: (json['working_hours'] as num?)?.toDouble(),
-      status: json['status'] as String,
+      status: json['status'] as String? ?? 'Absent',
+      statusText: json['status_text'] as String?,
     );
 
 Map<String, dynamic> _$AttendanceModelToJson(AttendanceModel instance) =>
@@ -34,4 +35,5 @@ Map<String, dynamic> _$AttendanceModelToJson(AttendanceModel instance) =>
       'check_out_time': instance.checkOutTime?.toIso8601String(),
       'working_hours': instance.workingHours,
       'status': instance.status,
+      'status_text': instance.statusText,
     };

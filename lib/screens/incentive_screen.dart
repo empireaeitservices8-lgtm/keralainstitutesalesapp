@@ -19,7 +19,6 @@ class _IncentiveScreenState extends State<IncentiveScreen> {
   void initState() {
     super.initState();
     OperationsProvider.instance.loadOperationsData();
-    WalletProvider.instance.fetchWalletBalance();
   }
 
   void _openCreateIncentiveDialog() {

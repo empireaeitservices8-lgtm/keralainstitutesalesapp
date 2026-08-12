@@ -6,6 +6,10 @@ import '../api/api_endpoints.dart';
 import '../api/api_response.dart';
 import '../models/user_profile_model.dart';
 import 'base_provider.dart';
+import 'auth_provider.dart';
+import '../storage/secure_storage_service.dart';
+import '../models/user_session.dart';
+import '../services/auth_service.dart';
 
 class UserProfileProvider extends BaseProvider<UserProfileModel> {
   static final UserProfileProvider instance = UserProfileProvider._internal();
@@ -14,6 +18,11 @@ class UserProfileProvider extends BaseProvider<UserProfileModel> {
   /// Fetches the user profile details from the GET endpoint `/user/profile`.
   /// Uses cached data as fallback if offline or connection fails.
   Future<void> fetchUserProfile({bool isRefresh = false}) async {
+    // If already fetching, ignore duplicate call to avoid spamming the server
+    if (state.isLoading) {
+      return;
+    }
+
     // If already loaded in memory and not a manual refresh, do not fetch again
     if (!isRefresh && state.data != null) {
       return;
@@ -21,18 +30,23 @@ class UserProfileProvider extends BaseProvider<UserProfileModel> {
 
     final prefs = await SharedPreferences.getInstance();
 
-    // 1. Attempt to load from cache in memory as backup
+    // 1. Attempt to load from cache immediately to prevent loading spinner
     final cachedJson = prefs.getString('cached_user_profile');
     UserProfileModel? cachedModel;
     if (cachedJson != null) {
       try {
         final Map<String, dynamic> decoded = jsonDecode(cachedJson);
         cachedModel = UserProfileModel.fromJson(decoded);
+        if (state.data == null) {
+          setState(ApiResponse.success(cachedModel));
+        }
       } catch (_) {}
     }
 
-    // Always show loading state for live API request
-    setState(ApiResponse.loading());
+    // Show loading indicator only if we have no cached/loaded data to display
+    if (state.data == null) {
+      setState(ApiResponse.loading());
+    }
 
     final token = getNewCancelToken();
 
@@ -59,6 +73,21 @@ class UserProfileProvider extends BaseProvider<UserProfileModel> {
         }
 
         final model = UserProfileModel.fromJson(dataMap);
+
+        // Dynamically verify and update active user role from profile designation
+        final String designation = dataMap['designation_name'] ?? dataMap['designation'] ?? '';
+        final int designationId = (dataMap['designation_id'] as num? ?? 0).toInt();
+        final cleanDes = designation.toLowerCase();
+
+        final String updatedRole = AuthService.mapDesignationIdToRole(designationId, designation);
+
+        final currentRole = AuthProvider.instance.session.role;
+        if (updatedRole != currentRole) {
+          AuthProvider.instance.updateSessionRole(updatedRole);
+          await prefs.setString('user_role', updatedRole);
+          final session = AuthProvider.instance.session;
+          await SecureStorageService.instance.saveUserSession(session);
+        }
 
         // Save fresh data to local cache
         await prefs.setString('cached_user_profile', jsonEncode(model.toJson()));

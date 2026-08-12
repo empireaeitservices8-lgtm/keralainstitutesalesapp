@@ -1,3 +1,6 @@
+import 'dart:io';
+import 'package:dio/dio.dart';
+import 'package:http_parser/http_parser.dart';
 import 'package:flutter/material.dart';
 import 'package:keralainstitutesalesapp/api/api_response.dart';
 import 'package:keralainstitutesalesapp/models/user_profile_model.dart';
@@ -8,17 +11,128 @@ import '../api/api_endpoints.dart';
 import '../api/exceptions/api_exception.dart';
 import '../api/exceptions/network_exception.dart';
 import '../models/beat_plan_model.dart';
+import '../models/lead_model.dart';
 import '../models/task_model.dart';
 import '../models/incentive_model.dart';
 import '../models/leave_model.dart';
 import '../models/eod_model.dart';
 import '../models/training_video_model.dart';
+import '../models/lead_import_response.dart';
 import 'auth_provider.dart';
 import 'user_profile_provider.dart';
 
 class OperationsProvider extends ChangeNotifier {
   static final OperationsProvider instance = OperationsProvider._internal();
   OperationsProvider._internal();
+
+  bool _isSubmittingEod = false;
+  bool _isSubmittingTask = false;
+  bool _isImportingLeads = false;
+
+  String _taskSearchQuery = '';
+  String? _selectedBdeEmail;
+  String? _selectedTeam;
+  String? _selectedDistrict;
+  int? _selectedBdeId;
+  int? _selectedTeamId;
+  int? _selectedDistrictId;
+  String? _selectedAsmEmail;
+  int? _selectedAsmId;
+  String? _selectedBdmEmail;
+  int? _selectedBdmId;
+
+  int? get selectedBdeId => _selectedBdeId;
+  int? get selectedTeamId => _selectedTeamId;
+  int? get selectedDistrictId => _selectedDistrictId;
+  String? get selectedAsmEmail => _selectedAsmEmail;
+  int? get selectedAsmId => _selectedAsmId;
+  String? get selectedBdmEmail => _selectedBdmEmail;
+  int? get selectedBdmId => _selectedBdmId;
+
+  List<Map<String, dynamic>> _hierarchyDistricts = [];
+  List<Map<String, dynamic>> get hierarchyDistricts => _hierarchyDistricts;
+
+  List<Map<String, dynamic>> _hierarchyTeams = [];
+  List<Map<String, dynamic>> get hierarchyTeams => _hierarchyTeams;
+
+  List<Map<String, dynamic>> _hierarchyBdes = [];
+  List<Map<String, dynamic>> get hierarchyBdes => _hierarchyBdes;
+
+  List<Map<String, dynamic>> _hierarchyBdms = [];
+  List<Map<String, dynamic>> get hierarchyBdms => _hierarchyBdms;
+
+  List<Map<String, dynamic>> _hierarchyAsms = [];
+  List<Map<String, dynamic>> get hierarchyAsms => _hierarchyAsms;
+
+  bool _isLoadingHierarchyFilters = false;
+  bool get isLoadingHierarchyFilters => _isLoadingHierarchyFilters;
+
+  void setSelectedBde(String? name, int? id) {
+    _selectedBdeEmail = name;
+    _selectedBdeId = id;
+    if (id != null) {
+      _selectedAsmEmail = null;
+      _selectedAsmId = null;
+      _selectedBdmEmail = null;
+      _selectedBdmId = null;
+    }
+    notifyListeners();
+  }
+
+  void setSelectedAsm(String? name, int? id) {
+    _selectedAsmEmail = name;
+    _selectedAsmId = id;
+    if (id != null) {
+      _selectedBdmEmail = null;
+      _selectedBdmId = null;
+      _selectedBdeEmail = null;
+      _selectedBdeId = null;
+    }
+    notifyListeners();
+  }
+
+  void setSelectedBdm(String? name, int? id) {
+    _selectedBdmEmail = name;
+    _selectedBdmId = id;
+    if (id != null) {
+      _selectedAsmEmail = null;
+      _selectedAsmId = null;
+      _selectedBdeEmail = null;
+      _selectedBdeId = null;
+    }
+    notifyListeners();
+  }
+
+  bool get isSubmittingEod => _isSubmittingEod;
+  bool get isSubmittingTask => _isSubmittingTask;
+  bool get isImportingLeads => _isImportingLeads;
+
+  String get taskSearchQuery => _taskSearchQuery;
+  String? get selectedBdeEmail => _selectedBdeEmail;
+  String? get selectedTeam => _selectedTeam;
+  String? get selectedDistrict => _selectedDistrict;
+
+  void setTaskSearchQuery(String query) {
+    _taskSearchQuery = query;
+    notifyListeners();
+  }
+
+  void setSelectedBdeEmail(String? email) {
+    _selectedBdeEmail = email;
+    notifyListeners();
+  }
+
+  void setSelectedTeam(String? team, [int? teamId]) {
+    _selectedTeam = team;
+    _selectedTeamId = teamId;
+    notifyListeners();
+  }
+
+  void setSelectedDistrict(String? district, [int? districtId]) {
+    _selectedDistrict = district;
+    _selectedDistrictId = districtId;
+    notifyListeners();
+  }
 
   List<BeatPlanModel> _beatPlans = [];
   List<TaskModel> _tasks = [];
@@ -92,31 +206,30 @@ class OperationsProvider extends ChangeNotifier {
 
   List<TaskModel> _filterTasks(dynamic user) {
     final String role = user.role;
+    debugPrint('[TaskFilter] role=$role, tasks=${_tasks.length}, userEmail=${user.email}');
     switch (role) {
       case 'MD':
         return _tasks;
       case 'ZM':
-        var list = _tasks.where((t) => t.zone == user.zone).toList();
+        // If zone info isn't in API data yet, return all tasks
+        final zoneFiltered = _tasks.where((t) => t.zone == user.zone || t.zone == null || t.zone.isEmpty).toList();
         if (_selectedDistrictFilter != null &&
             _selectedDistrictFilter!.isNotEmpty) {
-          list = list
+          return zoneFiltered
               .where((t) => t.district == _selectedDistrictFilter)
               .toList();
         }
-        return list;
+        return zoneFiltered;
       case 'ASM':
-        return _tasks.where((t) => t.district == user.district).toList();
+        return _tasks.where((t) => t.district == user.district || (user.district == null || user.district.isEmpty)).toList();
       case 'BDM':
-        return _tasks.where((t) => t.team == user.team).toList();
+        return _tasks.where((t) => t.team == user.team || (user.team == null || user.team.isEmpty)).toList();
       case 'BDE':
       default:
-        return _tasks
-            .where(
-              (t) =>
-                  t.assignedBdeEmail == user.email ||
-                  t.creatorEmail == user.email,
-            )
-            .toList();
+        // API already scopes results to the authenticated user via Bearer token.
+        // Return all tasks directly — no need to re-filter by email.
+        debugPrint('[TaskFilter] BDE → returning all ${_tasks.length} tasks');
+        return _tasks;
     }
   }
 
@@ -251,309 +364,7 @@ class OperationsProvider extends ChangeNotifier {
       ];
     }
 
-    // Set Mock Tasks (Leads) representing the hierarchy
-    if (_tasks.isEmpty) {
-      _tasks = [
-        // --- Central Zone (Ernakulam District) ---
-        TaskModel(
-          id: 'LD_201',
-          studentName: 'Sujith Kumar',
-          location: 'Kakkanad Junction, Kochi (Opp. Sunrise Hospital)',
-          course: 'Diploma in Advanced AI & ML',
-          description:
-              'Introduce KIDE career programs, verify school records, and check scholarship eligibility.',
-          status: 'Completed',
-          leadStatus: 'Admitted',
-          remarks:
-              'Parent checked fee installment options, registered first term admission.',
-          assignedDate: DateTime.now().subtract(const Duration(days: 2)),
-          completedDate: DateTime.now().subtract(const Duration(days: 1)),
-          completionProofPath: 'receipt_sujith.jpg',
-          assignedBdeEmail: 'bde.ernakulam.a1@keralainstitute.org',
-          team: 'Ernakulam Team A',
-          district: 'Ernakulam',
-          zone: 'Central Zone',
-        ),
-        TaskModel(
-          id: 'LD_202',
-          studentName: 'Akhila Pillai',
-          location: 'Vyttila Hub Road, Ernakulam (Behind Metro Station)',
-          course: 'Executive MBA & Digital Business',
-          description:
-              'Explain business program curriculum, flexible online-hybrid classes, and career opportunities.',
-          status: 'Completed',
-          leadStatus: 'Interested',
-          remarks:
-              'Applicant is working full-time. Will discuss hybrid program schedule next Monday.',
-          assignedDate: DateTime.now().subtract(const Duration(days: 2)),
-          completedDate: DateTime.now().subtract(const Duration(days: 1)),
-          completionProofPath: 'callback_akhila.jpg',
-          assignedBdeEmail: 'bde.ernakulam.a2@keralainstitute.org',
-          team: 'Ernakulam Team A',
-          district: 'Ernakulam',
-          zone: 'Central Zone',
-        ),
-        TaskModel(
-          id: 'LD_203',
-          studentName: 'Sneha Mary John',
-          location: 'Palarivattom Metro Exit, Kochi (Green Villa Lane)',
-          course: 'Certified Digital Marketing Specialist',
-          description:
-              'Introduce KIDE career scholarship benefits, discuss internship tracks.',
-          status: 'Pending',
-          assignedDate: DateTime.now(),
-          assignedBdeEmail: 'bde.ernakulam.b1@keralainstitute.org',
-          team: 'Ernakulam Team B',
-          district: 'Ernakulam',
-          zone: 'Central Zone',
-        ),
-        TaskModel(
-          id: 'LD_204',
-          studentName: 'Abhishek Nair',
-          location: 'Edappally Toll, Kochi',
-          course: 'M.Tech in Cyber Security',
-          description:
-              'Counselling regarding scholarship criteria & placement track record.',
-          status: 'Pending',
-          assignedDate: DateTime.now(),
-          assignedBdeEmail: 'bde.ernakulam.a1@keralainstitute.org',
-          team: 'Ernakulam Team A',
-          district: 'Ernakulam',
-          zone: 'Central Zone',
-        ),
-        TaskModel(
-          id: 'LD_205',
-          studentName: 'Rinu Joseph',
-          location: 'Angamaly Town, Ernakulam',
-          course: 'B.Tech in Artificial Intelligence',
-          description:
-              'Discuss post-graduate placement statistics and schedule entry exam.',
-          status: 'Pending',
-          assignedDate: DateTime.now(),
-          assignedBdeEmail: 'bde.ernakulam.a2@keralainstitute.org',
-          team: 'Ernakulam Team A',
-          district: 'Ernakulam',
-          zone: 'Central Zone',
-        ),
-
-        // --- South Zone (Thiruvananthapuram District) ---
-        TaskModel(
-          id: 'LD_301',
-          studentName: 'Ajay Kumar',
-          location: 'Technopark Phase-3 Gate, Kazhakoottam, TVM',
-          course: 'Post-Graduate Program in Devops',
-          description:
-              'Brief details on course modules, flexible online classes.',
-          status: 'Pending',
-          assignedDate: DateTime.now(),
-          assignedBdeEmail: 'bde.trivandrum.a1@keralainstitute.org',
-          team: 'Trivandrum Team A',
-          district: 'Thiruvananthapuram',
-          zone: 'South Zone',
-        ),
-        TaskModel(
-          id: 'LD_302',
-          studentName: 'Reshma S.',
-          location: 'Kowdiar Junction, Trivandrum',
-          course: 'Certified Digital Marketing Specialist',
-          description: 'Verify certificates for 20% scholarship program.',
-          status: 'Completed',
-          leadStatus: 'Admitted',
-          remarks: 'Admission fee processed, invoice shared.',
-          assignedDate: DateTime.now().subtract(const Duration(days: 4)),
-          completedDate: DateTime.now().subtract(const Duration(days: 3)),
-          completionProofPath: 'reshma_receipt.jpg',
-          assignedBdeEmail: 'bde.trivandrum.a1@keralainstitute.org',
-          team: 'Trivandrum Team A',
-          district: 'Thiruvananthapuram',
-          zone: 'South Zone',
-        ),
-        TaskModel(
-          id: 'LD_303',
-          studentName: 'Abhirami Suresh',
-          location: 'Kazhakoottam Bypass Road, Thiruvananthapuram',
-          course: 'Post-Graduate Program in Devops',
-          description:
-              'Explain hybrid learning options, verify standard criteria.',
-          status: 'Pending',
-          assignedDate: DateTime.now(),
-          assignedBdeEmail: 'bde.trivandrum.a1@keralainstitute.org',
-          team: 'Trivandrum Team A',
-          district: 'Thiruvananthapuram',
-          zone: 'South Zone',
-        ),
-        TaskModel(
-          id: 'LD_304',
-          studentName: 'Midhun Murali',
-          location: 'Kowdiar Junction, Thiruvananthapuram',
-          course: 'B.Tech in Artificial Intelligence',
-          description: 'Counselling session for admission with parent.',
-          status: 'Pending',
-          assignedDate: DateTime.now(),
-          assignedBdeEmail: 'bde.trivandrum.a2@keralainstitute.org',
-          team: 'Trivandrum Team A',
-          district: 'Thiruvananthapuram',
-          zone: 'South Zone',
-        ),
-
-        // --- North Zone (Kozhikode District) ---
-        TaskModel(
-          id: 'LD_401',
-          studentName: 'Devanand R.',
-          location: 'MG Road, Kozhikode (Near City Mall)',
-          course: 'Full Stack Web Development & UI/UX',
-          description:
-              'Discuss post-graduate placement statistics and schedule entry exam.',
-          status: 'Pending',
-          assignedDate: DateTime.now(),
-          assignedBdeEmail: 'bde.kozhikode.a1@keralainstitute.org',
-          team: 'Kozhikode Team A',
-          district: 'Kozhikode',
-          zone: 'North Zone',
-        ),
-        TaskModel(
-          id: 'LD_402',
-          studentName: 'Fahad Fazil',
-          location: 'Mavoor Road, Kozhikode',
-          course: 'Certified Cloud Architect',
-          description: 'Verify degree marksheet and check eligibility.',
-          status: 'Completed',
-          leadStatus: 'Closed',
-          remarks: 'Candidate joined a full-time university course elsewhere.',
-          assignedDate: DateTime.now().subtract(const Duration(days: 5)),
-          completedDate: DateTime.now().subtract(const Duration(days: 2)),
-          completionProofPath: 'closed_fahad.jpg',
-          assignedBdeEmail: 'bde.kozhikode.a1@keralainstitute.org',
-          team: 'Kozhikode Team A',
-          district: 'Kozhikode',
-          zone: 'North Zone',
-        ),
-        TaskModel(
-          id: 'LD_403',
-          studentName: 'Sandra Joseph',
-          location: 'Calicut Bypass Road, Kozhikode',
-          course: 'M.Tech in Cyber Security',
-          description: 'Explain registration procedures and class schedules.',
-          status: 'Pending',
-          assignedDate: DateTime.now(),
-          assignedBdeEmail: 'bde.kozhikode.a2@keralainstitute.org',
-          team: 'Kozhikode Team A',
-          district: 'Kozhikode',
-          zone: 'North Zone',
-        ),
-        TaskModel(
-          id: 'LD_404',
-          studentName: 'Nikhil Raj',
-          location: 'MG Road, Kozhikode',
-          course: 'Certified Digital Marketing Specialist',
-          description:
-              'Parent meeting regarding course features and loan option.',
-          status: 'Pending',
-          assignedDate: DateTime.now(),
-          assignedBdeEmail: 'bde.kozhikode.a2@keralainstitute.org',
-          team: 'Kozhikode Team A',
-          district: 'Kozhikode',
-          zone: 'North Zone',
-        ),
-        // --- Central Zone (Thrissur District) ---
-        TaskModel(
-          id: 'LD_211',
-          studentName: 'Aswathy S.',
-          location: 'Swaraj Round, Thrissur',
-          course: 'Certified Digital Marketing Specialist',
-          description:
-              'Parent meeting regarding course features and career prospects.',
-          status: 'Pending',
-          assignedDate: DateTime.now(),
-          assignedBdeEmail: 'bde.thrissur.a1@keralainstitute.org',
-          team: 'Thrissur Team A',
-          district: 'Thrissur',
-          zone: 'Central Zone',
-        ),
-        TaskModel(
-          id: 'LD_212',
-          studentName: 'Gokul Das',
-          location: 'West Fort, Thrissur',
-          course: 'B.Tech in Artificial Intelligence',
-          description:
-              'Counselling session and scholarship documents verification.',
-          status: 'Completed',
-          leadStatus: 'Admitted',
-          remarks:
-              'Registered under scholarship quota. Paid registration token.',
-          assignedDate: DateTime.now().subtract(const Duration(days: 3)),
-          completedDate: DateTime.now().subtract(const Duration(days: 1)),
-          completionProofPath: 'thrissur_gokul_receipt.jpg',
-          assignedBdeEmail: 'bde.thrissur.a1@keralainstitute.org',
-          team: 'Thrissur Team A',
-          district: 'Thrissur',
-          zone: 'Central Zone',
-        ),
-        // --- South Zone (Kollam District) ---
-        TaskModel(
-          id: 'LD_311',
-          studentName: 'Neethu Krishnan',
-          location: 'Chinnakada Clock Tower, Kollam',
-          course: 'M.Tech in Cyber Security',
-          description: 'Check eligibility for hybrid program mode.',
-          status: 'Pending',
-          assignedDate: DateTime.now(),
-          assignedBdeEmail: 'bde.kollam.a1@keralainstitute.org',
-          team: 'Kollam Team A',
-          district: 'Kollam',
-          zone: 'South Zone',
-        ),
-        TaskModel(
-          id: 'LD_312',
-          studentName: 'Hariprasad M.',
-          location: 'High School Junction, Kollam',
-          course: 'Post-Graduate Program in Devops',
-          description: 'Verify certificates for 15% regional discount.',
-          status: 'Completed',
-          leadStatus: 'Interested',
-          remarks:
-              'Candidate is highly interested. Discussion with father scheduled next Tuesday.',
-          assignedDate: DateTime.now().subtract(const Duration(days: 4)),
-          completedDate: DateTime.now().subtract(const Duration(days: 2)),
-          completionProofPath: 'kollam_hari_status.jpg',
-          assignedBdeEmail: 'bde.kollam.a1@keralainstitute.org',
-          team: 'Kollam Team A',
-          district: 'Kollam',
-          zone: 'South Zone',
-        ),
-        // --- North Zone (Kannur District) ---
-        TaskModel(
-          id: 'LD_411',
-          studentName: 'Rithika Raj',
-          location: 'Payyambalam Beach Road, Kannur',
-          course: 'Diploma in Advanced AI & ML',
-          description: 'Introduce career placement tie-ups and syllabus.',
-          status: 'Pending',
-          assignedDate: DateTime.now(),
-          assignedBdeEmail: 'bde.kannur.a1@keralainstitute.org',
-          team: 'Kannur Team A',
-          district: 'Kannur',
-          zone: 'North Zone',
-        ),
-        TaskModel(
-          id: 'LD_412',
-          studentName: 'Karan Johar',
-          location: 'Caltex Junction, Kannur',
-          course: 'Certified Cloud Architect',
-          description: 'Explain corporate admission criteria & fee schedules.',
-          status: 'Completed',
-          leadStatus: 'Closed',
-          remarks: 'Candidate joined a local science college program.',
-          assignedDate: DateTime.now().subtract(const Duration(days: 5)),
-          completedDate: DateTime.now().subtract(const Duration(days: 3)),
-          completionProofPath: 'closed_kannur_karan.jpg',
-          assignedBdeEmail: 'bde.kannur.a1@keralainstitute.org',
-          team: 'Kannur Team A',
-          district: 'Kannur',
-          zone: 'North Zone',
-        ),
-      ];
-    }
+    // Set mock tasks removed. Live leads are loaded dynamically from /leads API below.
 
     // Set Mock Beat Plans representing the hierarchy
     if (_beatPlans.isEmpty) {
@@ -701,6 +512,12 @@ class OperationsProvider extends ChangeNotifier {
     // Fetch live leaves from API
     await fetchLeaves(isRefresh: isRefresh);
 
+    // Fetch pending leads (status=1) for the Assigned Visits tab
+    await fetchLeads(status: 1);
+
+    // Fetch hierarchy filters
+    await fetchHierarchyFilters();
+
     notifyListeners();
   }
 
@@ -804,6 +621,7 @@ class OperationsProvider extends ChangeNotifier {
 
     _beatPlans.clear();
     _tasks.clear();
+    _completedTasks.clear();
     _incentives.clear();
     for (var video in _trainingVideos) {
       video.isCompleted = false;
@@ -859,7 +677,7 @@ class OperationsProvider extends ChangeNotifier {
 
   // --- Task Actions ---
 
-  /// Update task status (Student Lead admission)
+  /// Update task status (Student Lead admission / close)
   Future<void> updateTaskStatus(
     String id,
     String status, {
@@ -868,19 +686,48 @@ class OperationsProvider extends ChangeNotifier {
     required String proof,
     String? followUpDate,
   }) async {
-    final index = _tasks.indexWhere((t) => t.id == id);
-    if (index != -1) {
-      _tasks[index] = _tasks[index].copyWith(
-        status: status,
-        leadStatus: leadStatus,
-        completedDate: status == 'Completed' ? DateTime.now() : null,
-        completionProofPath: proof,
-        remarks: remarks,
-        followUpDate: followUpDate,
-      );
+    _isSubmittingTask = true;
+    notifyListeners();
+    try {
+      // If the BDE is closing the lead, hit the dedicated close endpoint.
+      // Only `remark` is required — no schedule_date or status field.
+      if (leadStatus == 'Closed') {
+        // Task IDs are stored as 'LD_<numericId>' — extract the numeric part.
+        final numericId = int.tryParse(id.replaceFirst('LD_', ''));
+        if (numericId != null) {
+          await ApiClient.instance.post(
+            ApiEndpoints.closeLead(numericId),
+            data: {
+              'remarks': remarks,
+            },
+          );
+        }
+      }
+
+      // Update local state to reflect the change immediately in the UI.
+      final index = _tasks.indexWhere((t) => t.id == id);
+      if (index != -1) {
+        _tasks[index] = _tasks[index].copyWith(
+          status: status,
+          leadStatus: leadStatus,
+          completedDate: status == 'Completed' ? DateTime.now() : null,
+          completionProofPath: proof,
+          remarks: remarks,
+          followUpDate: followUpDate,
+        );
+      }
+
+      // Refresh lead lists so the UI reflects the latest server state.
+      await fetchLeads(status: 1);
+    } catch (e) {
+      debugPrint('[updateTaskStatus] ERROR: $e');
+      rethrow;
+    } finally {
+      _isSubmittingTask = false;
       notifyListeners();
     }
   }
+
 
   /// Bulk Lead Upload & Assign (For BDM/TL)
   Future<void> bulkUploadLeads(List<TaskModel> newLeads) async {
@@ -888,10 +735,331 @@ class OperationsProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Import Leads from File via API
+  /// POST /leads/import
+  Future<LeadImportResult?> importLeads(File file) async {
+    _isImportingLeads = true;
+    notifyListeners();
+    try {
+      final fileName = file.path.split(RegExp(r'[/\\]')).last;
+      final multipartFile = await MultipartFile.fromFile(
+        file.path,
+        filename: fileName,
+        contentType: MediaType.parse('text/csv'),
+      );
+
+      final response = await ApiClient.instance.uploadMultipart(
+        ApiEndpoints.importLeads,
+        data: {
+          'file': multipartFile,
+        },
+      );
+
+      if (response.data != null) {
+        final Map<String, dynamic> responseData = response.data as Map<String, dynamic>;
+        return LeadImportResult.fromJson(responseData);
+      }
+      return null;
+    } catch (e) {
+      debugPrint('Failed to import leads from file: $e');
+      rethrow;
+    } finally {
+      _isImportingLeads = false;
+      notifyListeners();
+    }
+  }
+
   /// Add single lead dynamically (BDM or Self-created by BDE)
   void addTask(TaskModel item) {
     _tasks.insert(0, item);
     notifyListeners();
+  }
+
+  List<Map<String, dynamic>> _courses = [];
+  List<Map<String, dynamic>> get courses => _courses;
+  bool _isLoadingCourses = false;
+  bool get isLoadingCourses => _isLoadingCourses;
+
+  List<Map<String, dynamic>> _districts = [];
+  List<Map<String, dynamic>> get districts => _districts;
+  bool _isLoadingDistricts = false;
+  bool get isLoadingDistricts => _isLoadingDistricts;
+
+  Future<void> fetchCourses() async {
+    _isLoadingCourses = true;
+    notifyListeners();
+    try {
+      final response = await ApiClient.instance.get(ApiEndpoints.courses);
+      if (response.data != null) {
+        final Map<String, dynamic> data = response.data['data'] as Map<String, dynamic>;
+        final List<dynamic> list = data['courses'] as List<dynamic>;
+        _courses = list.map((c) => c as Map<String, dynamic>).toList();
+      }
+    } catch (e) {
+      debugPrint('Failed to fetch courses from server: $e');
+    } finally {
+      _isLoadingCourses = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> fetchDistricts() async {
+    _isLoadingDistricts = true;
+    notifyListeners();
+    try {
+      final response = await ApiClient.instance.get(ApiEndpoints.districts);
+      if (response.data != null) {
+        final List<dynamic> list = response.data['data'] as List<dynamic>;
+        _districts = list.map((d) => d as Map<String, dynamic>).toList();
+      }
+    } catch (e) {
+      debugPrint('Failed to fetch districts from server: $e');
+    } finally {
+      _isLoadingDistricts = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> fetchHierarchyFilters() async {
+    _isLoadingHierarchyFilters = true;
+    notifyListeners();
+    try {
+      final response = await ApiClient.instance.get(ApiEndpoints.hierarchyFilters);
+      if (response.data != null && response.data['success'] == true) {
+        final Map<String, dynamic> data = response.data['data'] as Map<String, dynamic>;
+        
+        final List<dynamic>? districtsList = data['districts'] as List<dynamic>?;
+        _hierarchyDistricts = districtsList != null
+            ? districtsList.map((d) => d as Map<String, dynamic>).toList()
+            : [];
+
+        final List<dynamic>? teamsList = data['teams'] as List<dynamic>?;
+        _hierarchyTeams = teamsList != null
+            ? teamsList.map((t) => t as Map<String, dynamic>).toList()
+            : [];
+
+        final Map<String, dynamic>? employeesMap = data['employees'] as Map<String, dynamic>?;
+        if (employeesMap != null && employeesMap['BDE'] != null) {
+          final List<dynamic> bdeList = employeesMap['BDE'] as List<dynamic>;
+          _hierarchyBdes = bdeList.map((b) => b as Map<String, dynamic>).toList();
+        } else {
+          _hierarchyBdes = [];
+        }
+
+        if (employeesMap != null && employeesMap['BDM'] != null) {
+          final List<dynamic> bdmList = employeesMap['BDM'] as List<dynamic>;
+          _hierarchyBdms = bdmList.map((b) => b as Map<String, dynamic>).toList();
+        } else {
+          _hierarchyBdms = [];
+        }
+
+        if (employeesMap != null && employeesMap['ASM'] != null) {
+          final List<dynamic> asmList = employeesMap['ASM'] as List<dynamic>;
+          _hierarchyAsms = asmList.map((a) => a as Map<String, dynamic>).toList();
+        } else {
+          _hierarchyAsms = [];
+        }
+      }
+    } catch (e) {
+      debugPrint('Failed to fetch hierarchy filters: $e');
+    } finally {
+      _isLoadingHierarchyFilters = false;
+      notifyListeners();
+    }
+  }
+
+  static const int STATUS_NEW = 1;
+  static const int STATUS_WON = 4;
+  static const int STATUS_LOST = 5;
+
+  bool _isLoadingLeads = false;
+  bool get isLoadingLeads => _isLoadingLeads;
+
+  List<TaskModel> _completedTasks = [];
+  List<TaskModel> get completedTasks => _completedTasks;
+  bool _isLoadingCompletedLeads = false;
+  bool get isLoadingCompletedLeads => _isLoadingCompletedLeads;
+
+  /// Converts a [LeadModel] to the [TaskModel] used by the UI.
+  TaskModel _mapLead(LeadModel lead) {
+    final currentUser = AuthProvider.instance.session;
+    final zoneName  = currentUser.zone  ?? '';
+    final teamName  = currentUser.team  ?? '';
+    // API already scopes results via Bearer token; use session values as fallback.
+    return TaskModel(
+      id: 'LD_${lead.id}',
+      studentName: lead.name,
+      location: lead.address,
+      course: lead.course?.name ?? '',
+      description: lead.notes,
+      assignedDate: lead.createdAt,
+      assignedBdeEmail: currentUser.email,
+      team: teamName,
+      district: lead.district?.name ?? currentUser.district ?? '',
+      zone: zoneName,
+      creatorEmail: currentUser.email,
+      status: lead.isCompleted ? 'Completed' : 'Pending',
+      leadStatus: lead.statusLabel,
+      followUpDate: null,
+    );
+  }
+
+  /// // Fetches pending leads (status=1) and populates [tasks].
+  Future<void> fetchLeads({int status = 1, int? employeeId, int? teamId, int? districtId}) async {
+    _isLoadingLeads = true;
+    notifyListeners();
+    try {
+      final Map<String, dynamic> queryParams = {'status': 1};
+      final activeEmployeeId = employeeId ?? _selectedBdeId ?? _selectedBdmId ?? _selectedAsmId;
+      if (activeEmployeeId != null) {
+        queryParams['employee_id'] = activeEmployeeId;
+      }
+      final activeTeamId = teamId ?? _selectedTeamId;
+      if (activeTeamId != null) {
+        queryParams['team_id'] = activeTeamId;
+      }
+      final activeDistrictId = districtId ?? _selectedDistrictId;
+      if (activeDistrictId != null) {
+        queryParams['district_id'] = activeDistrictId;
+      }
+
+      final response = await ApiClient.instance.get(
+        ApiEndpoints.leads,
+        queryParameters: queryParams,
+      );
+      if (response.data != null && response.data['success'] == true) {
+        final leadsPage = LeadsPage.fromJson(
+          response.data['data']['leads'] as Map<String, dynamic>,
+        );
+        final allMapped = leadsPage.data.map(_mapLead).toList();
+        _tasks = allMapped.where((t) => t.status == 'Pending').toList();
+        debugPrint('[fetchLeads] status=1, employee_id=$activeEmployeeId, team_id=$activeTeamId, district_id=$activeDistrictId → ${_tasks.length} pending leads loaded');
+      }
+    } catch (e, st) {
+      debugPrint('[fetchLeads] ERROR: $e\n$st');
+    } finally {
+      _isLoadingLeads = false;
+      notifyListeners();
+    }
+  }
+
+  /// Fetches completed leads (status=5) and populates [completedTasks].
+  Future<void> fetchCompletedLeads({int? employeeId, int? teamId, int? districtId}) async {
+    _isLoadingCompletedLeads = true;
+    notifyListeners();
+    try {
+      final Map<String, dynamic> queryParams = {'status': 5};
+      final activeEmployeeId = employeeId ?? _selectedBdeId ?? _selectedBdmId ?? _selectedAsmId;
+      if (activeEmployeeId != null) {
+        queryParams['employee_id'] = activeEmployeeId;
+      }
+      final activeTeamId = teamId ?? _selectedTeamId;
+      if (activeTeamId != null) {
+        queryParams['team_id'] = activeTeamId;
+      }
+      final activeDistrictId = districtId ?? _selectedDistrictId;
+      if (activeDistrictId != null) {
+        queryParams['district_id'] = activeDistrictId;
+      }
+
+      final response = await ApiClient.instance.get(
+        ApiEndpoints.leads,
+        queryParameters: queryParams,
+      );
+
+      final List<TaskModel> combined = [];
+      if (response.data != null && response.data['success'] == true) {
+        final leadsPage = LeadsPage.fromJson(
+          response.data['data']['leads'] as Map<String, dynamic>,
+        );
+        combined.addAll(leadsPage.data.map(_mapLead));
+      }
+      _completedTasks = combined.where((t) => t.status == 'Completed').toList();
+      debugPrint('[fetchCompletedLeads] status=5, employee_id=$activeEmployeeId, team_id=$activeTeamId, district_id=$activeDistrictId → ${_completedTasks.length} completed leads loaded');
+    } catch (e, st) {
+      debugPrint('[fetchCompletedLeads] ERROR: $e\n$st');
+    } finally {
+      _isLoadingCompletedLeads = false;
+      notifyListeners();
+    }
+  }
+
+  Future<bool> createLeadOnServer({
+    required String name,
+    required String phone,
+    required String email,
+    required String address,
+    required int districtId,
+    required int courseId,
+    required int source,
+    required int status,
+    required int assignedEmployeeId,
+    required String notes,
+  }) async {
+    _isSubmittingTask = true;
+    notifyListeners();
+    try {
+      final response = await ApiClient.instance.post(
+        ApiEndpoints.createLead,
+        data: {
+          'name': name,
+          'phone': phone,
+          'email': email,
+          'address': address,
+          'district_id': districtId,
+          'course_id': courseId,
+          'source': source,
+          'status': status,
+          'assigned_employee_id': assignedEmployeeId,
+          'notes': notes,
+        },
+      );
+
+      if (response.data != null && response.data['success'] == true) {
+        final Map<String, dynamic> data = response.data['data'] as Map<String, dynamic>;
+        final leadData = data['lead'] as Map<String, dynamic>;
+        
+        // Map course_id back to name
+        final courseName = _courses.firstWhere(
+          (c) => c['id'] == courseId,
+          orElse: () => {'name': 'Web Development Bootcamp'},
+        )['name'] as String;
+
+        // Map district_id back to name
+        final districtName = _districts.firstWhere(
+          (d) => d['id'] == districtId,
+          orElse: () => {'name': 'Ernakulam'},
+        )['name'] as String;
+
+        // Add to local list to reflect in UI immediately
+        final newLead = TaskModel(
+          id: 'LD_${leadData['id'] ?? DateTime.now().millisecondsSinceEpoch.toString().substring(9)}',
+          studentName: name,
+          location: address,
+          course: courseName,
+          description: notes,
+          assignedDate: DateTime.now(),
+          assignedBdeEmail: AuthProvider.instance.session.email,
+          team: AuthProvider.instance.session.team ?? 'Ernakulam Team A',
+          district: districtName,
+          zone: AuthProvider.instance.session.zone ?? 'Central Zone',
+          creatorEmail: AuthProvider.instance.session.email,
+          status: 'Pending',
+          leadStatus: 'Interested',
+          followUpDate: null,
+        );
+
+        addTask(newLead);
+        await fetchLeads(status: 1);
+        return true;
+      }
+    } catch (e) {
+      debugPrint('Failed to create lead on server: $e');
+    } finally {
+      _isSubmittingTask = false;
+      notifyListeners();
+    }
+    return false;
   }
 
   // --- Incentive Actions ---
@@ -1015,48 +1183,80 @@ class OperationsProvider extends ChangeNotifier {
 
   /// Submit End of Day Report
   Future<void> submitEodReport(String remarks, String summary) async {
-    final completedVisits = completedVisitsCount;
-    final pending = pendingVisitsCount;
-    final time = DateTime.now();
-
-    final leads = completedVisits;
-    final followups = beatPlans
-        .where(
-          (v) =>
-              v.isVisited &&
-              v.followUpDate != null &&
-              v.followUpDate!.isNotEmpty,
-        )
-        .length;
-
-    _todayEod = EodModel(
-      id: 'EOD_TODAY',
-      totalVisits: completedVisits,
-      leadsCreated: leads,
-      followUpsScheduled: followups,
-      pendingVisits: pending,
-      remarks: remarks,
-      dailySummary: summary,
-      submissionTime: time,
-      isSubmitted: true,
-    );
-
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('eod_submitted', true);
-    await prefs.setInt('eod_visits', completedVisits);
-    await prefs.setInt('eod_leads', leads);
-    await prefs.setInt('eod_followups', followups);
-    await prefs.setInt('eod_pending', pending);
-    await prefs.setString('eod_remarks', remarks);
-    await prefs.setString('eod_summary', summary);
-    await prefs.setString('eod_time', time.toIso8601String());
-
+    _isSubmittingEod = true;
     notifyListeners();
+    try {
+      await Future.delayed(const Duration(milliseconds: 1500));
+      final completedVisits = completedVisitsCount;
+      final pending = pendingVisitsCount;
+      final time = DateTime.now();
+
+      final leads = completedVisits;
+      final followups = beatPlans
+          .where(
+            (v) =>
+                v.isVisited &&
+                v.followUpDate != null &&
+                v.followUpDate!.isNotEmpty,
+          )
+          .length;
+
+      _todayEod = EodModel(
+        id: 'EOD_TODAY',
+        totalVisits: completedVisits,
+        leadsCreated: leads,
+        followUpsScheduled: followups,
+        pendingVisits: pending,
+        remarks: remarks,
+        dailySummary: summary,
+        submissionTime: time,
+        isSubmitted: true,
+      );
+
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('eod_submitted', true);
+      await prefs.setInt('eod_visits', completedVisits);
+      await prefs.setInt('eod_leads', leads);
+      await prefs.setInt('eod_followups', followups);
+      await prefs.setInt('eod_pending', pending);
+      await prefs.setString('eod_remarks', remarks);
+      await prefs.setString('eod_summary', summary);
+      await prefs.setString('eod_time', time.toIso8601String());
+    } finally {
+      _isSubmittingEod = false;
+      notifyListeners();
+    }
   }
 
   /// Add new beat plan item dynamically
   void addBeatPlan(BeatPlanModel item) {
     _beatPlans.add(item);
+    notifyListeners();
+  }
+
+  /// Reset provider state on logout
+  void clearData() {
+    _beatPlans = [];
+    _tasks = [];
+    _incentives = [];
+    _leaves = [];
+    _trainingVideos = [];
+    _todayEod = EodModel.empty();
+    _leaveBalanceCasual = 8;
+    _leaveBalanceMedical = 4;
+    _leaveBalanceEarned = 10;
+    _selectedDistrictFilter = null;
+    _isLeavesLoaded = false;
+    _taskSearchQuery = '';
+    _selectedBdeEmail = null;
+    _selectedTeam = null;
+    _selectedTeamId = null;
+    _selectedDistrict = null;
+    _selectedDistrictId = null;
+    _selectedAsmEmail = null;
+    _selectedAsmId = null;
+    _selectedBdmEmail = null;
+    _selectedBdmId = null;
     notifyListeners();
   }
 }

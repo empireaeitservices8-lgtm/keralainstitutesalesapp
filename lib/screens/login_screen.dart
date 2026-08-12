@@ -239,6 +239,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                           controller: _emailController,
                                           style: const TextStyle(color: AppColors.textPrimary),
                                           keyboardType: TextInputType.text,
+                                          textCapitalization: TextCapitalization.characters,
                                           decoration: InputDecoration(
                                             labelText: 'Employee ID',
                                             labelStyle: const TextStyle(color: AppColors.textSecondary),

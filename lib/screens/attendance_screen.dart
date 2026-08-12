@@ -1,11 +1,18 @@
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
+import 'package:flutter/foundation.dart';
+import 'package:camera/camera.dart';
+import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
+import 'package:device_info_plus/device_info_plus.dart';
 import 'package:intl/intl.dart';
+import 'package:geolocator/geolocator.dart';
 import '../constants/colors.dart';
 import '../models/attendance_model.dart';
 import '../providers/attendance_provider.dart';
 import '../utils/helpers.dart';
+import 'leave_screen.dart';
+import 'checkout_success_screen.dart';
 
 class AttendanceScreen extends StatefulWidget {
   static const String path = '/attendance';
@@ -19,15 +26,16 @@ class _AttendanceScreenState extends State<AttendanceScreen> with SingleTickerPr
   late AnimationController _scannerController;
   late Animation<double> _scannerAnimation;
   
-  bool _isSelfieCaptured = false;
-  String _selfiePath = '';
-  bool _isScanning = false;
-  DateTime? _capturedAt;
+  CameraController? _cameraController;
+  FaceDetector? _faceDetector;
+  bool _isDetectingFaces = false;
+  List<CameraDescription>? _availableCameras;
 
   @override
   void initState() {
     super.initState();
     AttendanceProvider.instance.loadTodayAttendance();
+    _initializeCamera();
     
     _scannerController = AnimationController(
       vsync: this,
@@ -42,231 +50,370 @@ class _AttendanceScreenState extends State<AttendanceScreen> with SingleTickerPr
   @override
   void dispose() {
     _scannerController.dispose();
+    if (_cameraController != null) {
+      if (_cameraController!.value.isInitialized) {
+        try {
+          _cameraController!.stopImageStream();
+        } catch (_) {}
+      }
+      _cameraController!.dispose();
+    }
+    _faceDetector?.close();
     super.dispose();
   }
 
-  // Trigger live camera selfie capture using native device camera
-  Future<void> _simulateSelfieCapture() async {
-    setState(() {
-      _isScanning = true;
-      _isSelfieCaptured = false;
-      _capturedAt = null;
-    });
-
+  Future<void> _initializeCamera() async {
+    final provider = AttendanceProvider.instance;
     try {
-      final ImagePicker picker = ImagePicker();
-      final XFile? photo = await picker.pickImage(
-        source: ImageSource.camera,
-        preferredCameraDevice: CameraDevice.front,
-        maxWidth: 600,
-        maxHeight: 600,
-        imageQuality: 85,
+      _availableCameras = await availableCameras();
+      if (_availableCameras == null || _availableCameras!.isEmpty) {
+        throw Exception("No cameras found");
+      }
+
+      final frontCamera = _availableCameras!.firstWhere(
+        (camera) => camera.lensDirection == CameraLensDirection.front,
+        orElse: () => _availableCameras!.first,
       );
 
-      if (photo != null) {
-        setState(() {
-          _isScanning = false;
-          _isSelfieCaptured = true;
-          _capturedAt = DateTime.now();
-          _selfiePath = photo.path;
-        });
-        UiHelpers.showSnackBar(context, 'Live selfie captured successfully!', Colors.greenAccent);
-      } else {
-        setState(() {
-          _isScanning = false;
-        });
-        UiHelpers.showSnackBar(context, 'Selfie capture cancelled.', Colors.orangeAccent);
+      _cameraController = CameraController(
+        frontCamera,
+        ResolutionPreset.medium,
+        enableAudio: false,
+        imageFormatGroup: Platform.isAndroid 
+            ? ImageFormatGroup.nv21 
+            : ImageFormatGroup.bgra8888,
+      );
+
+      await _cameraController!.initialize();
+
+      _faceDetector = FaceDetector(
+        options: FaceDetectorOptions(
+          performanceMode: FaceDetectorMode.fast,
+        ),
+      );
+
+      _cameraController!.startImageStream(_processCameraImage);
+
+      if (mounted) {
+        provider.setCameraInitialized(true);
+        provider.setUseMockScan(false);
+        provider.setFaceDetectionStatus("Align your face in the camera circle");
       }
     } catch (e) {
-      // Graceful fallback to animated simulator scan if native camera is not compiled or fails
-      debugPrint('Native camera launch failed ($e). Falling back to virtual face scan...');
-      
-      // Keep scanning indicator running briefly
-      await Future.delayed(const Duration(milliseconds: 1500));
-      
-      if (!mounted) return;
-      
-      setState(() {
-        _isScanning = false;
-        _isSelfieCaptured = true;
-        _capturedAt = DateTime.now();
-        // Fallback to a mock image path
-        _selfiePath = 'selfie_mock_fallback_${DateTime.now().millisecondsSinceEpoch.toString().substring(8)}.jpg';
-      });
-      UiHelpers.showSnackBar(context, 'Fallback: Face selfie scanned successfully!', Colors.blueAccent);
+      debugPrint("Camera initialization failed ($e). Using mock scanner mode.");
+      if (mounted) {
+        provider.setUseMockScan(true);
+        provider.setCameraInitialized(false);
+        provider.setFaceDetectionStatus("No camera: Virtual Scanner Active");
+      }
+    }
+  }
+
+  Future<void> _processCameraImage(CameraImage image) async {
+    final provider = AttendanceProvider.instance;
+    if (_faceDetector == null || _isDetectingFaces || provider.isSelfieCaptured) return;
+    _isDetectingFaces = true;
+
+    try {
+      final inputImage = _convertCameraImageToInputImage(image);
+      if (inputImage != null) {
+        final faces = await _faceDetector!.processImage(inputImage);
+        
+        if (mounted) {
+          if (faces.isNotEmpty) {
+            provider.setFaceDetected(true);
+            provider.setFaceDetectionStatus("Face Detected! Ready to Capture.");
+          } else {
+            provider.setFaceDetected(false);
+            provider.setFaceDetectionStatus("Align your face in the camera circle");
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint("Face detection error: $e");
+    } finally {
+      _isDetectingFaces = false;
+    }
+  }
+
+  InputImage? _convertCameraImageToInputImage(CameraImage image) {
+    if (_cameraController == null) return null;
+
+    final camera = _cameraController!.description;
+    final sensorOrientation = camera.sensorOrientation;
+    
+    InputImageRotation? rotation;
+    if (Platform.isAndroid) {
+      rotation = InputImageRotationValue.fromRawValue(sensorOrientation);
+    } else if (Platform.isIOS) {
+      rotation = InputImageRotation.rotation90deg;
+    }
+    rotation ??= InputImageRotation.rotation0deg;
+
+    final format = Platform.isAndroid ? InputImageFormat.nv21 : InputImageFormat.bgra8888;
+
+    Uint8List bytes;
+    if (Platform.isAndroid) {
+      final builder = BytesBuilder();
+      for (final Plane plane in image.planes) {
+        builder.add(plane.bytes);
+      }
+      bytes = builder.takeBytes();
+    } else {
+      bytes = image.planes[0].bytes;
+    }
+
+    final metadata = InputImageMetadata(
+      size: Size(image.width.toDouble(), image.height.toDouble()),
+      rotation: rotation,
+      format: format,
+      bytesPerRow: image.planes[0].bytesPerRow,
+    );
+
+    return InputImage.fromBytes(bytes: bytes, metadata: metadata);
+  }
+
+  Future<void> _captureSelfie() async {
+    final provider = AttendanceProvider.instance;
+    if (provider.useMockScan) {
+      await _simulateSelfieCapture();
+      return;
+    }
+
+    if (_cameraController == null || !_cameraController!.value.isInitialized) return;
+    if (!provider.faceDetected) {
+      UiHelpers.showSnackBar(context, 'No face detected in the frame. Please align your face.', Colors.orangeAccent);
+      return;
+    }
+
+    provider.setScanning(true);
+
+    try {
+      try {
+        await _cameraController!.stopImageStream();
+      } catch (streamError) {
+        debugPrint("Warning: stopImageStream failed (might not be streaming): $streamError");
+      }
+      final XFile photo = await _cameraController!.takePicture();
+
+      provider.setScanning(false);
+      provider.setSelfieCaptured(true);
+      provider.setCapturedAt(DateTime.now());
+      provider.setSelfiePath(photo.path);
+
+      UiHelpers.showSnackBar(context, 'Live selfie captured successfully!', Colors.greenAccent);
+    } catch (e) {
+      debugPrint("Error capturing photo: $e");
+      UiHelpers.showSnackBar(context, 'Failed to capture selfie: $e', Colors.redAccent);
+      provider.setScanning(false);
+      try {
+        _cameraController!.startImageStream(_processCameraImage);
+      } catch (_) {}
+    }
+  }
+
+  void _retakeSelfie() {
+    final provider = AttendanceProvider.instance;
+    provider.resetSelfieState();
+
+    if (_cameraController != null && _cameraController!.value.isInitialized) {
+      _cameraController!.startImageStream(_processCameraImage);
+    }
+  }
+
+  Future<void> _simulateSelfieCapture() async {
+    final provider = AttendanceProvider.instance;
+    provider.setScanning(true);
+    provider.setSelfieCaptured(false);
+    provider.setCapturedAt(null);
+
+    await Future.delayed(const Duration(milliseconds: 1500));
+    
+    if (!mounted) return;
+    
+    provider.setScanning(false);
+    provider.setSelfieCaptured(true);
+    provider.setCapturedAt(DateTime.now());
+    provider.setSelfiePath('selfie_mock_fallback_${DateTime.now().millisecondsSinceEpoch.toString().substring(8)}.jpg');
+
+    UiHelpers.showSnackBar(context, 'Fallback: Face selfie scanned successfully!', Colors.blueAccent);
+  }
+
+  Future<String> _getDeviceInfo() async {
+    try {
+      final DeviceInfoPlugin deviceInfoPlugin = DeviceInfoPlugin();
+      if (Platform.isAndroid) {
+        final androidInfo = await deviceInfoPlugin.androidInfo;
+        return '${androidInfo.brand} ${androidInfo.model} (Android ${androidInfo.version.release})';
+      } else if (Platform.isIOS) {
+        final iosInfo = await deviceInfoPlugin.iosInfo;
+        return '${iosInfo.name} ${iosInfo.model} (iOS ${iosInfo.systemVersion})';
+      }
+      return 'Unknown Device';
+    } catch (e) {
+      return 'Fallback Device Info';
     }
   }
 
   Future<void> _handleCheckIn() async {
-    if (!_isSelfieCaptured) {
+    final provider = AttendanceProvider.instance;
+    if (!provider.isSelfieCaptured) {
       UiHelpers.showSnackBar(context, 'Please capture live selfie first.', Colors.orangeAccent);
       return;
     }
 
-    final String captureTimeStr = _capturedAt != null 
-        ? DateFormat('yyyy-MM-dd HH:mm:ss').format(_capturedAt!) 
-        : DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now());
+    double lat = 10.0159;
+    double lng = 76.3419;
+    
+    try {
+      final position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+        timeLimit: const Duration(seconds: 5),
+      );
+      lat = position.latitude;
+      lng = position.longitude;
+    } catch (_) {
+      // Silently fall back to Kochi coordinates
+    }
 
-    // Show secure upload dialog
+    final deviceInfo = await _getDeviceInfo();
+
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (context) => AlertDialog(
         backgroundColor: Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Row(
-          children: [
-            Icon(Icons.cloud_upload_rounded, color: AppColors.accentTeal),
-            SizedBox(width: 8),
-            Text('Syncing Selfie Log', style: TextStyle(color: AppColors.textPrimary, fontSize: 15, fontWeight: FontWeight.bold)),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Transmitting captured selfie to backend server with metadata...',
-              style: TextStyle(color: AppColors.textSecondary, fontSize: 12, height: 1.4),
-            ),
-            const SizedBox(height: 14),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF1F5F9),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFFE2E8F0)),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('API REQUEST PAYLOAD:', style: TextStyle(fontFamily: 'monospace', fontSize: 10, fontWeight: FontWeight.bold, color: Colors.blueGrey)),
-                  const SizedBox(height: 6),
-                  Text('{\n  "action": "check_in",\n  "captured_selfie": "selfie_checked_in.jpg",\n  "capture_timestamp": "$captureTimeStr"\n}', 
-                    style: const TextStyle(fontFamily: 'monospace', fontSize: 11, color: AppColors.textPrimary),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-            const Row(
-              children: [
-                SizedBox(
-                  width: 14,
-                  height: 14,
-                  child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.accentTeal),
+        content: const Padding(
+          padding: EdgeInsets.symmetric(vertical: 10.0),
+          child: Row(
+            children: [
+              CircularProgressIndicator(strokeWidth: 3, color: AppColors.accentTeal),
+              SizedBox(width: 24),
+              Expanded(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Syncing Selfie Log',
+                      style: TextStyle(color: AppColors.textPrimary, fontSize: 15, fontWeight: FontWeight.bold),
+                    ),
+                    SizedBox(height: 4),
+                    Text(
+                      'Transmitting details to server...',
+                      style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                    ),
+                  ],
                 ),
-                SizedBox(width: 10),
-                Text('Connecting to API gateway...', style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
-              ],
-            ),
-          ],
+              ),
+            ],
+          ),
         ),
       ),
     );
 
-    await Future.delayed(const Duration(milliseconds: 2000));
-    final success = await AttendanceProvider.instance.checkIn(_selfiePath);
-    
-    if (mounted) {
-      Navigator.pop(context); // Close loading dialog
-    }
+    try {
+      final success = await AttendanceProvider.instance.checkIn(
+        selfiePath: provider.selfiePath,
+        lat: lat,
+        lng: lng,
+        deviceInfo: deviceInfo,
+        sourceMode: 'selfie',
+      );
+      
+      if (mounted) {
+        Navigator.pop(context); // Close loading dialog
+      }
 
-    if (success && mounted) {
-      UiHelpers.showSnackBar(context, 'Attendance checked in with selfie successfully!', Colors.greenAccent);
-      setState(() {
-        _isSelfieCaptured = false;
-      });
+      if (success && mounted) {
+        UiHelpers.showSnackBar(context, 'Attendance checked in with selfie successfully!', Colors.greenAccent);
+        provider.setSelfieCaptured(false);
+      }
+    } catch (e) {
+      if (mounted) {
+        Navigator.pop(context); // Close loading dialog
+      }
+      UiHelpers.showSnackBar(context, 'Check-in failed: ${e.toString().replaceAll('Exception:', '').trim()}', Colors.redAccent);
     }
   }
 
   Future<void> _handleCheckOut() async {
-    if (!_isSelfieCaptured) {
+    final provider = AttendanceProvider.instance;
+    if (!provider.isSelfieCaptured) {
       UiHelpers.showSnackBar(context, 'Please capture live checkout selfie first.', Colors.orangeAccent);
       return;
     }
 
-    final String captureTimeStr = _capturedAt != null 
-        ? DateFormat('yyyy-MM-dd HH:mm:ss').format(_capturedAt!) 
-        : DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now());
+    double lat = 10.0159;
+    double lng = 76.3419;
+    
+    try {
+      final position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+        timeLimit: const Duration(seconds: 5),
+      );
+      lat = position.latitude;
+      lng = position.longitude;
+    } catch (_) {
+      // Silently fall back to Kochi coordinates
+    }
 
-    // Show secure upload dialog
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (context) => AlertDialog(
         backgroundColor: Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Row(
-          children: [
-            Icon(Icons.cloud_upload_rounded, color: Colors.orangeAccent),
-            SizedBox(width: 8),
-            Text('Syncing Checkout Log', style: TextStyle(color: AppColors.textPrimary, fontSize: 15, fontWeight: FontWeight.bold)),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Transmitting captured selfie to backend server with metadata...',
-              style: TextStyle(color: AppColors.textSecondary, fontSize: 12, height: 1.4),
-            ),
-            const SizedBox(height: 14),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF1F5F9),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFFE2E8F0)),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('API REQUEST PAYLOAD:', style: TextStyle(fontFamily: 'monospace', fontSize: 10, fontWeight: FontWeight.bold, color: Colors.blueGrey)),
-                  const SizedBox(height: 6),
-                  Text('{\n  "action": "check_out",\n  "captured_selfie": "selfie_checked_out.jpg",\n  "capture_timestamp": "$captureTimeStr"\n}', 
-                    style: const TextStyle(fontFamily: 'monospace', fontSize: 11, color: AppColors.textPrimary),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-            const Row(
-              children: [
-                SizedBox(
-                  width: 14,
-                  height: 14,
-                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.orangeAccent),
+        content: const Padding(
+          padding: EdgeInsets.symmetric(vertical: 10.0),
+          child: Row(
+            children: [
+              CircularProgressIndicator(strokeWidth: 3, color: Colors.orangeAccent),
+              SizedBox(width: 24),
+              Expanded(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Syncing Checkout Log',
+                      style: TextStyle(color: AppColors.textPrimary, fontSize: 15, fontWeight: FontWeight.bold),
+                    ),
+                    SizedBox(height: 4),
+                    Text(
+                      'Transmitting details to server...',
+                      style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                    ),
+                  ],
                 ),
-                SizedBox(width: 10),
-                Text('Connecting to API gateway...', style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
-              ],
-            ),
-          ],
+              ),
+            ],
+          ),
         ),
       ),
     );
 
-    await Future.delayed(const Duration(milliseconds: 2000));
-    final success = await AttendanceProvider.instance.checkOut(_selfiePath);
-    
-    if (mounted) {
-      Navigator.pop(context); // Close loading dialog
-    }
-
-    if (success && mounted) {
-      final hours = AttendanceProvider.instance.currentAttendance.workingHours ?? 0.0;
-      UiHelpers.showSnackBar(
-        context, 
-        'Checked Out! Total Work Time: ${hours.toStringAsFixed(2)} Hours.', 
-        Colors.greenAccent
+    try {
+      final success = await AttendanceProvider.instance.checkOut(
+        selfiePath: provider.selfiePath,
+        lat: lat,
+        lng: lng,
       );
-      setState(() {
-        _isSelfieCaptured = false;
-      });
+      
+      if (mounted) {
+        Navigator.pop(context); // Close loading dialog
+      }
+
+      if (success && mounted) {
+        provider.setSelfieCaptured(false);
+        Navigator.pushReplacementNamed(context, CheckoutSuccessScreen.path);
+      }
+    } catch (e) {
+      if (mounted) {
+        Navigator.pop(context); // Close loading dialog
+      }
+      UiHelpers.showSnackBar(context, 'Check-out failed: ${e.toString().replaceAll('Exception:', '').trim()}', Colors.redAccent);
     }
   }
 
@@ -303,33 +450,22 @@ class _AttendanceScreenState extends State<AttendanceScreen> with SingleTickerPr
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    // Status Badge
                     _buildStatusHeader(attendance.status),
                     const SizedBox(height: 24),
 
-                    // Main Viewfinder/Capture container if not completed
                     if (!attendance.isCompleted) ...[
                       _buildCameraViewfinder(),
                       const SizedBox(height: 24),
                       
-                      // Geolocation Indicator Card
                       _buildGeoCard(provider, attendance),
                       const SizedBox(height: 30),
                       
-                      // Actions buttons
                       _buildActionButtons(provider, attendance),
                     ] else ...[
-                      // Summary view when checked out
                       _buildCompletedSummary(provider, attendance),
                     ],
 
-                    // Sync log card
                     _buildSyncLogCard(provider, attendance),
-
-                    const SizedBox(height: 32),
-                    
-                    // Demo Reset button
-                    _buildDemoResetButton(provider),
                   ],
                 ),
               );
@@ -377,12 +513,14 @@ class _AttendanceScreenState extends State<AttendanceScreen> with SingleTickerPr
   }
 
   Widget _buildCameraViewfinder() {
+    final provider = AttendanceProvider.instance;
+    final borderAccentColor = provider.faceDetected ? Colors.greenAccent : AppColors.accentTeal;
+
     return Column(
       children: [
         Stack(
           alignment: Alignment.center,
           children: [
-            // Outer bracket HUD indicator
             Container(
               width: 244,
               height: 244,
@@ -398,10 +536,10 @@ class _AttendanceScreenState extends State<AttendanceScreen> with SingleTickerPr
                     child: Container(
                       width: 20,
                       height: 20,
-                      decoration: const BoxDecoration(
+                      decoration: BoxDecoration(
                         border: Border(
-                          top: BorderSide(color: AppColors.accentTeal, width: 3),
-                          left: BorderSide(color: AppColors.accentTeal, width: 3),
+                          top: BorderSide(color: borderAccentColor, width: 3),
+                          left: BorderSide(color: borderAccentColor, width: 3),
                         ),
                       ),
                     ),
@@ -412,10 +550,10 @@ class _AttendanceScreenState extends State<AttendanceScreen> with SingleTickerPr
                     child: Container(
                       width: 20,
                       height: 20,
-                      decoration: const BoxDecoration(
+                      decoration: BoxDecoration(
                         border: Border(
-                          top: BorderSide(color: AppColors.accentTeal, width: 3),
-                          right: BorderSide(color: AppColors.accentTeal, width: 3),
+                          top: BorderSide(color: borderAccentColor, width: 3),
+                          right: BorderSide(color: borderAccentColor, width: 3),
                         ),
                       ),
                     ),
@@ -426,10 +564,10 @@ class _AttendanceScreenState extends State<AttendanceScreen> with SingleTickerPr
                     child: Container(
                       width: 20,
                       height: 20,
-                      decoration: const BoxDecoration(
+                      decoration: BoxDecoration(
                         border: Border(
-                          bottom: BorderSide(color: AppColors.accentTeal, width: 3),
-                          left: BorderSide(color: AppColors.accentTeal, width: 3),
+                          bottom: BorderSide(color: borderAccentColor, width: 3),
+                          left: BorderSide(color: borderAccentColor, width: 3),
                         ),
                       ),
                     ),
@@ -440,10 +578,10 @@ class _AttendanceScreenState extends State<AttendanceScreen> with SingleTickerPr
                     child: Container(
                       width: 20,
                       height: 20,
-                      decoration: const BoxDecoration(
+                      decoration: BoxDecoration(
                         border: Border(
-                          bottom: BorderSide(color: AppColors.accentTeal, width: 3),
-                          right: BorderSide(color: AppColors.accentTeal, width: 3),
+                          bottom: BorderSide(color: borderAccentColor, width: 3),
+                          right: BorderSide(color: borderAccentColor, width: 3),
                         ),
                       ),
                     ),
@@ -452,84 +590,62 @@ class _AttendanceScreenState extends State<AttendanceScreen> with SingleTickerPr
               ),
             ),
             
-            // Viewfinder ring
             Container(
               width: 210,
               height: 210,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 color: Colors.white.withOpacity(0.03),
-                border: Border.all(color: Colors.white.withOpacity(0.15), width: 2),
+                border: Border.all(color: provider.faceDetected ? Colors.greenAccent.withOpacity(0.5) : Colors.white.withOpacity(0.15), width: 2),
               ),
             ),
             
-            // Viewfinder content
             ClipOval(
               child: SizedBox(
                 width: 206,
                 height: 206,
                 child: Container(
                   color: const Color(0xFF14242D),
-                  child: _isScanning
+                  child: provider.isScanning
                       ? const Center(
                           child: CircularProgressIndicator(color: AppColors.accentTeal),
                         )
-                      : _isSelfieCaptured
-                          ? Center(
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.all(4),
-                                    decoration: BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      border: Border.all(color: Colors.greenAccent.withOpacity(0.3), width: 2),
-                                    ),
-                                    child: CircleAvatar(
-                                      radius: 36,
-                                      backgroundColor: Colors.teal.withOpacity(0.12),
-                                      backgroundImage: _selfiePath.startsWith('selfie_') || _selfiePath.isEmpty
-                                          ? null
-                                          : FileImage(File(_selfiePath)),
-                                      child: _selfiePath.startsWith('selfie_') || _selfiePath.isEmpty
-                                          ? const Icon(Icons.face_retouching_natural_rounded, color: AppColors.accentTeal, size: 36)
-                                          : null,
-                                    ),
+                      : provider.isSelfieCaptured
+                          ? (provider.selfiePath.startsWith('selfie_') || provider.selfiePath.isEmpty
+                              ? const Center(
+                                  child: Icon(Icons.face_retouching_natural_rounded, color: AppColors.accentTeal, size: 48),
+                                )
+                              : Image.file(
+                                  File(provider.selfiePath),
+                                  fit: BoxFit.cover,
+                                  width: 206,
+                                  height: 206,
+                                ))
+                          : provider.isCameraInitialized && _cameraController != null
+                              ? Center(
+                                  child: AspectRatio(
+                                    aspectRatio: 1.0,
+                                    child: CameraPreview(_cameraController!),
                                   ),
-                                  const SizedBox(height: 10),
-                                  const Text(
-                                    'Selfie Saved',
-                                    style: TextStyle(color: Colors.greenAccent, fontSize: 13, fontWeight: FontWeight.bold),
+                                )
+                              : Center(
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(Icons.camera_alt_outlined, color: Colors.white.withOpacity(0.3), size: 48),
+                                      const SizedBox(height: 8),
+                                      Text(
+                                        provider.useMockScan ? 'Virtual Simulator Active' : 'Front Viewfinder',
+                                        style: TextStyle(color: Colors.white.withOpacity(0.3), fontSize: 12),
+                                      ),
+                                    ],
                                   ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    _capturedAt != null 
-                                        ? DateFormat('hh:mm:ss a').format(_capturedAt!) 
-                                        : '',
-                                    style: TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 10),
-                                  ),
-                                ],
-                              ),
-                            )
-                          : Center(
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(Icons.camera_alt_outlined, color: Colors.white.withOpacity(0.3), size: 48),
-                                  const SizedBox(height: 8),
-                                  Text(
-                                    'Front Viewfinder',
-                                    style: TextStyle(color: Colors.white.withOpacity(0.3), fontSize: 12),
-                                  ),
-                                ],
-                              ),
-                            ),
+                                ),
                 ),
               ),
             ),
 
-            // Animated Laser Scanner Line
-            if (_isScanning)
+            if (provider.isScanning || (provider.isCameraInitialized && !provider.isSelfieCaptured))
               AnimatedBuilder(
                 animation: _scannerAnimation,
                 builder: (context, child) {
@@ -540,10 +656,10 @@ class _AttendanceScreenState extends State<AttendanceScreen> with SingleTickerPr
                     child: Container(
                       height: 3,
                       decoration: BoxDecoration(
-                        color: AppColors.accentTeal,
+                        color: provider.faceDetected ? Colors.greenAccent : AppColors.accentTeal,
                         boxShadow: [
                           BoxShadow(
-                            color: AppColors.accentTeal.withOpacity(0.8),
+                            color: (provider.faceDetected ? Colors.greenAccent : AppColors.accentTeal).withOpacity(0.8),
                             blurRadius: 10,
                             spreadRadius: 1,
                           )
@@ -555,21 +671,60 @@ class _AttendanceScreenState extends State<AttendanceScreen> with SingleTickerPr
               ),
           ],
         ),
+        
+        if (!provider.isSelfieCaptured) ...[
+          const SizedBox(height: 12),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                provider.faceDetected ? Icons.check_circle_rounded : Icons.face_retouching_off_rounded,
+                color: provider.faceDetected ? Colors.greenAccent : Colors.orangeAccent,
+                size: 16,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                provider.faceDetectionStatus,
+                style: TextStyle(
+                  color: provider.faceDetected ? Colors.greenAccent : Colors.white.withOpacity(0.7),
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+        ],
         const SizedBox(height: 16),
         
-        // Scan Trigger Button
         ElevatedButton.icon(
           style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.white,
+            backgroundColor: provider.isSelfieCaptured || provider.faceDetected || provider.useMockScan ? Colors.white : Colors.white.withOpacity(0.5),
             foregroundColor: AppColors.textPrimary,
             side: const BorderSide(color: Color(0xFFE2E8F0)),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
             elevation: 1,
           ),
-          onPressed: _isScanning ? null : _simulateSelfieCapture,
-          icon: const Icon(Icons.face_unlock_rounded, size: 18),
-          label: Text(_isSelfieCaptured ? 'Retake Selfie' : 'Scan Live Face'),
+          onPressed: provider.isScanning
+              ? null
+              : (provider.isSelfieCaptured
+                  ? _retakeSelfie
+                  : (provider.faceDetected || provider.useMockScan ? _captureSelfie : null)),
+          icon: Icon(
+            provider.isSelfieCaptured ? Icons.refresh_rounded : Icons.camera_alt_rounded,
+            size: 18,
+            color: provider.isSelfieCaptured
+                ? Colors.blueAccent
+                : (provider.faceDetected ? Colors.green : Colors.grey),
+          ),
+          label: Text(
+            provider.isSelfieCaptured ? 'Retake Selfie' : 'Capture Selfie',
+            style: TextStyle(
+              color: provider.isSelfieCaptured
+                  ? AppColors.textPrimary
+                  : (provider.faceDetected || provider.useMockScan ? AppColors.textPrimary : Colors.grey),
+            ),
+          ),
         ),
       ],
     );
@@ -775,11 +930,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> with SingleTickerPr
               ),
               onPressed: () async {
                 await provider.resetAttendance();
-                setState(() {
-                  _isSelfieCaptured = false;
-                  _selfiePath = '';
-                  _capturedAt = null;
-                });
+                provider.resetSelfieState();
               },
               icon: const Icon(Icons.add_circle_outline_rounded, color: Colors.white, size: 18),
               label: const Text(
@@ -845,6 +996,8 @@ class _AttendanceScreenState extends State<AttendanceScreen> with SingleTickerPr
           ),
           const Divider(color: Color(0xFFE2E8F0), height: 28),
           _buildDetailRow('Active Employee ID', attendance.employeeId),
+          const SizedBox(height: 12),
+          _buildDetailRow('Sync Approval Status', (attendance.statusText ?? 'Approved').toUpperCase()),
           const SizedBox(height: 12),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -929,19 +1082,4 @@ class _AttendanceScreenState extends State<AttendanceScreen> with SingleTickerPr
     );
   }
 
-  Widget _buildDemoResetButton(AttendanceProvider provider) {
-    return TextButton.icon(
-      style: TextButton.styleFrom(
-        foregroundColor: Colors.redAccent.withOpacity(0.7),
-      ),
-      onPressed: () async {
-        await provider.resetAttendance();
-        if (mounted) {
-          UiHelpers.showSnackBar(context, 'Attendance reset successfully for testing.', Colors.redAccent, textColor: Colors.white);
-        }
-      },
-      icon: const Icon(Icons.refresh, size: 16),
-      label: const Text('Reset Attendance (For Testing)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-    );
-  }
 }

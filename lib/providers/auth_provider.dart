@@ -1,6 +1,12 @@
 import 'package:flutter/material.dart';
 import '../models/user_session.dart';
 import '../services/auth_service.dart';
+import '../api/api_response.dart';
+import 'home_provider.dart';
+import 'user_profile_provider.dart';
+import 'wallet_provider.dart';
+import 'operations_provider.dart';
+import 'attendance_provider.dart';
 
 class AuthProvider extends ChangeNotifier {
   static final AuthProvider instance = AuthProvider._internal();
@@ -12,6 +18,8 @@ class AuthProvider extends ChangeNotifier {
   bool _obscurePassword = true;
   bool _rememberMe = true;
   bool _requirePasswordChange = false;
+  bool _isLoggingOut = false;
+  bool _obscureConfirmPassword = true;
 
   UserSession get session => _session;
   bool get isLoading => _isLoading;
@@ -20,6 +28,8 @@ class AuthProvider extends ChangeNotifier {
   bool get obscurePassword => _obscurePassword;
   bool get rememberMe => _rememberMe;
   bool get requirePasswordChange => _requirePasswordChange;
+  bool get isLoggingOut => _isLoggingOut;
+  bool get obscureConfirmPassword => _obscureConfirmPassword;
 
   void toggleObscurePassword() {
     _obscurePassword = !_obscurePassword;
@@ -89,10 +99,45 @@ class AuthProvider extends ChangeNotifier {
     return success;
   }
 
-  Future<void> logout() async {
-    await AuthService.instance.logout();
-    _session = UserSession.empty();
-    _requirePasswordChange = false;
+  void updateSessionRole(String newRole) {
+    if (_session.role != newRole) {
+      _session = UserSession(
+        email: _session.email,
+        authType: _session.authType,
+        deviceToken: _session.deviceToken,
+        name: _session.name,
+        role: newRole,
+        zone: _session.zone,
+        district: _session.district,
+        team: _session.team,
+      );
+      notifyListeners();
+    }
+  }
+
+  void toggleObscureConfirmPassword() {
+    _obscureConfirmPassword = !_obscureConfirmPassword;
     notifyListeners();
+  }
+
+  Future<void> logout() async {
+    _isLoggingOut = true;
+    notifyListeners();
+    try {
+      await AuthService.instance.logout();
+      _session = UserSession.empty();
+      _requirePasswordChange = false;
+      
+      // Reset all providers and current screen index on logout
+      HomeProvider.instance.setCurrentIndex(0);
+      HomeProvider.instance.setState(ApiResponse.empty());
+      UserProfileProvider.instance.setState(ApiResponse.empty());
+      WalletProvider.instance.setState(ApiResponse.empty());
+      OperationsProvider.instance.clearData();
+      AttendanceProvider.instance.clearData();
+    } finally {
+      _isLoggingOut = false;
+      notifyListeners();
+    }
   }
 }

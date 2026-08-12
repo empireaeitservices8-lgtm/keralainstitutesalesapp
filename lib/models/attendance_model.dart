@@ -24,21 +24,40 @@ class AttendanceModel {
   @JsonKey(name: 'working_hours')
   final double? workingHours;
   final String status;
+  @JsonKey(name: 'status_text')
+  final String? statusText;
 
   AttendanceModel({
     required this.employeeId,
     required this.employeeName,
     required this.checkInSelfie,
-    required this.checkInTime,
+    required DateTime checkInTime,
     required this.checkInLatitude,
     required this.checkInLongitude,
     this.checkOutSelfie,
-    this.checkOutTime,
+    DateTime? checkOutTime,
     this.workingHours,
     required this.status,
-  });
+    this.statusText,
+  }) : checkInTime = checkInTime.toLocal(),
+       checkOutTime = checkOutTime?.toLocal();
 
-  factory AttendanceModel.fromJson(Map<String, dynamic> json) => _$AttendanceModelFromJson(json);
+  factory AttendanceModel.fromJson(Map<String, dynamic> json) {
+    if (json['check_in_time'] is String) {
+      json['check_in_time'] = _normalizeUtcString(json['check_in_time'] as String);
+    }
+    if (json['check_out_time'] is String) {
+      json['check_out_time'] = _normalizeUtcString(json['check_out_time'] as String);
+    }
+    return _$AttendanceModelFromJson(json);
+  }
+
+  static String _normalizeUtcString(String str) {
+    if (str.isEmpty) return str;
+    if (str.contains('Z') || str.contains('+')) return str;
+    final normalized = str.replaceFirst(' ', 'T');
+    return '${normalized}Z';
+  }
   Map<String, dynamic> toJson() => _$AttendanceModelToJson(this);
 
   AttendanceModel copyWith({
@@ -46,6 +65,7 @@ class AttendanceModel {
     DateTime? checkOutTime,
     double? workingHours,
     String? status,
+    String? statusText,
   }) {
     return AttendanceModel(
       employeeId: employeeId,
@@ -58,6 +78,7 @@ class AttendanceModel {
       checkOutTime: checkOutTime ?? this.checkOutTime,
       workingHours: workingHours ?? this.workingHours,
       status: status ?? this.status,
+      statusText: statusText ?? this.statusText,
     );
   }
 
@@ -70,6 +91,7 @@ class AttendanceModel {
       checkInLatitude: 0.0,
       checkInLongitude: 0.0,
       status: 'Absent',
+      statusText: 'absent',
     );
   }
 

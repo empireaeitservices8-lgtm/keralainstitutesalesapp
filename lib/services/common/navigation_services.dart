@@ -10,6 +10,9 @@ import '../../screens/eod_screen.dart';
 import '../../screens/set_password_screen.dart';
 import '../../screens/training_videos_screen.dart';
 import '../../screens/leave_screen.dart';
+import '../../screens/checkout_success_screen.dart';
+import '../../screens/attendance_history_screen.dart';
+import '../../screens/employee_dashboard_screen.dart';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
@@ -38,6 +41,18 @@ Route<dynamic>? generateRoute(RouteSettings settings) {
       return MaterialPageRoute(builder: (_) => const TrainingVideosScreen());
     case LeaveScreen.path:
       return MaterialPageRoute(builder: (_) => const LeaveScreen());
+    case CheckoutSuccessScreen.path:
+      return MaterialPageRoute(builder: (_) => const CheckoutSuccessScreen());
+    case AttendanceHistoryScreen.path:
+      return MaterialPageRoute(builder: (_) => const AttendanceHistoryScreen());
+    case EmployeeDashboardScreen.path:
+      final args = settings.arguments as Map<String, dynamic>;
+      return MaterialPageRoute(
+        builder: (_) => EmployeeDashboardScreen(
+          employeeId: args['employeeId'] as int,
+          employeeName: args['employeeName'] as String,
+        ),
+      );
     default:
       return null;
   }

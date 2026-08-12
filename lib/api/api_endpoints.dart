@@ -14,6 +14,10 @@ class ApiEndpoints {
   /// Features (Placeholder endpoint maps, can be adapted/configured)
   static const String userProfile = '/profile';
   static const String attendance = '/attendance';
+  static const String checkIn = '/attendance/check-in';
+  static const String checkOut = '/attendance/check-out';
+  static const String attendanceStatus = '/attendance/status';
+  static const String attendanceHistory = '/attendance/history';
   static const String operations = '/operations';
   static const String home = '/home';
   static const String walletBalance = '/wallet/balance';
@@ -22,4 +26,14 @@ class ApiEndpoints {
   static const String applyLeave = '/leaves/apply';
   static const String designations = '/designations';
   static const String register = '/register';
+  static const String courses = '/courses';
+  static const String createLead = '/leads/create';
+  static const String sources = '/sources';
+  static const String districts = '/districts';
+  static const String leads = '/leads';
+  static const String importLeads = '/leads/import';
+  static const String hierarchyFilters = '/hierarchy/filters';
+
+  /// Returns the close endpoint for a specific lead: POST /leads/{id}/close
+  static String closeLead(int id) => '/leads/$id/close';
 }

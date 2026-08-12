@@ -40,4 +40,18 @@ class UiHelpers {
       ),
     );
   }
+
+  static DateTime parseUtcDateTime(String str) {
+    if (str.isEmpty) return DateTime.now();
+    if (str.contains('Z') || str.contains('+')) {
+      return DateTime.parse(str).toLocal();
+    }
+    final normalized = str.replaceFirst(' ', 'T');
+    return DateTime.parse('${normalized}Z').toLocal();
+  }
+
+  static DateTime? parseNullableUtcDateTime(String? str) {
+    if (str == null || str.isEmpty) return null;
+    return parseUtcDateTime(str);
+  }
 }

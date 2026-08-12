@@ -303,25 +303,10 @@ class AuthService {
           final String name = user['name'] ?? 'User';
           final String userEmail = user['email'] ?? email;
           final String designation = user['designation_name'] ?? 'BDE';
+          final int designationId = (user['designation_id'] as num? ?? 0).toInt();
 
           // Map designation to user role code: 'MD' | 'ZM' | 'ASM' | 'BDM' | 'BDE'
-          String role = 'BDE';
-          final cleanDes = designation.toLowerCase();
-          if (cleanDes.contains('managing director') ||
-              cleanDes.contains('super admin') ||
-              cleanDes.contains('admin')) {
-            role = 'MD';
-          } else if (cleanDes.contains('zonal')) {
-            role = 'ZM';
-          } else if (cleanDes.contains('area sales') ||
-              cleanDes.contains('district')) {
-            role = 'ASM';
-          } else if (cleanDes.contains('business development manager') ||
-              cleanDes.contains('team leader')) {
-            role = 'BDM';
-          } else {
-            role = 'BDE';
-          }
+          final String role = mapDesignationIdToRole(designationId, designation);
 
           // Use mapped zone/district/team from mock users if they exist to keep compatibility
           final cleanEmail = userEmail.trim().toLowerCase();
@@ -516,5 +501,38 @@ class AuthService {
       debugPrint('===========================================================');
     }
     return false;
+  }
+
+  static String mapDesignationIdToRole(int designationId, String designationName) {
+    switch (designationId) {
+      case 1:
+        return 'BDE';
+      case 2:
+        return 'MD';
+      case 3:
+        return 'ZM';
+      case 4:
+        return 'ASM';
+      case 5:
+        return 'BDM';
+      default:
+        final cleanDes = designationName.toLowerCase();
+        if (cleanDes.contains('managing director') ||
+            cleanDes.contains('super admin') ||
+            cleanDes.contains('admin')) {
+          return 'MD';
+        } else if (cleanDes.contains('zonal')) {
+          return 'ZM';
+        } else if (cleanDes.contains('area sales') ||
+            cleanDes.contains('district')) {
+          return 'ASM';
+        } else if (cleanDes.contains('business development manager') ||
+            cleanDes.contains('team leader') ||
+            cleanDes.contains('bdm') ||
+            cleanDes == 'tl') {
+          return 'BDM';
+        }
+        return 'BDE';
+    }
   }
 }

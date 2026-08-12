@@ -72,6 +72,8 @@
 	<string>We need your location to verify sales activities even when running in background.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>We need camera access to take pictures of products, stores, and receipts.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>We need microphone access to record videos for attendance if necessary.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>We need photo library access to upload invoices or documents.</string>
 	<key>NSFaceIDUsageDescription</key>

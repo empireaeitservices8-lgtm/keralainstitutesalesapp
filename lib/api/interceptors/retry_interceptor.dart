@@ -52,6 +52,28 @@ class RetryInterceptor extends Interceptor {
 
   /// Determines if the query should be retried based on exception type and response code.
   bool _shouldRetry(DioException err) {
+    // Never retry FormData requests because they cannot be read multiple times once finalized
+    if (err.requestOptions.data is FormData) {
+      return false;
+    }
+
+    // SSL Decryption or Handshake failures (which map to DioExceptionType.unknown or connectionError)
+    // These occur at the socket layer before the request is received by the server, so it's safe to retry for any method.
+    final errorString = err.toString().toLowerCase() + (err.error?.toString().toLowerCase() ?? '');
+    final isTlsFailure = errorString.contains('decrypt') ||
+        errorString.contains('handshake') ||
+        errorString.contains('tls_record') ||
+        errorString.contains('bad_record_mac');
+
+    if (isTlsFailure) {
+      return true;
+    }
+
+    // Only retry GET requests (idempotent read operations) for other connection errors to avoid duplicate form submissions
+    if (err.requestOptions.method.toUpperCase() != 'GET') {
+      return false;
+    }
+
     // Timeout issues
     if (err.type == DioExceptionType.connectionTimeout ||
         err.type == DioExceptionType.sendTimeout ||

@@ -141,6 +141,9 @@ class ApiClient {
       return await _dio.post<T>(
         path,
         data: formData,
+        options: Options(
+          contentType: 'multipart/form-data',
+        ),
         cancelToken: cancelToken,
         onSendProgress: onSendProgress,
       );

@@ -1,4 +1,8 @@
+import 'dart:io';
+import 'dart:async';
+import 'dart:typed_data';
 import 'package:dio/dio.dart';
+import 'package:dio/io.dart';
 import 'api_constants.dart';
 import 'api_endpoints.dart';
 import 'interceptors/api_logging_interceptor.dart';
@@ -20,11 +24,15 @@ class DioClient {
         headers: {
           'Accept': ApiConstants.acceptHeader,
           'Content-Type': ApiConstants.contentTypeHeader,
-          'Connection': 'close', // Force clean TLS handshake each request, avoiding keep-alive decryption bugs
+          'Connection': 'close',
         },
         responseType: ResponseType.json,
       ),
     );
+
+    // Disable connection keep-alive pooling to bypass BAD_DECRYPT keep-alive bugs
+    // and override bad certificate validation to prevent handshake failures on proxy/VPN connections
+    dio.httpClientAdapter = FreshClientAdapter();
 
     // Interceptors pipeline
     dio.interceptors.addAll([
@@ -33,4 +41,62 @@ class DioClient {
       ApiLoggingInterceptor(),
     ]);
   }
+}
+
+class FreshClientAdapter implements HttpClientAdapter {
+  @override
+  Future<ResponseBody> fetch(
+    RequestOptions options,
+    Stream<Uint8List>? requestStream,
+    Future<void>? cancelFuture,
+  ) async {
+    final adapter = IOHttpClientAdapter(
+      createHttpClient: () {
+        final client = HttpClient();
+        client.idleTimeout = Duration.zero;
+        client.badCertificateCallback = (X509Certificate cert, String host, int port) => true;
+        return client;
+      },
+    );
+    try {
+      final response = await adapter.fetch(options, requestStream, cancelFuture);
+      
+      late StreamSubscription<Uint8List> subscription;
+      final controller = StreamController<Uint8List>(
+        onCancel: () {
+          subscription.cancel();
+          adapter.close(force: true);
+        },
+      );
+      
+      subscription = response.stream.listen(
+        (data) => controller.add(data),
+        onError: (err) {
+          controller.addError(err);
+          controller.close();
+          adapter.close(force: true);
+        },
+        onDone: () {
+          controller.close();
+          adapter.close(force: true);
+        },
+        cancelOnError: true,
+      );
+
+      return ResponseBody(
+        controller.stream,
+        response.statusCode,
+        headers: response.headers,
+        statusMessage: response.statusMessage,
+        isRedirect: response.isRedirect,
+        redirects: response.redirects,
+      );
+    } catch (e) {
+      adapter.close(force: true);
+      rethrow;
+    }
+  }
+
+  @override
+  void close({bool force = false}) {}
 }

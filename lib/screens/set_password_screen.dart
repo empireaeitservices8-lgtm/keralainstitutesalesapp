@@ -18,8 +18,6 @@ class _SetPasswordScreenState extends State<SetPasswordScreen> {
   final _formKey = GlobalKey<FormState>();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
-  bool _obscurePassword = true;
-  bool _obscureConfirmPassword = true;
 
   @override
   void dispose() {
@@ -152,20 +150,18 @@ class _SetPasswordScreenState extends State<SetPasswordScreen> {
                                     TextFormField(
                                       controller: _passwordController,
                                       style: const TextStyle(color: AppColors.textPrimary),
-                                      obscureText: _obscurePassword,
+                                      obscureText: authProvider.obscurePassword,
                                       decoration: InputDecoration(
                                         labelText: 'New Password',
                                         labelStyle: const TextStyle(color: AppColors.textSecondary),
                                         prefixIcon: const Icon(Icons.lock_outline, color: AppColors.accentTeal),
                                         suffixIcon: IconButton(
                                           icon: Icon(
-                                            _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                                            authProvider.obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
                                             color: AppColors.textSecondary,
                                           ),
                                           onPressed: () {
-                                            setState(() {
-                                              _obscurePassword = !_obscurePassword;
-                                            });
+                                            authProvider.toggleObscurePassword();
                                           },
                                         ),
                                         filled: true,
@@ -193,20 +189,18 @@ class _SetPasswordScreenState extends State<SetPasswordScreen> {
                                     TextFormField(
                                       controller: _confirmPasswordController,
                                       style: const TextStyle(color: AppColors.textPrimary),
-                                      obscureText: _obscureConfirmPassword,
+                                      obscureText: authProvider.obscureConfirmPassword,
                                       decoration: InputDecoration(
                                         labelText: 'Re-enter Password',
                                         labelStyle: const TextStyle(color: AppColors.textSecondary),
                                         prefixIcon: const Icon(Icons.lock_reset_outlined, color: AppColors.accentTeal),
                                         suffixIcon: IconButton(
                                           icon: Icon(
-                                            _obscureConfirmPassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                                            authProvider.obscureConfirmPassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
                                             color: AppColors.textSecondary,
                                           ),
                                           onPressed: () {
-                                            setState(() {
-                                              _obscureConfirmPassword = !_obscureConfirmPassword;
-                                            });
+                                            authProvider.toggleObscureConfirmPassword();
                                           },
                                         ),
                                         filled: true,

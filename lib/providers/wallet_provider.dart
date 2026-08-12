@@ -14,6 +14,11 @@ class WalletProvider extends BaseProvider<WalletBalanceModel> {
   /// Fetches the wallet balance and withdraw requests from the GET endpoint `/wallet/balance`.
   /// Uses cached data as fallback if offline or connection fails.
   Future<void> fetchWalletBalance({bool isRefresh = false}) async {
+    // If already loaded in memory and not a manual refresh, do not fetch again
+    if (!isRefresh && state.data != null) {
+      return;
+    }
+
     final prefs = await SharedPreferences.getInstance();
 
     // 1. Attempt to load from cache immediately to prevent loading spinner

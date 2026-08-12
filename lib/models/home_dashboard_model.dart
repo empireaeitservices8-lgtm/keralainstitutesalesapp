@@ -9,19 +9,34 @@ class HomeDashboardModel {
   final int designationId;
   @JsonKey(name: 'designation_name')
   final String designationName;
-  final HomeAttendance attendance;
+  final HomeAttendance? attendance;
   @JsonKey(name: 'eod_sync')
-  final HomeEodSync eodSync;
+  final HomeEodSync? eodSync;
   @JsonKey(name: 'operational_overview')
-  final HomeOperationalOverview operationalOverview;
+  final HomeOperationalOverview? operationalOverview;
+  @JsonKey(name: 'dashboard_type')
+  final String? dashboardType;
+  @JsonKey(name: 'team_name')
+  final String? teamName;
+  @JsonKey(name: 'team_metrics')
+  final HomeTeamMetrics? teamMetrics;
+  @JsonKey(name: 'team_subordinate_status')
+  final Map<String, List<HomeBdeStatus>>? teamSubordinateStatus;
+  @JsonKey(name: 'territory_report')
+  final List<HomeTerritoryReport>? territoryReport;
 
   HomeDashboardModel({
     required this.user,
     required this.designationId,
     required this.designationName,
-    required this.attendance,
-    required this.eodSync,
-    required this.operationalOverview,
+    this.attendance,
+    this.eodSync,
+    this.operationalOverview,
+    this.dashboardType,
+    this.teamName,
+    this.teamMetrics,
+    this.teamSubordinateStatus,
+    this.territoryReport,
   });
 
   factory HomeDashboardModel.fromJson(Map<String, dynamic> json) => _$HomeDashboardModelFromJson(json);
@@ -54,12 +69,18 @@ class HomeAttendance {
   final String shiftStatus;
   @JsonKey(name: 'is_checked_in')
   final bool isCheckedIn;
+  @JsonKey(name: 'location_lat')
+  final num? locationLat;
+  @JsonKey(name: 'location_lng')
+  final num? locationLng;
 
   HomeAttendance({
     required this.checkInTime,
     required this.checkOutTime,
     required this.shiftStatus,
     required this.isCheckedIn,
+    this.locationLat,
+    this.locationLng,
   });
 
   factory HomeAttendance.fromJson(Map<String, dynamic> json) => _$HomeAttendanceFromJson(json);
@@ -105,4 +126,97 @@ class HomeOperationalOverview {
 
   factory HomeOperationalOverview.fromJson(Map<String, dynamic> json) => _$HomeOperationalOverviewFromJson(json);
   Map<String, dynamic> toJson() => _$HomeOperationalOverviewToJson(this);
+}
+
+@JsonSerializable()
+class HomeTeamMetrics {
+  @JsonKey(name: 'team_leads')
+  final int teamLeads;
+  @JsonKey(name: 'team_admissions')
+  final int teamAdmissions;
+  @JsonKey(name: 'team_conversion')
+  final String teamConversion;
+  @JsonKey(name: 'visits_pending')
+  final int visitsPending;
+
+  HomeTeamMetrics({
+    required this.teamLeads,
+    required this.teamAdmissions,
+    required this.teamConversion,
+    required this.visitsPending,
+  });
+
+  factory HomeTeamMetrics.fromJson(Map<String, dynamic> json) => _$HomeTeamMetricsFromJson(json);
+  Map<String, dynamic> toJson() => _$HomeTeamMetricsToJson(this);
+}
+
+@JsonSerializable()
+class HomeBdeStatus {
+  final int id;
+  final String name;
+  final String designation;
+  @JsonKey(name: 'conversion_percentage')
+  final String conversionPercentage;
+  @JsonKey(name: 'leads_assigned')
+  final String leadsAssigned;
+  @JsonKey(name: 'online_status')
+  final String onlineStatus;
+  @JsonKey(name: 'online_time')
+  final String? onlineTime;
+  @JsonKey(name: 'location_lat')
+  final num? locationLat;
+  @JsonKey(name: 'location_lng')
+  final num? locationLng;
+
+  HomeBdeStatus({
+    required this.id,
+    required this.name,
+    required this.designation,
+    required this.conversionPercentage,
+    required this.leadsAssigned,
+    required this.onlineStatus,
+    this.onlineTime,
+    this.locationLat,
+    this.locationLng,
+  });
+
+  factory HomeBdeStatus.fromJson(Map<String, dynamic> json) => _$HomeBdeStatusFromJson(json);
+  Map<String, dynamic> toJson() => _$HomeBdeStatusToJson(this);
+}
+
+@JsonSerializable()
+class HomeTerritoryReport {
+  @JsonKey(name: 'territory_name')
+  final String territoryName;
+  @JsonKey(name: 'manager_name')
+  final String managerName;
+  @JsonKey(name: 'manager_designation')
+  final String managerDesignation;
+  @JsonKey(name: 'leads_count')
+  final int leadsCount;
+  @JsonKey(name: 'bdes_count')
+  final int bdesCount;
+  @JsonKey(name: 'conversion_percentage')
+  final String conversionPercentage;
+
+  const HomeTerritoryReport({
+    required this.territoryName,
+    required this.managerName,
+    required this.managerDesignation,
+    required this.leadsCount,
+    required this.bdesCount,
+    required this.conversionPercentage,
+  });
+
+  factory HomeTerritoryReport.fromJson(Map<String, dynamic> json) => _$HomeTerritoryReportFromJson(json);
+  Map<String, dynamic> toJson() => _$HomeTerritoryReportToJson(this);
+}
+
+num? _parseLocation(dynamic val) {
+  if (val == null) return null;
+  if (val is num) return val;
+  if (val is String) {
+    return num.tryParse(val);
+  }
+  return null;
 }

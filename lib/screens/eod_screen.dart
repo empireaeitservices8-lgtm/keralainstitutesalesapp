@@ -16,7 +16,6 @@ class EodScreen extends StatefulWidget {
 class _EodScreenState extends State<EodScreen> {
   final _remarksController = TextEditingController();
   final _summaryController = TextEditingController();
-  bool _isSubmitting = false;
 
   @override
   void initState() {
@@ -37,15 +36,10 @@ class _EodScreenState extends State<EodScreen> {
       return;
     }
 
-    setState(() => _isSubmitting = true);
-    await Future.delayed(const Duration(milliseconds: 1500));
-    
     await OperationsProvider.instance.submitEodReport(
       _remarksController.text.trim(),
       _summaryController.text.trim(),
     );
-    
-    setState(() => _isSubmitting = false);
 
     if (mounted) {
       UiHelpers.showSnackBar(context, 'EOD Report Submitted Successfully!', Colors.greenAccent);
@@ -198,8 +192,8 @@ class _EodScreenState extends State<EodScreen> {
                           shadowColor: Colors.transparent,
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                         ),
-                        onPressed: _isSubmitting ? null : _handleSubmitEod,
-                        child: _isSubmitting
+                        onPressed: provider.isSubmittingEod ? null : _handleSubmitEod,
+                        child: provider.isSubmittingEod
                             ? const SizedBox(
                                 width: 24,
                                 height: 24,
