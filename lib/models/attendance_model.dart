@@ -55,8 +55,7 @@ class AttendanceModel {
   static String _normalizeUtcString(String str) {
     if (str.isEmpty) return str;
     if (str.contains('Z') || str.contains('+')) return str;
-    final normalized = str.replaceFirst(' ', 'T');
-    return '${normalized}Z';
+    return str.replaceFirst(' ', 'T');
   }
   Map<String, dynamic> toJson() => _$AttendanceModelToJson(this);
 

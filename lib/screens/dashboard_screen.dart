@@ -15,7 +15,6 @@ import 'task_screen.dart';
 import 'incentive_screen.dart';
 import 'profile_screen.dart';
 import 'eod_screen.dart';
-import 'employee_dashboard_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   static const String path = '/dashboard';
@@ -32,47 +31,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     // Preload data
     OperationsProvider.instance.loadOperationsData();
     HomeProvider.instance.fetchHomeData();
-  }
-
-  void _handleLogout() async {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text(
-          'Logging out...',
-          style: TextStyle(
-            color: AppColors.textPrimary,
-            fontSize: 15,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        content: const Row(
-          children: [
-            CircularProgressIndicator(color: AppColors.accentTeal),
-            SizedBox(width: 20),
-            Text(
-              'Ending active session...',
-              style: TextStyle(color: AppColors.textPrimary, fontSize: 13),
-            ),
-          ],
-        ),
-      ),
-    );
-
-    await Future.delayed(const Duration(milliseconds: 1500));
-    await AuthProvider.instance.logout();
-
-    if (mounted) {
-      Navigator.pop(context);
-      Navigator.pushReplacementNamed(context, LoginScreen.path);
-    }
-  }
-
-  void _routeToEod() {
-    Navigator.pushNamed(context, EodScreen.path);
+    AttendanceProvider.instance.loadTodayAttendance();
   }
 
   @override
@@ -114,18 +73,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     ),
                   ),
                   centerTitle: true,
-                  actions: [
-                    IconButton(
-                      icon: const Icon(Icons.refresh_rounded),
-                      tooltip: 'Refresh Dashboard',
-                      onPressed: () async {
-                        await Future.wait([
-                          HomeProvider.instance.fetchHomeData(isRefresh: true),
-                          OperationsProvider.instance.loadOperationsData(),
-                        ]);
-                      },
-                    ),
-                  ],
                 )
               : null,
           body: currentBody,
@@ -223,6 +170,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             await Future.wait([
               HomeProvider.instance.fetchHomeData(isRefresh: true),
               OperationsProvider.instance.loadOperationsData(),
+              AttendanceProvider.instance.loadTodayAttendance(isRefresh: true),
             ]);
           },
           child: dashboardWidget,
@@ -804,7 +752,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
         final List<Map<String, dynamic>> rawDistricts = provider.districts;
         final List<Map<String, dynamic>> distList = [
-          {'id': null, 'name': 'All Districts'}
+          {'id': null, 'name': 'All Districts'},
         ];
         distList.addAll(rawDistricts);
 
@@ -881,7 +829,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       if (val != null) {
                         final int? distId = val['id'] as int?;
                         HomeProvider.instance.setSelectedDistrictId(distId);
-                        HomeProvider.instance.fetchHomeData(isRefresh: true, districtId: distId);
+                        HomeProvider.instance.fetchHomeData(
+                          isRefresh: true,
+                          districtId: distId,
+                        );
                       }
                     },
                   ),
@@ -951,16 +902,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             child: Center(
                               child: Text(
                                 'No territory reports available.',
-                                style: TextStyle(color: AppColors.textSecondary),
+                                style: TextStyle(
+                                  color: AppColors.textSecondary,
+                                ),
                               ),
                             ),
-                          )
+                          ),
                         ]
                       : (data.territoryReport ?? []).map((r) {
                           double distConv = 0.0;
-                          final match = RegExp(r'(\d+)%').firstMatch(r.conversionPercentage);
+                          final match = RegExp(
+                            r'(\d+)%',
+                          ).firstMatch(r.conversionPercentage);
                           if (match != null) {
-                            distConv = double.tryParse(match.group(1) ?? '0') ?? 0.0;
+                            distConv =
+                                double.tryParse(match.group(1) ?? '0') ?? 0.0;
                           }
 
                           final isLast = r == (data.territoryReport ?? []).last;
@@ -973,7 +929,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Row(
-                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
                                       children: [
                                         Row(
                                           children: [
@@ -1005,7 +962,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                     ),
                                     const SizedBox(height: 10),
                                     Row(
-                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
                                       children: [
                                         Row(
                                           children: [
@@ -1040,17 +998,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                       child: LinearProgressIndicator(
                                         value: distConv / 100,
                                         minHeight: 5,
-                                        backgroundColor: const Color(0xFFF1F5F9),
-                                        valueColor: const AlwaysStoppedAnimation<Color>(
-                                          AppColors.accentTeal,
+                                        backgroundColor: const Color(
+                                          0xFFF1F5F9,
                                         ),
+                                        valueColor:
+                                            const AlwaysStoppedAnimation<Color>(
+                                              AppColors.accentTeal,
+                                            ),
                                       ),
                                     ),
                                   ],
                                 ),
                               ),
                               if (!isLast)
-                                const Divider(height: 1, color: Color(0xFFEFF1F3)),
+                                const Divider(
+                                  height: 1,
+                                  color: Color(0xFFEFF1F3),
+                                ),
                             ],
                           );
                         }).toList(),
@@ -1422,7 +1386,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
           // BDM/BDE Performance Chart/Progress
           Text(
-            role == 'ASM' ? 'TEAM BDM STATUS & METRICS' : 'TEAM BDE STATUS & METRICS',
+            role == 'ASM'
+                ? 'TEAM BDM STATUS & METRICS'
+                : 'TEAM BDE STATUS & METRICS',
             style: const TextStyle(
               fontSize: 11,
               fontWeight: FontWeight.bold,
@@ -1452,7 +1418,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
           else
             ...bdeStatuses.map((bde) {
               final bool isOnline = bde.onlineStatus.toUpperCase() != 'OFFLINE';
-              final double bdeConv = _parseConversionPercentage(bde.conversionPercentage);
+              final double bdeConv = _parseConversionPercentage(
+                bde.conversionPercentage,
+              );
 
               return Container(
                 margin: const EdgeInsets.only(bottom: 14),
@@ -1568,7 +1536,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   ],
                 ),
               );
-          }),
+            }),
 
           const SizedBox(height: 24),
 
@@ -2044,6 +2012,26 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
+  String _formatTime12Hr(String timeStr) {
+    if (timeStr == '--:--' || timeStr.isEmpty) return '--:--';
+    try {
+      DateTime? parsed = DateTime.tryParse(timeStr);
+      if (parsed == null) {
+        final parts = timeStr.split(':');
+        if (parts.length >= 2) {
+          final hr = int.tryParse(parts[0]) ?? 0;
+          final min = int.tryParse(parts[1]) ?? 0;
+          final now = DateTime.now();
+          parsed = DateTime(now.year, now.month, now.day, hr, min);
+        }
+      }
+      if (parsed != null) {
+        return DateFormat('hh:mm a').format(parsed.toLocal());
+      }
+    } catch (_) {}
+    return timeStr;
+  }
+
   Widget _buildAttendanceSection([HomeAttendance? apiAttendance]) {
     if (apiAttendance != null) {
       final bool checkedIn = apiAttendance.isCheckedIn;
@@ -2056,8 +2044,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
           _buildAttendanceCard(
             checkedIn: checkedIn,
             checkedOut: checkedOut,
-            checkInTime: apiAttendance.checkInTime,
-            checkOutTime: apiAttendance.checkOutTime,
+            checkInTime: _formatTime12Hr(apiAttendance.checkInTime),
+            checkOutTime: _formatTime12Hr(apiAttendance.checkOutTime),
             shiftStatus: apiAttendance.shiftStatus,
           ),
           const SizedBox(height: 20),

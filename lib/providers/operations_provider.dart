@@ -148,6 +148,8 @@ class OperationsProvider extends ChangeNotifier {
   // Selected district filter for ZM Dashboard
   String? _selectedDistrictFilter;
   bool _isLeavesLoaded = false;
+  bool _isLoadingLeaves = false;
+  bool get isLoadingLeaves => _isLoadingLeaves;
 
   // Getters (filtered dynamically based on user session role & zone/district)
   List<BeatPlanModel> get beatPlans {
@@ -512,18 +514,15 @@ class OperationsProvider extends ChangeNotifier {
     // Fetch live leaves from API
     await fetchLeaves(isRefresh: isRefresh);
 
-    // Fetch pending leads (status=1) for the Assigned Visits tab
-    await fetchLeads(status: 1);
-
-    // Fetch hierarchy filters
-    await fetchHierarchyFilters();
-
     notifyListeners();
   }
 
   /// Fetch leaves from remote API GET /api/leaves
   Future<void> fetchLeaves({bool isRefresh = false}) async {
+    if (_isLoadingLeaves) return;
     if (!isRefresh && _isLeavesLoaded) return;
+    _isLoadingLeaves = true;
+    notifyListeners();
 
     try {
       final response = await ApiClient.instance.get(ApiEndpoints.leaves);
@@ -597,10 +596,12 @@ class OperationsProvider extends ChangeNotifier {
         }
 
         _isLeavesLoaded = true;
-        notifyListeners();
       }
     } catch (e) {
       debugPrint('Error fetching leaves: $e');
+    } finally {
+      _isLoadingLeaves = false;
+      notifyListeners();
     }
   }
 
@@ -785,7 +786,9 @@ class OperationsProvider extends ChangeNotifier {
   bool _isLoadingDistricts = false;
   bool get isLoadingDistricts => _isLoadingDistricts;
 
-  Future<void> fetchCourses() async {
+  Future<void> fetchCourses({bool isRefresh = false}) async {
+    if (_isLoadingCourses) return;
+    if (!isRefresh && _courses.isNotEmpty) return;
     _isLoadingCourses = true;
     notifyListeners();
     try {
@@ -803,7 +806,9 @@ class OperationsProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> fetchDistricts() async {
+  Future<void> fetchDistricts({bool isRefresh = false}) async {
+    if (_isLoadingDistricts) return;
+    if (!isRefresh && _districts.isNotEmpty) return;
     _isLoadingDistricts = true;
     notifyListeners();
     try {
@@ -820,40 +825,44 @@ class OperationsProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> fetchHierarchyFilters() async {
+  Future<void> fetchHierarchyFilters({bool isRefresh = false}) async {
+    if (_isLoadingHierarchyFilters) return;
+    if (!isRefresh && _hierarchyDistricts.isNotEmpty) return;
     _isLoadingHierarchyFilters = true;
     notifyListeners();
     try {
       final response = await ApiClient.instance.get(ApiEndpoints.hierarchyFilters);
       if (response.data != null && response.data['success'] == true) {
-        final Map<String, dynamic> data = response.data['data'] as Map<String, dynamic>;
+        final Map<String, dynamic> data = response.data['data'] is Map<String, dynamic>
+            ? response.data['data'] as Map<String, dynamic>
+            : {};
         
-        final List<dynamic>? districtsList = data['districts'] as List<dynamic>?;
-        _hierarchyDistricts = districtsList != null
-            ? districtsList.map((d) => d as Map<String, dynamic>).toList()
-            : [];
+        final rawDistricts = data['districts'];
+        final List<dynamic> districtsList = (rawDistricts is List<dynamic>) ? rawDistricts : [];
+        _hierarchyDistricts = districtsList.map((d) => d as Map<String, dynamic>).toList();
 
-        final List<dynamic>? teamsList = data['teams'] as List<dynamic>?;
-        _hierarchyTeams = teamsList != null
-            ? teamsList.map((t) => t as Map<String, dynamic>).toList()
-            : [];
+        final rawTeams = data['teams'];
+        final List<dynamic> teamsList = (rawTeams is List<dynamic>) ? rawTeams : [];
+        _hierarchyTeams = teamsList.map((t) => t as Map<String, dynamic>).toList();
 
-        final Map<String, dynamic>? employeesMap = data['employees'] as Map<String, dynamic>?;
-        if (employeesMap != null && employeesMap['BDE'] != null) {
+        final rawEmployees = data['employees'];
+        final Map<String, dynamic> employeesMap = (rawEmployees is Map<String, dynamic>) ? rawEmployees : {};
+        
+        if (employeesMap['BDE'] is List<dynamic>) {
           final List<dynamic> bdeList = employeesMap['BDE'] as List<dynamic>;
           _hierarchyBdes = bdeList.map((b) => b as Map<String, dynamic>).toList();
         } else {
           _hierarchyBdes = [];
         }
 
-        if (employeesMap != null && employeesMap['BDM'] != null) {
+        if (employeesMap['BDM'] is List<dynamic>) {
           final List<dynamic> bdmList = employeesMap['BDM'] as List<dynamic>;
           _hierarchyBdms = bdmList.map((b) => b as Map<String, dynamic>).toList();
         } else {
           _hierarchyBdms = [];
         }
 
-        if (employeesMap != null && employeesMap['ASM'] != null) {
+        if (employeesMap['ASM'] is List<dynamic>) {
           final List<dynamic> asmList = employeesMap['ASM'] as List<dynamic>;
           _hierarchyAsms = asmList.map((a) => a as Map<String, dynamic>).toList();
         } else {
@@ -905,7 +914,9 @@ class OperationsProvider extends ChangeNotifier {
   }
 
   /// // Fetches pending leads (status=1) and populates [tasks].
-  Future<void> fetchLeads({int status = 1, int? employeeId, int? teamId, int? districtId}) async {
+  Future<void> fetchLeads({int status = 1, int? employeeId, int? teamId, int? districtId, bool isRefresh = false}) async {
+    if (_isLoadingLeads) return;
+    if (!isRefresh && _tasks.isNotEmpty && employeeId == null && teamId == null && districtId == null) return;
     _isLoadingLeads = true;
     notifyListeners();
     try {
@@ -944,7 +955,9 @@ class OperationsProvider extends ChangeNotifier {
   }
 
   /// Fetches completed leads (status=5) and populates [completedTasks].
-  Future<void> fetchCompletedLeads({int? employeeId, int? teamId, int? districtId}) async {
+  Future<void> fetchCompletedLeads({int? employeeId, int? teamId, int? districtId, bool isRefresh = false}) async {
+    if (_isLoadingCompletedLeads) return;
+    if (!isRefresh && _completedTasks.isNotEmpty && employeeId == null && teamId == null && districtId == null) return;
     _isLoadingCompletedLeads = true;
     notifyListeners();
     try {

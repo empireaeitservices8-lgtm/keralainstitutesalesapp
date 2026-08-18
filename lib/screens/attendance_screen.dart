@@ -34,7 +34,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> with SingleTickerPr
   @override
   void initState() {
     super.initState();
-    AttendanceProvider.instance.loadTodayAttendance();
+    AttendanceProvider.instance.loadTodayAttendance(isRefresh: true);
     _initializeCamera();
     
     _scannerController = AnimationController(
@@ -445,28 +445,35 @@ class _AttendanceScreenState extends State<AttendanceScreen> with SingleTickerPr
               final provider = AttendanceProvider.instance;
               final attendance = provider.currentAttendance;
 
-              return SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    _buildStatusHeader(attendance.status),
-                    const SizedBox(height: 24),
-
-                    if (!attendance.isCompleted) ...[
-                      _buildCameraViewfinder(),
+              return RefreshIndicator(
+                color: AppColors.accentTeal,
+                onRefresh: () async {
+                  await provider.loadTodayAttendance(isRefresh: true);
+                },
+                child: SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      _buildStatusHeader(attendance.status),
                       const SizedBox(height: 24),
-                      
-                      _buildGeoCard(provider, attendance),
-                      const SizedBox(height: 30),
-                      
-                      _buildActionButtons(provider, attendance),
-                    ] else ...[
-                      _buildCompletedSummary(provider, attendance),
-                    ],
 
-                    _buildSyncLogCard(provider, attendance),
-                  ],
+                      if (!attendance.isCompleted) ...[
+                        _buildCameraViewfinder(),
+                        const SizedBox(height: 24),
+                        
+                        _buildGeoCard(provider, attendance),
+                        const SizedBox(height: 30),
+                        
+                        _buildActionButtons(provider, attendance),
+                      ] else ...[
+                        _buildCompletedSummary(provider, attendance),
+                      ],
+
+                      _buildSyncLogCard(provider, attendance),
+                    ],
+                  ),
                 ),
               );
             },

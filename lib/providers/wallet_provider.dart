@@ -7,6 +7,8 @@ import '../api/api_response.dart';
 import '../models/wallet_balance_model.dart';
 import 'base_provider.dart';
 
+import '../api/exceptions/api_exception.dart';
+
 class WalletProvider extends BaseProvider<WalletBalanceModel> {
   static final WalletProvider instance = WalletProvider._internal();
   WalletProvider._internal();
@@ -125,6 +127,9 @@ class WalletProvider extends BaseProvider<WalletBalanceModel> {
       }
       return false;
     } catch (e) {
+      if (e is ApiException) {
+        rethrow;
+      }
       // Offline/TLS decryption fallback: optimistically add claim locally for visual testing
       final newReq = WithdrawRequest(
         id: DateTime.now().millisecondsSinceEpoch % 100000,

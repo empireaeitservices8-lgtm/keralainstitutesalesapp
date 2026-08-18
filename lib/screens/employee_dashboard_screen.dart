@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import '../constants/colors.dart';
 import '../models/home_dashboard_model.dart';
 import '../api/api_client.dart';
@@ -350,6 +351,26 @@ class _EmployeeDashboardScreenState extends State<EmployeeDashboardScreen> {
     );
   }
 
+  String _formatTime12Hr(String timeStr) {
+    if (timeStr == '--:--' || timeStr.isEmpty) return '--:--';
+    try {
+      DateTime? parsed = DateTime.tryParse(timeStr);
+      if (parsed == null) {
+        final parts = timeStr.split(':');
+        if (parts.length >= 2) {
+          final hr = int.tryParse(parts[0]) ?? 0;
+          final min = int.tryParse(parts[1]) ?? 0;
+          final now = DateTime.now();
+          parsed = DateTime(now.year, now.month, now.day, hr, min);
+        }
+      }
+      if (parsed != null) {
+        return DateFormat('hh:mm a').format(parsed.toLocal());
+      }
+    } catch (_) {}
+    return timeStr;
+  }
+
   Widget _buildAttendanceSection(HomeAttendance? apiAttendance) {
     if (apiAttendance == null) return const SizedBox.shrink();
 
@@ -411,19 +432,19 @@ class _EmployeeDashboardScreenState extends State<EmployeeDashboardScreen> {
                 children: [
                   const Text('CHECK IN', style: TextStyle(color: AppColors.textSecondary, fontSize: 10, fontWeight: FontWeight.w600)),
                   const SizedBox(height: 4),
-                  Text(apiAttendance.checkInTime, style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.textPrimary, fontSize: 13)),
+                  Text(_formatTime12Hr(apiAttendance.checkInTime), style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.textPrimary, fontSize: 13)),
                 ],
-              ),
-              Column(
+               ),
+               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   const Text('CHECK OUT', style: TextStyle(color: AppColors.textSecondary, fontSize: 10, fontWeight: FontWeight.w600)),
                   const SizedBox(height: 4),
-                  Text(apiAttendance.checkOutTime, style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.textPrimary, fontSize: 13)),
+                  Text(_formatTime12Hr(apiAttendance.checkOutTime), style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.textPrimary, fontSize: 13)),
                 ],
-              ),
-            ],
-          ),
+               ),
+             ],
+           ),
         ],
       ),
     );

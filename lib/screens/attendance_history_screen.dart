@@ -15,28 +15,43 @@ class AttendanceHistoryScreen extends StatefulWidget {
 
 class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  bool _historyLoaded = false;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
     
-    // Refresh both daily and historical records on open
-    AttendanceProvider.instance.loadTodayAttendance();
-    AttendanceProvider.instance.loadAttendanceHistory();
+    // Force refresh today's attendance on open
+    AttendanceProvider.instance.loadTodayAttendance(isRefresh: true);
+    
+    _tabController.addListener(_handleTabChange);
+  }
+
+  void _handleTabChange() {
+    if (_tabController.index == 1 && !_historyLoaded) {
+      setState(() {
+        _historyLoaded = true;
+      });
+      AttendanceProvider.instance.loadAttendanceHistory(isRefresh: true);
+    }
   }
 
   @override
   void dispose() {
+    _tabController.removeListener(_handleTabChange);
     _tabController.dispose();
     super.dispose();
   }
 
   Future<void> _refreshData() async {
-    await Future.wait([
-      AttendanceProvider.instance.loadTodayAttendance(),
-      AttendanceProvider.instance.loadAttendanceHistory(),
-    ]);
+    final List<Future<void>> futures = [
+      AttendanceProvider.instance.loadTodayAttendance(isRefresh: true),
+    ];
+    if (_tabController.index == 1 || _historyLoaded) {
+      futures.add(AttendanceProvider.instance.loadAttendanceHistory(isRefresh: true));
+    }
+    await Future.wait(futures);
   }
 
   @override
@@ -131,7 +146,7 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> with 
   }
 
   Widget _buildTodayTab(AttendanceProvider provider) {
-    if (provider.isLoadingToday) {
+    if (provider.isLoadingToday && provider.todayRecordsList.isEmpty) {
       return const Center(child: CircularProgressIndicator(color: AppColors.accentTeal));
     }
 
@@ -144,14 +159,14 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> with 
       padding: const EdgeInsets.all(20),
       itemCount: records.length,
       itemBuilder: (context, index) {
-        final record = records[index];
+        final record = records[records.length - 1 - index];
         return _buildAttendanceCard(record);
       },
     );
   }
 
   Widget _buildHistoryTab(AttendanceProvider provider) {
-    if (provider.isLoadingHistory) {
+    if (provider.isLoadingHistory && provider.historyRecords.isEmpty) {
       return const Center(child: CircularProgressIndicator(color: AppColors.accentTeal));
     }
 

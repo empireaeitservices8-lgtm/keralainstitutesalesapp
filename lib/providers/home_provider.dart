@@ -47,22 +47,25 @@ class HomeProvider extends BaseProvider<HomeDashboardModel> {
       case 0:
         final user = AuthProvider.instance.session;
         if (user.role == 'ZM') {
-          OperationsProvider.instance.fetchDistricts();
+          OperationsProvider.instance.fetchDistricts(isRefresh: true);
         }
-        fetchHomeData();
+        fetchHomeData(isRefresh: true);
         break;
       case 1:
         // Centralized fetch for leads tab (includes hierarchy filters and raw tasks)
-        OperationsProvider.instance.fetchLeads(status: 1);
-        OperationsProvider.instance.fetchHierarchyFilters();
+        OperationsProvider.instance.fetchLeads(status: 1, isRefresh: true);
+        final user = AuthProvider.instance.session;
+        if (user.role != 'BDE') {
+          OperationsProvider.instance.fetchHierarchyFilters(isRefresh: true);
+        }
         break;
       case 2:
         // Centralized fetch for incentive tab
-        WalletProvider.instance.fetchWalletBalance();
+        WalletProvider.instance.fetchWalletBalance(isRefresh: true);
         break;
       case 3:
         // Centralized fetch for profile tab
-        UserProfileProvider.instance.fetchUserProfile();
+        UserProfileProvider.instance.fetchUserProfile(isRefresh: true);
         break;
     }
   }

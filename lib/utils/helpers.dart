@@ -47,7 +47,7 @@ class UiHelpers {
       return DateTime.parse(str).toLocal();
     }
     final normalized = str.replaceFirst(' ', 'T');
-    return DateTime.parse('${normalized}Z').toLocal();
+    return DateTime.parse(normalized);
   }
 
   static DateTime? parseNullableUtcDateTime(String? str) {

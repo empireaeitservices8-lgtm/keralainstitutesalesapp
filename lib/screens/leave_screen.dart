@@ -19,7 +19,7 @@ class _LeaveScreenState extends State<LeaveScreen> {
   void initState() {
     super.initState();
     // Fetch latest leaves list and balances from API when screen is opened
-    OperationsProvider.instance.fetchLeaves(isRefresh: false);
+    OperationsProvider.instance.fetchLeaves(isRefresh: true);
   }
 
   // Show dialog to apply for leave
@@ -476,12 +476,10 @@ class _LeaveScreenState extends State<LeaveScreen> {
               body: RefreshIndicator(
                 color: AppColors.accentTeal,
                 onRefresh: () async {
-                  await UserProfileProvider.instance.fetchUserProfile(
-                    isRefresh: true,
-                  );
-                  await OperationsProvider.instance.loadOperationsData(
-                    isRefresh: true,
-                  );
+                  await Future.wait([
+                    UserProfileProvider.instance.fetchUserProfile(isRefresh: true),
+                    OperationsProvider.instance.fetchLeaves(isRefresh: true),
+                  ]);
                 },
                 child: Column(
                   children: [

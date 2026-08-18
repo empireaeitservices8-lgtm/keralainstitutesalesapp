@@ -18,7 +18,6 @@ class _IncentiveScreenState extends State<IncentiveScreen> {
   @override
   void initState() {
     super.initState();
-    OperationsProvider.instance.loadOperationsData();
   }
 
   void _openCreateIncentiveDialog() {
@@ -180,28 +179,55 @@ class _IncentiveScreenState extends State<IncentiveScreen> {
                           );
                           final remark = remarkController.text.trim();
 
-                          // Dispatch to operations database mock tracker
-                          await OperationsProvider.instance.createIncentive(
-                            'Claim',
-                            amt,
-                            remark,
-                            null,
-                          );
-
-                          // Submit live to the API (falls back to local mock presentation on network failure)
-                          await WalletProvider.instance.submitWithdrawRequest(
-                            amt,
-                            remark,
-                          );
-
-                          setDialogState(() => isSubmitting = false);
-                          if (context.mounted) {
-                            Navigator.pop(context);
-                            UiHelpers.showSnackBar(
-                              context,
-                              'Incentive claim submitted successfully!',
-                              Colors.green,
+                          try {
+                            // Submit live to the API (falls back to local mock presentation on network failure)
+                            final success = await WalletProvider.instance.submitWithdrawRequest(
+                              amt,
+                              remark,
                             );
+
+                            if (success) {
+                              // Dispatch to operations database mock tracker
+                              await OperationsProvider.instance.createIncentive(
+                                'Claim',
+                                amt,
+                                remark,
+                                null,
+                              );
+                            }
+
+                            setDialogState(() => isSubmitting = false);
+                            if (context.mounted) {
+                              Navigator.pop(context);
+                              if (success) {
+                                UiHelpers.showSnackBar(
+                                  context,
+                                  'Incentive claim submitted successfully!',
+                                  Colors.green,
+                                );
+                              } else {
+                                UiHelpers.showSnackBar(
+                                  context,
+                                  'Failed to submit incentive claim.',
+                                  Colors.redAccent,
+                                );
+                              }
+                            }
+                          } catch (e) {
+                            setDialogState(() => isSubmitting = false);
+                            String message = e.toString();
+                            if (message.contains('ApiException:')) {
+                              message = message.replaceAll(RegExp(r'ApiException:\s*\[\d+\]\s*'), '').trim();
+                              message = message.replaceFirst(RegExp(r'^(Bad Request|Validation Error|Conflict|Not Found):\s*', caseSensitive: false), '').trim();
+                            }
+                            if (context.mounted) {
+                              UiHelpers.showSnackBar(
+                                context,
+                                message,
+                                Colors.redAccent,
+                                textColor: Colors.white,
+                              );
+                            }
                           }
                         },
                   child: isSubmitting

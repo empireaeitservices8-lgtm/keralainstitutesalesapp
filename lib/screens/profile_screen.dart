@@ -24,7 +24,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   void initState() {
     super.initState();
-    OperationsProvider.instance.loadOperationsData();
   }
 
   Future<void> _handleLogout() async {
