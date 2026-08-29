@@ -8,11 +8,9 @@ part of 'home_dashboard_model.dart';
 
 HomeDashboardModel _$HomeDashboardModelFromJson(Map<String, dynamic> json) =>
     HomeDashboardModel(
-      user: json['user'] == null
-          ? HomeUser(id: 0, name: '', email: '')
-          : HomeUser.fromJson(json['user'] as Map<String, dynamic>),
-      designationId: (json['designation_id'] as num? ?? 0).toInt(),
-      designationName: json['designation_name'] as String? ?? '',
+      user: HomeUser.fromJson(json['user'] as Map<String, dynamic>),
+      designationId: (json['designation_id'] as num).toInt(),
+      designationName: json['designation_name'] as String,
       attendance: json['attendance'] == null
           ? null
           : HomeAttendance.fromJson(json['attendance'] as Map<String, dynamic>),
@@ -29,15 +27,11 @@ HomeDashboardModel _$HomeDashboardModelFromJson(Map<String, dynamic> json) =>
       teamMetrics: json['team_metrics'] == null
           ? null
           : HomeTeamMetrics.fromJson(
-              json['team_metrics'] as Map<String, dynamic>),
-      teamSubordinateStatus: (json['team_subordinate_status'] as Map<String, dynamic>?)?.map(
-            (k, e) => MapEntry(
-              k,
-              (e as List<dynamic>)
-                  .map((e) => HomeBdeStatus.fromJson(e as Map<String, dynamic>))
-                  .toList(),
+              json['team_metrics'] as Map<String, dynamic>,
             ),
-          ),
+      teamSubordinateStatus: HomeDashboardModel._parseSubordinateStatus(
+        json['team_subordinate_status'],
+      ),
       territoryReport: (json['territory_report'] as List<dynamic>?)
           ?.map((e) => HomeTerritoryReport.fromJson(e as Map<String, dynamic>))
           .toList(),
@@ -59,25 +53,25 @@ Map<String, dynamic> _$HomeDashboardModelToJson(HomeDashboardModel instance) =>
     };
 
 HomeUser _$HomeUserFromJson(Map<String, dynamic> json) => HomeUser(
-      id: (json['id'] as num).toInt(),
-      name: json['name'] as String,
-      email: json['email'] as String,
-    );
+  id: (json['id'] as num).toInt(),
+  name: json['name'] as String,
+  email: json['email'] as String,
+);
 
 Map<String, dynamic> _$HomeUserToJson(HomeUser instance) => <String, dynamic>{
-      'id': instance.id,
-      'name': instance.name,
-      'email': instance.email,
-    };
+  'id': instance.id,
+  'name': instance.name,
+  'email': instance.email,
+};
 
 HomeAttendance _$HomeAttendanceFromJson(Map<String, dynamic> json) =>
     HomeAttendance(
-      checkInTime: json['check_in_time'] as String? ?? '',
-      checkOutTime: json['check_out_time'] as String? ?? '',
-      shiftStatus: json['shift_status'] as String? ?? '',
-      isCheckedIn: json['is_checked_in'] as bool? ?? false,
-      locationLat: _parseLocation(json['location_lat']),
-      locationLng: _parseLocation(json['location_lng']),
+      checkInTime: json['check_in_time'] as String,
+      checkOutTime: json['check_out_time'] as String,
+      shiftStatus: json['shift_status'] as String,
+      isCheckedIn: UiHelpers.parseBool(json['is_checked_in']),
+      locationLat: json['location_lat'] as num?,
+      locationLng: json['location_lng'] as num?,
     );
 
 Map<String, dynamic> _$HomeAttendanceToJson(HomeAttendance instance) =>
@@ -91,10 +85,10 @@ Map<String, dynamic> _$HomeAttendanceToJson(HomeAttendance instance) =>
     };
 
 HomeEodSync _$HomeEodSyncFromJson(Map<String, dynamic> json) => HomeEodSync(
-      tasksCompleted: (json['tasks_completed'] as num).toInt(),
-      totalTasks: (json['total_tasks'] as num).toInt(),
-      completionPercentage: json['completion_percentage'] as num,
-    );
+  tasksCompleted: (json['tasks_completed'] as num).toInt(),
+  totalTasks: (json['total_tasks'] as num).toInt(),
+  completionPercentage: json['completion_percentage'] as num,
+);
 
 Map<String, dynamic> _$HomeEodSyncToJson(HomeEodSync instance) =>
     <String, dynamic>{
@@ -104,22 +98,22 @@ Map<String, dynamic> _$HomeEodSyncToJson(HomeEodSync instance) =>
     };
 
 HomeOperationalOverview _$HomeOperationalOverviewFromJson(
-        Map<String, dynamic> json) =>
-    HomeOperationalOverview(
-      assignedLeads: (json['assigned_leads'] as num).toInt(),
-      followUpLeads: (json['follow_up_leads'] as num).toInt(),
-      closedLeads: (json['closed_leads'] as num).toInt(),
-      incentivesEarned: json['incentives_earned'] as num,
-    );
+  Map<String, dynamic> json,
+) => HomeOperationalOverview(
+  assignedLeads: (json['assigned_leads'] as num).toInt(),
+  followUpLeads: (json['follow_up_leads'] as num).toInt(),
+  closedLeads: (json['closed_leads'] as num).toInt(),
+  incentivesEarned: json['incentives_earned'] as num,
+);
 
 Map<String, dynamic> _$HomeOperationalOverviewToJson(
-        HomeOperationalOverview instance) =>
-    <String, dynamic>{
-      'assigned_leads': instance.assignedLeads,
-      'follow_up_leads': instance.followUpLeads,
-      'closed_leads': instance.closedLeads,
-      'incentives_earned': instance.incentivesEarned,
-    };
+  HomeOperationalOverview instance,
+) => <String, dynamic>{
+  'assigned_leads': instance.assignedLeads,
+  'follow_up_leads': instance.followUpLeads,
+  'closed_leads': instance.closedLeads,
+  'incentives_earned': instance.incentivesEarned,
+};
 
 HomeTeamMetrics _$HomeTeamMetricsFromJson(Map<String, dynamic> json) =>
     HomeTeamMetrics(
@@ -146,8 +140,8 @@ HomeBdeStatus _$HomeBdeStatusFromJson(Map<String, dynamic> json) =>
       leadsAssigned: json['leads_assigned'] as String,
       onlineStatus: json['online_status'] as String,
       onlineTime: json['online_time'] as String?,
-      locationLat: _parseLocation(json['location_lat']),
-      locationLng: _parseLocation(json['location_lng']),
+      locationLat: json['location_lat'] as num?,
+      locationLng: json['location_lng'] as num?,
     );
 
 Map<String, dynamic> _$HomeBdeStatusToJson(HomeBdeStatus instance) =>
@@ -165,20 +159,21 @@ Map<String, dynamic> _$HomeBdeStatusToJson(HomeBdeStatus instance) =>
 
 HomeTerritoryReport _$HomeTerritoryReportFromJson(Map<String, dynamic> json) =>
     HomeTerritoryReport(
-      territoryName: json['territory_name'] as String? ?? '',
-      managerName: json['manager_name'] as String? ?? '',
-      managerDesignation: json['manager_designation'] as String? ?? '',
-      leadsCount: (json['leads_count'] as num? ?? 0).toInt(),
-      bdesCount: (json['bdes_count'] as num? ?? 0).toInt(),
-      conversionPercentage: json['conversion_percentage'] as String? ?? '',
+      territoryName: json['territory_name'] as String,
+      managerName: json['manager_name'] as String,
+      managerDesignation: json['manager_designation'] as String,
+      leadsCount: (json['leads_count'] as num).toInt(),
+      bdesCount: (json['bdes_count'] as num).toInt(),
+      conversionPercentage: json['conversion_percentage'] as String,
     );
 
-Map<String, dynamic> _$HomeTerritoryReportToJson(HomeTerritoryReport instance) =>
-    <String, dynamic>{
-      'territory_name': instance.territoryName,
-      'manager_name': instance.managerName,
-      'manager_designation': instance.managerDesignation,
-      'leads_count': instance.leadsCount,
-      'bdes_count': instance.bdesCount,
-      'conversion_percentage': instance.conversionPercentage,
-    };
+Map<String, dynamic> _$HomeTerritoryReportToJson(
+  HomeTerritoryReport instance,
+) => <String, dynamic>{
+  'territory_name': instance.territoryName,
+  'manager_name': instance.managerName,
+  'manager_designation': instance.managerDesignation,
+  'leads_count': instance.leadsCount,
+  'bdes_count': instance.bdesCount,
+  'conversion_percentage': instance.conversionPercentage,
+};

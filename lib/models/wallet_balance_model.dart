@@ -51,6 +51,8 @@ class WithdrawRequest {
   @JsonKey(fromJson: _doubleFromString)
   final double amount;
   final int status;
+  @JsonKey(name: 'transaction_id')
+  final String? transactionId;
   final String? remarks;
   @JsonKey(name: 'created_at')
   final DateTime createdAt;
@@ -60,6 +62,7 @@ class WithdrawRequest {
     required this.referenceId,
     required this.amount,
     required this.status,
+    this.transactionId,
     this.remarks,
     required this.createdAt,
   });

@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import '../../screens/splash_screen.dart';
 import '../../screens/login_screen.dart';
-import '../../screens/dashboard_screen.dart';
+import '../../screens/dashboard/dashboard_screen.dart';
 import '../../screens/attendance_screen.dart';
-import '../../screens/task_screen.dart';
+import '../../screens/tasks/task_screen.dart';
 import '../../screens/incentive_screen.dart';
 import '../../screens/profile_screen.dart';
 import '../../screens/eod_screen.dart';

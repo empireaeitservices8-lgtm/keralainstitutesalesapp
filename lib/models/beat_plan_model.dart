@@ -1,4 +1,5 @@
 import 'package:json_annotation/json_annotation.dart';
+import '../utils/helpers.dart';
 
 part 'beat_plan_model.g.dart';
 
@@ -15,8 +16,8 @@ class BeatPlanModel {
   final double distanceKm;
   final double latitude;
   final double longitude;
-  
-  @JsonKey(name: 'is_visited')
+
+  @JsonKey(name: 'is_visited', fromJson: UiHelpers.parseBool)
   final bool isVisited;
   @JsonKey(name: 'check_in_time')
   final DateTime? checkInTime;
@@ -61,7 +62,8 @@ class BeatPlanModel {
     required this.zone,
   });
 
-  factory BeatPlanModel.fromJson(Map<String, dynamic> json) => _$BeatPlanModelFromJson(json);
+  factory BeatPlanModel.fromJson(Map<String, dynamic> json) =>
+      _$BeatPlanModelFromJson(json);
   Map<String, dynamic> toJson() => _$BeatPlanModelToJson(this);
 
   BeatPlanModel copyWith({

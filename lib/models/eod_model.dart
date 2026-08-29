@@ -1,4 +1,5 @@
 import 'package:json_annotation/json_annotation.dart';
+import '../utils/helpers.dart';
 
 part 'eod_model.g.dart';
 
@@ -18,7 +19,7 @@ class EodModel {
   final String dailySummary;
   @JsonKey(name: 'submission_time')
   final DateTime submissionTime;
-  @JsonKey(name: 'is_submitted')
+  @JsonKey(name: 'is_submitted', fromJson: UiHelpers.parseBool)
   final bool isSubmitted;
 
   EodModel({
@@ -33,7 +34,8 @@ class EodModel {
     this.isSubmitted = false,
   });
 
-  factory EodModel.fromJson(Map<String, dynamic> json) => _$EodModelFromJson(json);
+  factory EodModel.fromJson(Map<String, dynamic> json) =>
+      _$EodModelFromJson(json);
   Map<String, dynamic> toJson() => _$EodModelToJson(this);
 
   factory EodModel.empty() {

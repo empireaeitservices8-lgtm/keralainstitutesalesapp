@@ -4,7 +4,7 @@ import '../providers/auth_provider.dart';
 import '../widgets/glass_container.dart';
 import '../utils/validators.dart';
 import '../utils/helpers.dart';
-import 'dashboard_screen.dart';
+import 'dashboard/dashboard_screen.dart';
 
 class SetPasswordScreen extends StatefulWidget {
   static const String path = '/set-password';

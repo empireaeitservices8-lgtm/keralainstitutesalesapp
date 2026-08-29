@@ -74,20 +74,6 @@ class UserProfileProvider extends BaseProvider<UserProfileModel> {
 
         final model = UserProfileModel.fromJson(dataMap);
 
-        // Dynamically verify and update active user role from profile designation
-        final String designation = dataMap['designation_name'] ?? dataMap['designation'] ?? '';
-        final int designationId = (dataMap['designation_id'] as num? ?? 0).toInt();
-        final cleanDes = designation.toLowerCase();
-
-        final String updatedRole = AuthService.mapDesignationIdToRole(designationId, designation);
-
-        final currentRole = AuthProvider.instance.session.role;
-        if (updatedRole != currentRole) {
-          AuthProvider.instance.updateSessionRole(updatedRole);
-          await prefs.setString('user_role', updatedRole);
-          final session = AuthProvider.instance.session;
-          await SecureStorageService.instance.saveUserSession(session);
-        }
 
         // Save fresh data to local cache
         await prefs.setString('cached_user_profile', jsonEncode(model.toJson()));

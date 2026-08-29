@@ -3,7 +3,7 @@ import 'package:intl/intl.dart';
 import '../constants/colors.dart';
 import '../providers/attendance_provider.dart';
 import '../utils/helpers.dart';
-import 'dashboard_screen.dart';
+import 'dashboard/dashboard_screen.dart';
 
 class CheckoutSuccessScreen extends StatelessWidget {
   static const String path = '/checkout-success';

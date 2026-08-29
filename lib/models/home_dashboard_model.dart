@@ -1,4 +1,5 @@
 import 'package:json_annotation/json_annotation.dart';
+import '../utils/helpers.dart';
 
 part 'home_dashboard_model.g.dart';
 
@@ -20,7 +21,7 @@ class HomeDashboardModel {
   final String? teamName;
   @JsonKey(name: 'team_metrics')
   final HomeTeamMetrics? teamMetrics;
-  @JsonKey(name: 'team_subordinate_status')
+  @JsonKey(name: 'team_subordinate_status', fromJson: _parseSubordinateStatus)
   final Map<String, List<HomeBdeStatus>>? teamSubordinateStatus;
   @JsonKey(name: 'territory_report')
   final List<HomeTerritoryReport>? territoryReport;
@@ -39,7 +40,25 @@ class HomeDashboardModel {
     this.territoryReport,
   });
 
-  factory HomeDashboardModel.fromJson(Map<String, dynamic> json) => _$HomeDashboardModelFromJson(json);
+  static Map<String, List<HomeBdeStatus>>? _parseSubordinateStatus(
+    dynamic json,
+  ) {
+    if (json == null) return null;
+    if (json is Map) {
+      return json.map((key, value) {
+        final list =
+            (value as List?)
+                ?.map((e) => HomeBdeStatus.fromJson(e as Map<String, dynamic>))
+                .toList() ??
+            [];
+        return MapEntry(key.toString(), list);
+      });
+    }
+    return null;
+  }
+
+  factory HomeDashboardModel.fromJson(Map<String, dynamic> json) =>
+      _$HomeDashboardModelFromJson(json);
   Map<String, dynamic> toJson() => _$HomeDashboardModelToJson(this);
 }
 
@@ -49,13 +68,10 @@ class HomeUser {
   final String name;
   final String email;
 
-  HomeUser({
-    required this.id,
-    required this.name,
-    required this.email,
-  });
+  HomeUser({required this.id, required this.name, required this.email});
 
-  factory HomeUser.fromJson(Map<String, dynamic> json) => _$HomeUserFromJson(json);
+  factory HomeUser.fromJson(Map<String, dynamic> json) =>
+      _$HomeUserFromJson(json);
   Map<String, dynamic> toJson() => _$HomeUserToJson(this);
 }
 
@@ -67,7 +83,7 @@ class HomeAttendance {
   final String checkOutTime;
   @JsonKey(name: 'shift_status')
   final String shiftStatus;
-  @JsonKey(name: 'is_checked_in')
+  @JsonKey(name: 'is_checked_in', fromJson: UiHelpers.parseBool)
   final bool isCheckedIn;
   @JsonKey(name: 'location_lat')
   final num? locationLat;
@@ -83,7 +99,8 @@ class HomeAttendance {
     this.locationLng,
   });
 
-  factory HomeAttendance.fromJson(Map<String, dynamic> json) => _$HomeAttendanceFromJson(json);
+  factory HomeAttendance.fromJson(Map<String, dynamic> json) =>
+      _$HomeAttendanceFromJson(json);
   Map<String, dynamic> toJson() => _$HomeAttendanceToJson(this);
 }
 
@@ -102,7 +119,8 @@ class HomeEodSync {
     required this.completionPercentage,
   });
 
-  factory HomeEodSync.fromJson(Map<String, dynamic> json) => _$HomeEodSyncFromJson(json);
+  factory HomeEodSync.fromJson(Map<String, dynamic> json) =>
+      _$HomeEodSyncFromJson(json);
   Map<String, dynamic> toJson() => _$HomeEodSyncToJson(this);
 }
 
@@ -124,7 +142,8 @@ class HomeOperationalOverview {
     required this.incentivesEarned,
   });
 
-  factory HomeOperationalOverview.fromJson(Map<String, dynamic> json) => _$HomeOperationalOverviewFromJson(json);
+  factory HomeOperationalOverview.fromJson(Map<String, dynamic> json) =>
+      _$HomeOperationalOverviewFromJson(json);
   Map<String, dynamic> toJson() => _$HomeOperationalOverviewToJson(this);
 }
 
@@ -146,7 +165,8 @@ class HomeTeamMetrics {
     required this.visitsPending,
   });
 
-  factory HomeTeamMetrics.fromJson(Map<String, dynamic> json) => _$HomeTeamMetricsFromJson(json);
+  factory HomeTeamMetrics.fromJson(Map<String, dynamic> json) =>
+      _$HomeTeamMetricsFromJson(json);
   Map<String, dynamic> toJson() => _$HomeTeamMetricsToJson(this);
 }
 
@@ -180,7 +200,8 @@ class HomeBdeStatus {
     this.locationLng,
   });
 
-  factory HomeBdeStatus.fromJson(Map<String, dynamic> json) => _$HomeBdeStatusFromJson(json);
+  factory HomeBdeStatus.fromJson(Map<String, dynamic> json) =>
+      _$HomeBdeStatusFromJson(json);
   Map<String, dynamic> toJson() => _$HomeBdeStatusToJson(this);
 }
 
@@ -208,7 +229,8 @@ class HomeTerritoryReport {
     required this.conversionPercentage,
   });
 
-  factory HomeTerritoryReport.fromJson(Map<String, dynamic> json) => _$HomeTerritoryReportFromJson(json);
+  factory HomeTerritoryReport.fromJson(Map<String, dynamic> json) =>
+      _$HomeTerritoryReportFromJson(json);
   Map<String, dynamic> toJson() => _$HomeTerritoryReportToJson(this);
 }
 

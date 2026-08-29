@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:dio/dio.dart';
 import '../api/api_client.dart';
@@ -8,18 +9,24 @@ import '../models/home_dashboard_model.dart';
 import 'base_provider.dart';
 import 'auth_provider.dart';
 import '../storage/secure_storage_service.dart';
-import '../models/user_session.dart';
 import '../services/auth_service.dart';
 import 'operations_provider.dart';
 import 'wallet_provider.dart';
 import 'user_profile_provider.dart';
+import '../models/performance_task.dart';
 
 class HomeProvider extends BaseProvider<HomeDashboardModel> {
   static final HomeProvider instance = HomeProvider._internal();
   HomeProvider._internal();
 
+  List<PerformanceTask> _performanceTasks = [];
+  List<PerformanceTask> get performanceTasks => _performanceTasks;
+
   int _currentIndex = 0;
   int get currentIndex => _currentIndex;
+
+  int _initialTaskTabIndex = 0;
+  int get initialTaskTabIndex => _initialTaskTabIndex;
 
   bool _gpsLoggingEnforced = true;
   bool _biometricEnforced = true;
@@ -36,10 +43,17 @@ class HomeProvider extends BaseProvider<HomeDashboardModel> {
     notifyListeners();
   }
 
-  void setCurrentIndex(int index) {
+  void setCurrentIndex(int index, {int initialTaskTabIndex = 0}) {
     _currentIndex = index;
+    _initialTaskTabIndex = initialTaskTabIndex;
     notifyListeners();
     _triggerTabApiCalls(index);
+  }
+
+  int consumeInitialTaskTabIndex() {
+    final val = _initialTaskTabIndex;
+    _initialTaskTabIndex = 0;
+    return val;
   }
 
   void _triggerTabApiCalls(int index) {
@@ -47,25 +61,29 @@ class HomeProvider extends BaseProvider<HomeDashboardModel> {
       case 0:
         final user = AuthProvider.instance.session;
         if (user.role == 'ZM') {
-          OperationsProvider.instance.fetchDistricts(isRefresh: true);
+          OperationsProvider.instance.fetchDistricts();
         }
-        fetchHomeData(isRefresh: true);
+        fetchHomeData();
         break;
       case 1:
         // Centralized fetch for leads tab (includes hierarchy filters and raw tasks)
-        OperationsProvider.instance.fetchLeads(status: 1, isRefresh: true);
+        if (_initialTaskTabIndex == 1) {
+          OperationsProvider.instance.fetchCompletedLeads();
+        } else {
+          OperationsProvider.instance.fetchLeads(status: 1);
+        }
         final user = AuthProvider.instance.session;
         if (user.role != 'BDE') {
-          OperationsProvider.instance.fetchHierarchyFilters(isRefresh: true);
+          OperationsProvider.instance.fetchHierarchyFilters();
         }
         break;
       case 2:
         // Centralized fetch for incentive tab
-        WalletProvider.instance.fetchWalletBalance(isRefresh: true);
+        WalletProvider.instance.fetchWalletBalance();
         break;
       case 3:
         // Centralized fetch for profile tab
-        UserProfileProvider.instance.fetchUserProfile(isRefresh: true);
+        UserProfileProvider.instance.fetchUserProfile();
         break;
     }
   }
@@ -96,7 +114,8 @@ class HomeProvider extends BaseProvider<HomeDashboardModel> {
     }
 
     final user = AuthProvider.instance.session;
-    if (user.role == 'ZM' && (isRefresh || OperationsProvider.instance.districts.isEmpty)) {
+    if (user.role == 'ZM' &&
+        (isRefresh || OperationsProvider.instance.districts.isEmpty)) {
       OperationsProvider.instance.fetchDistricts();
     }
 
@@ -129,25 +148,36 @@ class HomeProvider extends BaseProvider<HomeDashboardModel> {
     }
 
     try {
-      final response = await ApiClient.instance.get(
-        ApiEndpoints.home,
-        queryParameters: queryParams,
-        cancelToken: token,
-      );
-      if (response.data != null) {
-        final data = response.data['data'] as Map<String, dynamic>;
+      final results = await Future.wait([
+        ApiClient.instance.get(
+          ApiEndpoints.home,
+          queryParameters: queryParams,
+          cancelToken: token,
+        ),
+        ApiClient.instance
+            .get(ApiEndpoints.performanceTasks, cancelToken: token)
+            .catchError((e) {
+              debugPrint('Failed to fetch performance tasks: $e');
+              return Response(requestOptions: RequestOptions(path: ''));
+            }),
+      ]);
+
+      final homeResponse = results[0];
+      final tasksResponse = results[1];
+
+      if (tasksResponse.data != null && tasksResponse.data['data'] != null) {
+        final taskDataList =
+            tasksResponse.data['data']['tasks'] as List<dynamic>? ?? [];
+        _performanceTasks = taskDataList
+            .map((j) => PerformanceTask.fromJson(j as Map<String, dynamic>))
+            .toList();
+      } else {
+        _performanceTasks = [];
+      }
+
+      if (homeResponse.data != null) {
+        final data = homeResponse.data['data'] as Map<String, dynamic>;
         final model = HomeDashboardModel.fromJson(data);
-
-        // Dynamically verify and update active user role from home dashboard data designation
-        final String updatedRole = AuthService.mapDesignationIdToRole(model.designationId, model.designationName);
-        final currentRole = AuthProvider.instance.session.role;
-        if (updatedRole != currentRole) {
-          AuthProvider.instance.updateSessionRole(updatedRole);
-          await prefs.setString('user_role', updatedRole);
-          final session = AuthProvider.instance.session;
-          await SecureStorageService.instance.saveUserSession(session);
-        }
-
         // Save fresh data to local cache
         await prefs.setString('cached_home_data', jsonEncode(model.toJson()));
 
@@ -169,11 +199,12 @@ class HomeProvider extends BaseProvider<HomeDashboardModel> {
       if (errorMsg.contains('ApiException:')) {
         errorMsg = errorMsg.replaceAll('ApiException:', '').trim();
       }
-      if (errorMsg.contains('HttpException:') || 
-          errorMsg.contains('SocketException:') || 
+      if (errorMsg.contains('HttpException:') ||
+          errorMsg.contains('SocketException:') ||
           errorMsg.contains('DioException') ||
           errorMsg.contains('BAD_DECRYPT')) {
-        errorMsg = 'Unable to connect to the server. Please check your internet connection and try again.';
+        errorMsg =
+            'Unable to connect to the server. Please check your internet connection and try again.';
       }
 
       setState(ApiResponse.error(errorMsg));

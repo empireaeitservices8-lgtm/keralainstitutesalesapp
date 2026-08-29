@@ -659,6 +659,18 @@ class _IncentiveScreenState extends State<IncentiveScreen> {
                                                   fontSize: 11.5,
                                                 ),
                                               ),
+                                              if (incentive.transactionId != null &&
+                                                  incentive.transactionId!.isNotEmpty) ...[
+                                                const SizedBox(height: 4),
+                                                Text(
+                                                  'Transaction ID: ${incentive.transactionId}',
+                                                  style: const TextStyle(
+                                                    color:
+                                                        AppColors.textSecondary,
+                                                    fontSize: 11.5,
+                                                  ),
+                                                ),
+                                              ],
                                               const Divider(
                                                 color: Color(0xFFE2E8F0),
                                                 height: 24,

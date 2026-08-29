@@ -33,7 +33,12 @@ class ApiEndpoints {
   static const String leads = '/leads';
   static const String importLeads = '/leads/import';
   static const String hierarchyFilters = '/hierarchy/filters';
+  static const String performanceTasks = '/tasks';
+
 
   /// Returns the close endpoint for a specific lead: POST /leads/{id}/close
   static String closeLead(int id) => '/leads/$id/close';
+
+  /// Returns the follow-up endpoint for a specific lead: POST /leads/{id}/follow-up
+  static String followUpLead(int id) => '/leads/$id/follow-up';
 }

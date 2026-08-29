@@ -1,4 +1,5 @@
 import 'package:json_annotation/json_annotation.dart';
+import '../utils/helpers.dart';
 
 part 'training_video_model.g.dart';
 
@@ -11,7 +12,7 @@ class TrainingVideoModel {
   final String difficulty;
   @JsonKey(name: 'video_url')
   final String videoUrl;
-  @JsonKey(name: 'is_completed')
+  @JsonKey(name: 'is_completed', fromJson: UiHelpers.parseBool)
   bool isCompleted;
 
   TrainingVideoModel({
@@ -24,6 +25,7 @@ class TrainingVideoModel {
     this.isCompleted = false,
   });
 
-  factory TrainingVideoModel.fromJson(Map<String, dynamic> json) => _$TrainingVideoModelFromJson(json);
+  factory TrainingVideoModel.fromJson(Map<String, dynamic> json) =>
+      _$TrainingVideoModelFromJson(json);
   Map<String, dynamic> toJson() => _$TrainingVideoModelToJson(this);
 }

@@ -15,7 +15,9 @@ EodModel _$EodModelFromJson(Map<String, dynamic> json) => EodModel(
   remarks: json['remarks'] as String,
   dailySummary: json['daily_summary'] as String,
   submissionTime: DateTime.parse(json['submission_time'] as String),
-  isSubmitted: json['is_submitted'] as bool? ?? false,
+  isSubmitted: json['is_submitted'] == null
+      ? false
+      : UiHelpers.parseBool(json['is_submitted']),
 );
 
 Map<String, dynamic> _$EodModelToJson(EodModel instance) => <String, dynamic>{

@@ -230,12 +230,25 @@ class AuthService {
   /// Get details of the active session
   Future<Map<String, String>> getSessionDetails() async {
     final prefs = await SharedPreferences.getInstance();
+    final String email = prefs.getString(_keyUserEmail) ?? '';
+    final String storedRole = prefs.getString(_keyUserRole) ?? 'BDE';
+
+    // Enforce preconfigured mock role for test accounts to override local cache or server anomalies
+    String role = storedRole;
+    if (email.isNotEmpty) {
+      final cleanEmail = email.trim().toLowerCase();
+      final mockProfile = mockUsers[cleanEmail];
+      if (mockProfile != null && mockProfile.containsKey('role')) {
+        role = mockProfile['role']!;
+      }
+    }
+
     return {
-      'email': prefs.getString(_keyUserEmail) ?? '',
+      'email': email,
       'authType': prefs.getString(_keyAuthType) ?? 'Unknown',
       'deviceToken': prefs.getString(_keyDeviceToken) ?? 'N/A',
       'name': prefs.getString(_keyUserName) ?? 'Guest User',
-      'role': prefs.getString(_keyUserRole) ?? 'BDE',
+      'role': role,
       'zone': prefs.getString(_keyUserZone) ?? '',
       'district': prefs.getString(_keyUserDistrict) ?? '',
       'team': prefs.getString(_keyUserTeam) ?? '',
@@ -305,12 +318,13 @@ class AuthService {
           final String designation = user['designation_name'] ?? 'BDE';
           final int designationId = (user['designation_id'] as num? ?? 0).toInt();
 
-          // Map designation to user role code: 'MD' | 'ZM' | 'ASM' | 'BDM' | 'BDE'
-          final String role = mapDesignationIdToRole(designationId, designation);
-
-          // Use mapped zone/district/team from mock users if they exist to keep compatibility
+          // Use mapped details from mock users if they exist to keep compatibility
           final cleanEmail = userEmail.trim().toLowerCase();
           final mockProfile = mockUsers[cleanEmail];
+
+          // Map designation to user role code: 'MD' | 'ZM' | 'ASM' | 'BDM' | 'BDE'
+          final String role = mockProfile?['role'] ?? mapDesignationIdToRole(designationId, designation);
+
           final String zone = mockProfile?['zone'] ?? '';
           final String district = mockProfile?['district'] ?? '';
           final String team = mockProfile?['team'] ?? '';
@@ -504,6 +518,27 @@ class AuthService {
   }
 
   static String mapDesignationIdToRole(int designationId, String designationName) {
+    final cleanDes = designationName.toLowerCase();
+    if (cleanDes.contains('executive') || cleanDes.contains('bde')) {
+      return 'BDE';
+    } else if (cleanDes.contains('managing director') ||
+        cleanDes.contains('super admin') ||
+        cleanDes.contains('admin') ||
+        cleanDes == 'md') {
+      return 'MD';
+    } else if (cleanDes.contains('zonal') || cleanDes == 'zm') {
+      return 'ZM';
+    } else if (cleanDes.contains('area sales') ||
+        cleanDes.contains('district') ||
+        cleanDes == 'asm') {
+      return 'ASM';
+    } else if (cleanDes.contains('business development manager') ||
+        cleanDes.contains('team leader') ||
+        cleanDes.contains('bdm') ||
+        cleanDes == 'tl') {
+      return 'BDM';
+    }
+
     switch (designationId) {
       case 1:
         return 'BDE';
@@ -516,22 +551,6 @@ class AuthService {
       case 5:
         return 'BDM';
       default:
-        final cleanDes = designationName.toLowerCase();
-        if (cleanDes.contains('managing director') ||
-            cleanDes.contains('super admin') ||
-            cleanDes.contains('admin')) {
-          return 'MD';
-        } else if (cleanDes.contains('zonal')) {
-          return 'ZM';
-        } else if (cleanDes.contains('area sales') ||
-            cleanDes.contains('district')) {
-          return 'ASM';
-        } else if (cleanDes.contains('business development manager') ||
-            cleanDes.contains('team leader') ||
-            cleanDes.contains('bdm') ||
-            cleanDes == 'tl') {
-          return 'BDM';
-        }
         return 'BDE';
     }
   }

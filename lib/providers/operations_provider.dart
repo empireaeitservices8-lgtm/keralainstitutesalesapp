@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:http_parser/http_parser.dart';
 import 'package:flutter/material.dart';
@@ -258,6 +259,21 @@ class OperationsProvider extends ChangeNotifier {
         return _beatPlans
             .where((v) => v.assignedBdeEmail == user.email)
             .toList();
+    }
+  }
+
+  Future<void> saveFollowUp(String leadId, DateTime combinedDateTime, String remark) async {
+    // 1. Call API
+    final numericId = int.tryParse(leadId.replaceFirst('LD_', ''));
+    if (numericId != null) {
+      final formattedApiDate = DateFormat("yyyy-MM-dd'T'HH:mm:ss").format(combinedDateTime);
+      await ApiClient.instance.post(
+        ApiEndpoints.followUpLead(numericId),
+        data: {
+          'followup_date': formattedApiDate,
+          'notes': remark,
+        },
+      );
     }
   }
 
@@ -708,13 +724,20 @@ class OperationsProvider extends ChangeNotifier {
       // Update local state to reflect the change immediately in the UI.
       final index = _tasks.indexWhere((t) => t.id == id);
       if (index != -1) {
-        _tasks[index] = _tasks[index].copyWith(
+        final currentTask = _tasks[index];
+        List<FollowUpItem>? updatedFollowUps = currentTask.followUps;
+        if (followUpDate != null && followUpDate.isNotEmpty) {
+          updatedFollowUps = List<FollowUpItem>.from(currentTask.followUps ?? [])
+            ..add(FollowUpItem(dateTime: followUpDate, remark: remarks));
+        }
+
+        _tasks[index] = currentTask.copyWith(
           status: status,
           leadStatus: leadStatus,
           completedDate: status == 'Completed' ? DateTime.now() : null,
           completionProofPath: proof,
           remarks: remarks,
-          followUpDate: followUpDate,
+          followUps: updatedFollowUps,
         );
       }
 
@@ -894,9 +917,27 @@ class OperationsProvider extends ChangeNotifier {
     final currentUser = AuthProvider.instance.session;
     final zoneName  = currentUser.zone  ?? '';
     final teamName  = currentUser.team  ?? '';
+    
+    final leadId = 'LD_${lead.id}';
+
+    // Map API follow-ups to FollowUpItem
+    final apiFollowUps = lead.followups?.map((f) {
+      String formattedDate = f.followupDate;
+      try {
+        final parsed = DateTime.parse(f.followupDate);
+        formattedDate = DateFormat('dd MMM yyyy, hh:mm a').format(parsed);
+      } catch (_) {
+        // Fallback to original
+      }
+      return FollowUpItem(
+        dateTime: formattedDate,
+        remark: f.notes ?? '',
+      );
+    }).toList() ?? [];
+
     // API already scopes results via Bearer token; use session values as fallback.
     return TaskModel(
-      id: 'LD_${lead.id}',
+      id: leadId,
       studentName: lead.name,
       location: lead.address,
       course: lead.course?.name ?? '',
@@ -909,7 +950,9 @@ class OperationsProvider extends ChangeNotifier {
       creatorEmail: currentUser.email,
       status: lead.isCompleted ? 'Completed' : 'Pending',
       leadStatus: lead.statusLabel,
-      followUpDate: null,
+      followUps: apiFollowUps,
+      phone: lead.phone,
+      email: lead.email,
     );
   }
 
@@ -920,7 +963,7 @@ class OperationsProvider extends ChangeNotifier {
     _isLoadingLeads = true;
     notifyListeners();
     try {
-      final Map<String, dynamic> queryParams = {'status': 1};
+      final Map<String, dynamic> queryParams = {'status': status};
       final activeEmployeeId = employeeId ?? _selectedBdeId ?? _selectedBdmId ?? _selectedAsmId;
       if (activeEmployeeId != null) {
         queryParams['employee_id'] = activeEmployeeId;
@@ -954,41 +997,53 @@ class OperationsProvider extends ChangeNotifier {
     }
   }
 
-  /// Fetches completed leads (status=5) and populates [completedTasks].
+  /// Fetches completed leads (status=4 and status=5) and populates [completedTasks].
   Future<void> fetchCompletedLeads({int? employeeId, int? teamId, int? districtId, bool isRefresh = false}) async {
     if (_isLoadingCompletedLeads) return;
     if (!isRefresh && _completedTasks.isNotEmpty && employeeId == null && teamId == null && districtId == null) return;
     _isLoadingCompletedLeads = true;
     notifyListeners();
     try {
-      final Map<String, dynamic> queryParams = {'status': 5};
+      final Map<String, dynamic> queryParams4 = {'status': 4};
+      final Map<String, dynamic> queryParams5 = {'status': 5};
       final activeEmployeeId = employeeId ?? _selectedBdeId ?? _selectedBdmId ?? _selectedAsmId;
       if (activeEmployeeId != null) {
-        queryParams['employee_id'] = activeEmployeeId;
+        queryParams4['employee_id'] = activeEmployeeId;
+        queryParams5['employee_id'] = activeEmployeeId;
       }
       final activeTeamId = teamId ?? _selectedTeamId;
       if (activeTeamId != null) {
-        queryParams['team_id'] = activeTeamId;
+        queryParams4['team_id'] = activeTeamId;
+        queryParams5['team_id'] = activeTeamId;
       }
       final activeDistrictId = districtId ?? _selectedDistrictId;
       if (activeDistrictId != null) {
-        queryParams['district_id'] = activeDistrictId;
+        queryParams4['district_id'] = activeDistrictId;
+        queryParams5['district_id'] = activeDistrictId;
       }
 
-      final response = await ApiClient.instance.get(
-        ApiEndpoints.leads,
-        queryParameters: queryParams,
-      );
+      final responses = await Future.wait([
+        ApiClient.instance.get(
+          ApiEndpoints.leads,
+          queryParameters: queryParams4,
+        ),
+        ApiClient.instance.get(
+          ApiEndpoints.leads,
+          queryParameters: queryParams5,
+        ),
+      ]);
 
       final List<TaskModel> combined = [];
-      if (response.data != null && response.data['success'] == true) {
-        final leadsPage = LeadsPage.fromJson(
-          response.data['data']['leads'] as Map<String, dynamic>,
-        );
-        combined.addAll(leadsPage.data.map(_mapLead));
+      for (final response in responses) {
+        if (response.data != null && response.data['success'] == true) {
+          final leadsPage = LeadsPage.fromJson(
+            response.data['data']['leads'] as Map<String, dynamic>,
+          );
+          combined.addAll(leadsPage.data.map(_mapLead));
+        }
       }
       _completedTasks = combined.where((t) => t.status == 'Completed').toList();
-      debugPrint('[fetchCompletedLeads] status=5, employee_id=$activeEmployeeId, team_id=$activeTeamId, district_id=$activeDistrictId → ${_completedTasks.length} completed leads loaded');
+      debugPrint('[fetchCompletedLeads] status=4,5, employee_id=$activeEmployeeId, team_id=$activeTeamId, district_id=$activeDistrictId → ${_completedTasks.length} completed leads loaded');
     } catch (e, st) {
       debugPrint('[fetchCompletedLeads] ERROR: $e\n$st');
     } finally {
@@ -1059,7 +1114,8 @@ class OperationsProvider extends ChangeNotifier {
           creatorEmail: AuthProvider.instance.session.email,
           status: 'Pending',
           leadStatus: 'Interested',
-          followUpDate: null,
+          phone: phone,
+          email: email,
         );
 
         addTask(newLead);
@@ -1068,6 +1124,7 @@ class OperationsProvider extends ChangeNotifier {
       }
     } catch (e) {
       debugPrint('Failed to create lead on server: $e');
+      rethrow;
     } finally {
       _isSubmittingTask = false;
       notifyListeners();

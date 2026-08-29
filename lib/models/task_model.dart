@@ -20,8 +20,15 @@ class TaskModel {
   @JsonKey(name: 'completion_proof_path')
   final String? completionProofPath;
   final String? remarks;
-  @JsonKey(name: 'follow_up_date')
-  final String? followUpDate;
+  
+  @JsonKey(name: 'follow_ups')
+  final List<FollowUpItem>? followUps;
+
+  String? get followUpDate => (followUps != null && followUps!.isNotEmpty) ? followUps!.last.dateTime : null;
+  String? get followUpRemark => (followUps != null && followUps!.isNotEmpty) ? followUps!.last.remark : null;
+
+  final String? phone;
+  final String? email;
   
   @JsonKey(name: 'assigned_bde_email')
   final String assignedBdeEmail;
@@ -43,7 +50,9 @@ class TaskModel {
     this.completedDate,
     this.completionProofPath,
     this.remarks,
-    this.followUpDate,
+    this.followUps,
+    this.phone,
+    this.email,
     required this.assignedBdeEmail,
     required this.team,
     required this.district,
@@ -60,7 +69,9 @@ class TaskModel {
     DateTime? completedDate,
     String? completionProofPath,
     String? remarks,
-    String? followUpDate,
+    List<FollowUpItem>? followUps,
+    String? phone,
+    String? email,
     String? assignedBdeEmail,
     String? team,
     String? district,
@@ -79,7 +90,9 @@ class TaskModel {
       completedDate: completedDate ?? this.completedDate,
       completionProofPath: completionProofPath ?? this.completionProofPath,
       remarks: remarks ?? this.remarks,
-      followUpDate: followUpDate ?? this.followUpDate,
+      followUps: followUps ?? this.followUps,
+      phone: phone ?? this.phone,
+      email: email ?? this.email,
       assignedBdeEmail: assignedBdeEmail ?? this.assignedBdeEmail,
       team: team ?? this.team,
       district: district ?? this.district,
@@ -87,4 +100,23 @@ class TaskModel {
       creatorEmail: creatorEmail ?? this.creatorEmail,
     );
   }
+}
+
+class FollowUpItem {
+  final String dateTime;
+  final String remark;
+
+  FollowUpItem({required this.dateTime, required this.remark});
+
+  factory FollowUpItem.fromJson(Map<String, dynamic> json) {
+    return FollowUpItem(
+      dateTime: json['dateTime'] as String? ?? json['date_time'] as String? ?? '',
+      remark: json['remark'] as String? ?? '',
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+    'dateTime': dateTime,
+    'remark': remark,
+  };
 }

@@ -5,7 +5,7 @@ import '../providers/auth_provider.dart';
 import '../widgets/glass_container.dart';
 import '../utils/validators.dart';
 import '../utils/helpers.dart';
-import 'dashboard_screen.dart';
+import 'dashboard/dashboard_screen.dart';
 import 'set_password_screen.dart';
 
 class LoginScreen extends StatefulWidget {

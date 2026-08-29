@@ -54,4 +54,15 @@ class UiHelpers {
     if (str == null || str.isEmpty) return null;
     return parseUtcDateTime(str);
   }
+
+  static bool parseBool(dynamic val) {
+    if (val == null) return false;
+    if (val is bool) return val;
+    if (val is num) return val != 0;
+    if (val is String) {
+      final lower = val.toLowerCase().trim();
+      return lower == 'true' || lower == '1';
+    }
+    return false;
+  }
 }

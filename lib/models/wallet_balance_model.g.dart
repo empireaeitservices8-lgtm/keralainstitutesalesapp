@@ -42,6 +42,7 @@ WithdrawRequest _$WithdrawRequestFromJson(Map<String, dynamic> json) =>
       referenceId: json['reference_id'] as String,
       amount: _doubleFromString(json['amount']),
       status: (json['status'] as num).toInt(),
+      transactionId: json['transaction_id'] as String?,
       remarks: json['remarks'] as String?,
       createdAt: DateTime.parse(json['created_at'] as String),
     );
@@ -52,6 +53,7 @@ Map<String, dynamic> _$WithdrawRequestToJson(WithdrawRequest instance) =>
       'reference_id': instance.referenceId,
       'amount': instance.amount,
       'status': instance.status,
+      'transaction_id': instance.transactionId,
       'remarks': instance.remarks,
       'created_at': instance.createdAt.toIso8601String(),
     };

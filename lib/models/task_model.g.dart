@@ -20,7 +20,11 @@ TaskModel _$TaskModelFromJson(Map<String, dynamic> json) => TaskModel(
       : DateTime.parse(json['completed_date'] as String),
   completionProofPath: json['completion_proof_path'] as String?,
   remarks: json['remarks'] as String?,
-  followUpDate: json['follow_up_date'] as String?,
+  followUps: (json['follow_ups'] as List<dynamic>?)
+      ?.map((e) => FollowUpItem.fromJson(e as Map<String, dynamic>))
+      .toList(),
+  phone: json['phone'] as String?,
+  email: json['email'] as String?,
   assignedBdeEmail: json['assigned_bde_email'] as String,
   team: json['team'] as String,
   district: json['district'] as String,
@@ -40,7 +44,9 @@ Map<String, dynamic> _$TaskModelToJson(TaskModel instance) => <String, dynamic>{
   'completed_date': instance.completedDate?.toIso8601String(),
   'completion_proof_path': instance.completionProofPath,
   'remarks': instance.remarks,
-  'follow_up_date': instance.followUpDate,
+  'follow_ups': instance.followUps,
+  'phone': instance.phone,
+  'email': instance.email,
   'assigned_bde_email': instance.assignedBdeEmail,
   'team': instance.team,
   'district': instance.district,

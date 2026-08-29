@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 import '../constants/colors.dart';
 import '../services/auth_service.dart';
 import '../providers/permission_provider.dart';
-import 'dashboard_screen.dart';
+import 'dashboard/dashboard_screen.dart';
 import 'login_screen.dart';
 import 'set_password_screen.dart';
+import '../providers/auth_provider.dart';
 
 class SplashScreen extends StatefulWidget {
   static const String path = '/';
@@ -57,6 +58,8 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     if (!mounted) return;
 
     if (isLoggedIn) {
+      await AuthProvider.instance.loadSession();
+      if (!mounted) return;
       if (requirePasswordChange) {
         Navigator.pushReplacementNamed(context, SetPasswordScreen.path);
       } else {

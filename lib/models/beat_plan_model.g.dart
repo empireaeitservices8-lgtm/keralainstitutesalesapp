@@ -16,7 +16,9 @@ BeatPlanModel _$BeatPlanModelFromJson(Map<String, dynamic> json) =>
       distanceKm: (json['distance_km'] as num).toDouble(),
       latitude: (json['latitude'] as num).toDouble(),
       longitude: (json['longitude'] as num).toDouble(),
-      isVisited: json['is_visited'] as bool? ?? false,
+      isVisited: json['is_visited'] == null
+          ? false
+          : UiHelpers.parseBool(json['is_visited']),
       checkInTime: json['check_in_time'] == null
           ? null
           : DateTime.parse(json['check_in_time'] as String),

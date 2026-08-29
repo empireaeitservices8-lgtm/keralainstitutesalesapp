@@ -19,7 +19,7 @@ AttendanceModel _$AttendanceModelFromJson(Map<String, dynamic> json) =>
           ? null
           : DateTime.parse(json['check_out_time'] as String),
       workingHours: (json['working_hours'] as num?)?.toDouble(),
-      status: json['status'] as String? ?? 'Absent',
+      status: json['status'] as String,
       statusText: json['status_text'] as String?,
     );
 

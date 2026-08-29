@@ -16,7 +16,9 @@ TrainingVideoModel _$TrainingVideoModelFromJson(Map<String, dynamic> json) =>
       videoUrl:
           json['video_url'] as String? ??
           'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
-      isCompleted: json['is_completed'] as bool? ?? false,
+      isCompleted: json['is_completed'] == null
+          ? false
+          : UiHelpers.parseBool(json['is_completed']),
     );
 
 Map<String, dynamic> _$TrainingVideoModelToJson(TrainingVideoModel instance) =>

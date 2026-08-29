@@ -215,7 +215,21 @@ class ApiClient {
       // Attempt to pull message from API JSON error format
       String errorMessage = 'A server error occurred. Please try again.';
       if (responseData is Map) {
-        errorMessage = responseData['message'] ?? responseData['error'] ?? errorMessage;
+        if (statusCode == 422 && responseData['errors'] is Map) {
+          final errorsMap = responseData['errors'] as Map;
+          if (errorsMap.isNotEmpty) {
+            final firstErrorVal = errorsMap.values.first;
+            if (firstErrorVal is List && firstErrorVal.isNotEmpty) {
+              errorMessage = firstErrorVal.first.toString();
+            } else if (firstErrorVal != null) {
+              errorMessage = firstErrorVal.toString();
+            }
+          } else {
+            errorMessage = responseData['message'] ?? responseData['error'] ?? errorMessage;
+          }
+        } else {
+          errorMessage = responseData['message'] ?? responseData['error'] ?? errorMessage;
+        }
       } else if (response.statusMessage != null && response.statusMessage!.isNotEmpty) {
         errorMessage = response.statusMessage!;
       }
