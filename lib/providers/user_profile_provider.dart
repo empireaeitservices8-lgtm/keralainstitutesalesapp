@@ -6,10 +6,6 @@ import '../api/api_endpoints.dart';
 import '../api/api_response.dart';
 import '../models/user_profile_model.dart';
 import 'base_provider.dart';
-import 'auth_provider.dart';
-import '../storage/secure_storage_service.dart';
-import '../models/user_session.dart';
-import '../services/auth_service.dart';
 
 class UserProfileProvider extends BaseProvider<UserProfileModel> {
   static final UserProfileProvider instance = UserProfileProvider._internal();
@@ -62,11 +58,11 @@ class UserProfileProvider extends BaseProvider<UserProfileModel> {
         }
 
         final Map<String, dynamic> dataMap;
-        if (rawData is Map<String, dynamic>) {
-          if (rawData.containsKey('user') && rawData['user'] is Map<String, dynamic>) {
-            dataMap = rawData['user'] as Map<String, dynamic>;
+        if (rawData is Map) {
+          if (rawData.containsKey('user') && rawData['user'] is Map) {
+            dataMap = Map<String, dynamic>.from(rawData['user'] as Map);
           } else {
-            dataMap = rawData;
+            dataMap = Map<String, dynamic>.from(rawData);
           }
         } else {
           throw Exception('Invalid user profile data format.');
@@ -74,9 +70,11 @@ class UserProfileProvider extends BaseProvider<UserProfileModel> {
 
         final model = UserProfileModel.fromJson(dataMap);
 
-
         // Save fresh data to local cache
-        await prefs.setString('cached_user_profile', jsonEncode(model.toJson()));
+        await prefs.setString(
+          'cached_user_profile',
+          jsonEncode(model.toJson()),
+        );
 
         setState(ApiResponse.success(model));
         return;
@@ -96,11 +94,12 @@ class UserProfileProvider extends BaseProvider<UserProfileModel> {
       if (errorMsg.contains('ApiException:')) {
         errorMsg = errorMsg.replaceAll('ApiException:', '').trim();
       }
-      if (errorMsg.contains('HttpException:') || 
-          errorMsg.contains('SocketException:') || 
+      if (errorMsg.contains('HttpException:') ||
+          errorMsg.contains('SocketException:') ||
           errorMsg.contains('DioException') ||
           errorMsg.contains('BAD_DECRYPT')) {
-        errorMsg = 'Unable to connect to the server. Please check your internet connection and try again.';
+        errorMsg =
+            'Unable to connect to the server. Please check your internet connection and try again.';
       }
 
       setState(ApiResponse.error(errorMsg));

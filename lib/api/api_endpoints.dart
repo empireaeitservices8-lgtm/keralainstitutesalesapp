@@ -3,7 +3,8 @@ class ApiEndpoints {
 
   /// Change the base URL to target staging/production/local servers
   static const String baseUrl =
-      'https://kide-crm-backend-production-yszlaa.laravel.cloud/api';
+      //'https://kide-crm-backend-production-yszlaa.laravel.cloud/api';
+      "https://lms-application-pi.vercel.app/api";
 
   /// Authentication
   static const String login = '/login';
@@ -34,11 +35,11 @@ class ApiEndpoints {
   static const String importLeads = '/leads/import';
   static const String hierarchyFilters = '/hierarchy/filters';
   static const String performanceTasks = '/tasks';
-
+  static const String institutes = '/institutes';
 
   /// Returns the close endpoint for a specific lead: POST /leads/{id}/close
   static String closeLead(int id) => '/leads/$id/close';
 
-  /// Returns the follow-up endpoint for a specific lead: POST /leads/{id}/follow-up
-  static String followUpLead(int id) => '/leads/$id/follow-up';
+  /// Returns the follow-up endpoint for a specific lead: POST /leads/{id}/followup
+  static String followUpLead(int id) => '/leads/$id/followup';
 }

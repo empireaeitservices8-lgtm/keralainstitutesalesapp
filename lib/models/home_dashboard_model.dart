@@ -48,7 +48,8 @@ class HomeDashboardModel {
       return json.map((key, value) {
         final list =
             (value as List?)
-                ?.map((e) => HomeBdeStatus.fromJson(e as Map<String, dynamic>))
+                ?.whereType<Map>()
+                .map((e) => HomeBdeStatus.fromJson(Map<String, dynamic>.from(e)))
                 .toList() ??
             [];
         return MapEntry(key.toString(), list);
@@ -57,8 +58,47 @@ class HomeDashboardModel {
     return null;
   }
 
-  factory HomeDashboardModel.fromJson(Map<String, dynamic> json) =>
-      _$HomeDashboardModelFromJson(json);
+  factory HomeDashboardModel.fromJson(Map<String, dynamic> json) {
+    return HomeDashboardModel(
+      user: json['user'] is Map<String, dynamic>
+          ? HomeUser.fromJson(json['user'] as Map<String, dynamic>)
+          : (json['user'] is Map
+              ? HomeUser.fromJson(Map<String, dynamic>.from(json['user'] as Map))
+              : HomeUser(id: 0, name: '', email: '')),
+      designationId: UiHelpers.parseInt(json['designation_id']),
+      designationName:
+          (json['designation_name'] ?? json['designation'] ?? '').toString(),
+      attendance: json['attendance'] is Map
+          ? HomeAttendance.fromJson(
+              Map<String, dynamic>.from(json['attendance'] as Map),
+            )
+          : null,
+      eodSync: json['eod_sync'] is Map
+          ? HomeEodSync.fromJson(
+              Map<String, dynamic>.from(json['eod_sync'] as Map),
+            )
+          : null,
+      operationalOverview: json['operational_overview'] is Map
+          ? HomeOperationalOverview.fromJson(
+              Map<String, dynamic>.from(json['operational_overview'] as Map),
+            )
+          : null,
+      dashboardType: json['dashboard_type']?.toString(),
+      teamName: json['team_name']?.toString(),
+      teamMetrics: json['team_metrics'] is Map
+          ? HomeTeamMetrics.fromJson(
+              Map<String, dynamic>.from(json['team_metrics'] as Map),
+            )
+          : null,
+      teamSubordinateStatus:
+          _parseSubordinateStatus(json['team_subordinate_status']),
+      territoryReport: (json['territory_report'] as List<dynamic>?)
+          ?.whereType<Map>()
+          .map((e) =>
+              HomeTerritoryReport.fromJson(Map<String, dynamic>.from(e)))
+          .toList(),
+    );
+  }
   Map<String, dynamic> toJson() => _$HomeDashboardModelToJson(this);
 }
 
@@ -70,8 +110,11 @@ class HomeUser {
 
   HomeUser({required this.id, required this.name, required this.email});
 
-  factory HomeUser.fromJson(Map<String, dynamic> json) =>
-      _$HomeUserFromJson(json);
+  factory HomeUser.fromJson(Map<String, dynamic> json) => HomeUser(
+        id: UiHelpers.parseInt(json['id']),
+        name: (json['name'] ?? '').toString(),
+        email: (json['email'] ?? '').toString(),
+      );
   Map<String, dynamic> toJson() => _$HomeUserToJson(this);
 }
 
@@ -99,8 +142,14 @@ class HomeAttendance {
     this.locationLng,
   });
 
-  factory HomeAttendance.fromJson(Map<String, dynamic> json) =>
-      _$HomeAttendanceFromJson(json);
+  factory HomeAttendance.fromJson(Map<String, dynamic> json) => HomeAttendance(
+        checkInTime: (json['check_in_time'] ?? '').toString(),
+        checkOutTime: (json['check_out_time'] ?? '').toString(),
+        shiftStatus: (json['shift_status'] ?? '').toString(),
+        isCheckedIn: UiHelpers.parseBool(json['is_checked_in']),
+        locationLat: _parseLocation(json['location_lat']),
+        locationLng: _parseLocation(json['location_lng']),
+      );
   Map<String, dynamic> toJson() => _$HomeAttendanceToJson(this);
 }
 
@@ -119,8 +168,12 @@ class HomeEodSync {
     required this.completionPercentage,
   });
 
-  factory HomeEodSync.fromJson(Map<String, dynamic> json) =>
-      _$HomeEodSyncFromJson(json);
+  factory HomeEodSync.fromJson(Map<String, dynamic> json) => HomeEodSync(
+        tasksCompleted: UiHelpers.parseInt(json['tasks_completed']),
+        totalTasks: UiHelpers.parseInt(json['total_tasks']),
+        completionPercentage:
+            UiHelpers.parseDouble(json['completion_percentage']),
+      );
   Map<String, dynamic> toJson() => _$HomeEodSyncToJson(this);
 }
 
@@ -143,7 +196,13 @@ class HomeOperationalOverview {
   });
 
   factory HomeOperationalOverview.fromJson(Map<String, dynamic> json) =>
-      _$HomeOperationalOverviewFromJson(json);
+      HomeOperationalOverview(
+        assignedLeads: UiHelpers.parseInt(json['assigned_leads']),
+        followUpLeads: UiHelpers.parseInt(json['follow_up_leads']),
+        closedLeads: UiHelpers.parseInt(json['closed_leads']),
+        incentivesEarned:
+            UiHelpers.parseDouble(json['incentives_earned']),
+      );
   Map<String, dynamic> toJson() => _$HomeOperationalOverviewToJson(this);
 }
 
@@ -166,7 +225,12 @@ class HomeTeamMetrics {
   });
 
   factory HomeTeamMetrics.fromJson(Map<String, dynamic> json) =>
-      _$HomeTeamMetricsFromJson(json);
+      HomeTeamMetrics(
+        teamLeads: UiHelpers.parseInt(json['team_leads']),
+        teamAdmissions: UiHelpers.parseInt(json['team_admissions']),
+        teamConversion: (json['team_conversion'] ?? '0%').toString(),
+        visitsPending: UiHelpers.parseInt(json['visits_pending']),
+      );
   Map<String, dynamic> toJson() => _$HomeTeamMetricsToJson(this);
 }
 
@@ -200,8 +264,18 @@ class HomeBdeStatus {
     this.locationLng,
   });
 
-  factory HomeBdeStatus.fromJson(Map<String, dynamic> json) =>
-      _$HomeBdeStatusFromJson(json);
+  factory HomeBdeStatus.fromJson(Map<String, dynamic> json) => HomeBdeStatus(
+        id: UiHelpers.parseInt(json['id']),
+        name: (json['name'] ?? '').toString(),
+        designation: (json['designation'] ?? '').toString(),
+        conversionPercentage:
+            (json['conversion_percentage'] ?? '0%').toString(),
+        leadsAssigned: (json['leads_assigned'] ?? '0').toString(),
+        onlineStatus: (json['online_status'] ?? 'offline').toString(),
+        onlineTime: json['online_time']?.toString(),
+        locationLat: _parseLocation(json['location_lat']),
+        locationLng: _parseLocation(json['location_lng']),
+      );
   Map<String, dynamic> toJson() => _$HomeBdeStatusToJson(this);
 }
 
@@ -230,7 +304,15 @@ class HomeTerritoryReport {
   });
 
   factory HomeTerritoryReport.fromJson(Map<String, dynamic> json) =>
-      _$HomeTerritoryReportFromJson(json);
+      HomeTerritoryReport(
+        territoryName: (json['territory_name'] ?? '').toString(),
+        managerName: (json['manager_name'] ?? '').toString(),
+        managerDesignation: (json['manager_designation'] ?? '').toString(),
+        leadsCount: UiHelpers.parseInt(json['leads_count']),
+        bdesCount: UiHelpers.parseInt(json['bdes_count']),
+        conversionPercentage:
+            (json['conversion_percentage'] ?? '0%').toString(),
+      );
   Map<String, dynamic> toJson() => _$HomeTerritoryReportToJson(this);
 }
 
@@ -238,7 +320,7 @@ num? _parseLocation(dynamic val) {
   if (val == null) return null;
   if (val is num) return val;
   if (val is String) {
-    return num.tryParse(val);
+    return num.tryParse(val.trim());
   }
   return null;
 }

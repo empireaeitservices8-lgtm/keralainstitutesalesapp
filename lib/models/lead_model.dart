@@ -1,4 +1,5 @@
 import 'package:json_annotation/json_annotation.dart';
+import '../utils/helpers.dart';
 
 part 'lead_model.g.dart';
 
@@ -86,18 +87,45 @@ class LeadModel {
     return DateTime.now();
   }
 
+  static String? _parseStringNullable(dynamic val) => val?.toString();
+  static int? _parseIntNullable(dynamic val) {
+    if (val == null) return null;
+    if (val is num) return val.toInt();
+    if (val is String) return int.tryParse(val);
+    return null;
+  }
+
   final int id;
   @JsonKey(fromJson: _parseString)
   final String name;
   @JsonKey(fromJson: _parseString)
   final String phone;
+  @JsonKey(name: 'whatsapp_number', fromJson: _parseStringNullable)
+  final String? whatsappNumber;
   @JsonKey(fromJson: _parseString)
   final String email;
   @JsonKey(fromJson: _parseString)
   final String address;
+  @JsonKey(fromJson: _parseStringNullable)
+  final String? place;
 
   @JsonKey(name: 'district_id', fromJson: _parseInt)
   final int districtId;
+  @JsonKey(name: 'district_name', fromJson: _parseStringNullable)
+  final String? districtName;
+
+  @JsonKey(fromJson: _parseIntNullable)
+  final int? age;
+  @JsonKey(fromJson: _parseStringNullable)
+  final String? qualification;
+  @JsonKey(name: 'college_name', fromJson: _parseStringNullable)
+  final String? collegeName;
+  @JsonKey(name: 'current_year', fromJson: _parseStringNullable)
+  final String? currentYear;
+  @JsonKey(name: 'interested_topic', fromJson: _parseStringNullable)
+  final String? interestedTopic;
+  @JsonKey(name: 'interested_course', fromJson: _parseStringNullable)
+  final String? interestedCourse;
 
   @JsonKey(name: 'course_id', fromJson: _parseInt)
   final int courseId;
@@ -105,8 +133,14 @@ class LeadModel {
   /// 1 = New, 4 = Admitted (Won), 5 = Closed (Lost)
   @JsonKey(fromJson: _parseInt)
   final int source;
+  @JsonKey(name: 'lead_source', fromJson: _parseStringNullable)
+  final String? leadSource;
   @JsonKey(fromJson: _parseInt)
   final int status;
+  @JsonKey(name: 'admission_status', fromJson: _parseStringNullable)
+  final String? admissionStatus;
+  @JsonKey(fromJson: _parseStringNullable)
+  final String? employee;
   @JsonKey(fromJson: _parseString)
   final String notes;
 
@@ -124,12 +158,24 @@ class LeadModel {
     required this.id,
     required this.name,
     required this.phone,
+    this.whatsappNumber,
     required this.email,
     required this.address,
+    this.place,
     required this.districtId,
+    this.districtName,
+    this.age,
+    this.qualification,
+    this.collegeName,
+    this.currentYear,
+    this.interestedTopic,
+    this.interestedCourse,
     required this.courseId,
     required this.source,
+    this.leadSource,
     required this.status,
+    this.admissionStatus,
+    this.employee,
     required this.notes,
     required this.createdAt,
     required this.updatedAt,
@@ -191,8 +237,44 @@ class LeadsPage {
     this.prevPageUrl,
   });
 
-  factory LeadsPage.fromJson(Map<String, dynamic> json) =>
-      _$LeadsPageFromJson(json);
+  factory LeadsPage.fromJson(dynamic json) {
+    if (json is List) {
+      return LeadsPage(
+        currentPage: 1,
+        data: json
+            .whereType<Map>()
+            .map((e) => LeadModel.fromJson(Map<String, dynamic>.from(e)))
+            .toList(),
+        lastPage: 1,
+        perPage: json.length,
+        total: json.length,
+      );
+    }
+    if (json is Map) {
+      final rawData = json['data'] is List
+          ? json['data'] as List
+          : (json['leads'] is List ? json['leads'] as List : []);
+      return LeadsPage(
+        currentPage: UiHelpers.parseInt(json['current_page'], 1),
+        data: rawData
+            .whereType<Map>()
+            .map((e) => LeadModel.fromJson(Map<String, dynamic>.from(e)))
+            .toList(),
+        lastPage: UiHelpers.parseInt(json['last_page'], 1),
+        perPage: UiHelpers.parseInt(json['per_page'], rawData.length),
+        total: UiHelpers.parseInt(json['total'], rawData.length),
+        nextPageUrl: json['next_page_url']?.toString(),
+        prevPageUrl: json['prev_page_url']?.toString(),
+      );
+    }
+    return const LeadsPage(
+      currentPage: 1,
+      data: [],
+      lastPage: 1,
+      perPage: 0,
+      total: 0,
+    );
+  }
   Map<String, dynamic> toJson() => _$LeadsPageToJson(this);
 
   bool get hasNextPage => nextPageUrl != null;

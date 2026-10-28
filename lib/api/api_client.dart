@@ -178,8 +178,8 @@ class ApiClient {
 
   /// Standardizes DioExceptions into user-friendly ApiException classes
   Exception _processDioError(DioException error) {
-    if (error.type == DioExceptionType.cancel) {
-      return ApiException(message: 'Request was cancelled', statusCode: 499);
+    if (error.type == DioExceptionType.cancel || CancelToken.isCancel(error)) {
+      return error;
     }
 
     // Intercept SSL/TLS Handshake and Bad Decrypt errors
@@ -234,10 +234,15 @@ class ApiClient {
         errorMessage = response.statusMessage!;
       }
 
-      if (statusCode == 401 || statusCode == 403) {
+      final lowerMsg = errorMessage.toLowerCase();
+      if (statusCode == 401 ||
+          statusCode == 403 ||
+          lowerMsg.contains('unauthenticated') ||
+          lowerMsg.contains('jwt expired') ||
+          lowerMsg.contains('token expired')) {
         return UnauthorizedException(
           message: errorMessage,
-          statusCode: statusCode,
+          statusCode: statusCode ?? 401,
         );
       }
 

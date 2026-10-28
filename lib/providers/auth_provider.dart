@@ -120,11 +120,11 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> logout() async {
+  Future<void> logout({bool callApi = true}) async {
     _isLoggingOut = true;
     notifyListeners();
     try {
-      await AuthService.instance.logout();
+      await AuthService.instance.logout(callApi: callApi);
       _session = UserSession.empty();
       _requirePasswordChange = false;
       

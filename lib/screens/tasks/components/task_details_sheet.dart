@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../../constants/colors.dart';
 import '../../../models/task_model.dart';
-import '../../../utils/helpers.dart';
+import 'close_lead_sheet.dart';
 
 Color _getLeadStatusColor(String status) {
   switch (status) {
@@ -17,37 +17,132 @@ Color _getLeadStatusColor(String status) {
   }
 }
 
-Widget _buildMetaRow(String label, String value, IconData icon) {
-  return Row(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Icon(icon, size: 14, color: AppColors.textSecondary),
-      const SizedBox(width: 8),
-      Expanded(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              label,
-              style: const TextStyle(
-                color: AppColors.textSecondary,
-                fontSize: 10,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              value,
-              style: const TextStyle(
-                color: AppColors.textPrimary,
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ],
+Widget _buildInfoTile(String label, String value, IconData icon) {
+  return Container(
+    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+    decoration: BoxDecoration(
+      color: AppColors.bgInput,
+      borderRadius: BorderRadius.circular(10),
+    ),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(top: 2),
+          child: Icon(icon, size: 15, color: AppColors.accentTeal),
         ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label.toUpperCase(),
+                style: const TextStyle(
+                  color: Color(0xFF64748B),
+                  fontSize: 9.5,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 0.5,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 3),
+              Text(
+                value,
+                style: const TextStyle(
+                  color: AppColors.textPrimary,
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w600,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+Widget _buildPairRow(Widget left, Widget? right) {
+  return Padding(
+    padding: const EdgeInsets.only(bottom: 8.0),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(child: left),
+        if (right != null) ...[
+          const SizedBox(width: 8),
+          Expanded(child: right),
+        ],
+      ],
+    ),
+  );
+}
+
+Widget _buildFullTile(String label, String value, IconData icon) {
+  return Padding(
+    padding: const EdgeInsets.only(bottom: 8.0),
+    child: Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: AppColors.bgInput,
+        borderRadius: BorderRadius.circular(10),
       ),
-    ],
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(top: 2),
+            child: Icon(icon, size: 15, color: AppColors.accentTeal),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label.toUpperCase(),
+                  style: const TextStyle(
+                    color: Color(0xFF64748B),
+                    fontSize: 9.5,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  value,
+                  style: const TextStyle(
+                    color: AppColors.textPrimary,
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+Widget _buildSectionHeader(String title) {
+  return Padding(
+    padding: const EdgeInsets.only(top: 10, bottom: 8),
+    child: Text(
+      title,
+      style: const TextStyle(
+        color: AppColors.accentTeal,
+        fontSize: 10,
+        fontWeight: FontWeight.bold,
+        letterSpacing: 0.8,
+      ),
+    ),
   );
 }
 
@@ -55,16 +150,13 @@ void showTaskDetailsBottomSheet(
   BuildContext context,
   TaskModel task,
   dynamic user, {
-  required Future<void> Function({
+  Future<void> Function({
     required String remarks,
     required String leadStatus,
-  }) onSubmitVisitReport,
+  })? onSubmitVisitReport,
 }) {
   final bool isCompleted = task.status == 'Completed';
   final formattedAssignedDate = DateFormat('dd MMM yyyy').format(task.assignedDate);
-
-  final remarksController = TextEditingController(text: task.remarks ?? '');
-  bool isSubmitting = false;
 
   showModalBottomSheet(
     context: context,
@@ -148,43 +240,47 @@ void showTaskDetailsBottomSheet(
                   ),
                   const Divider(color: Color(0xFFE2E8F0), height: 32),
 
-                  _buildMetaRow(
-                    'Location Visit Address',
-                    task.location,
-                    Icons.location_on_outlined,
+                  // SECTION 1: Contact Details
+                  _buildSectionHeader('CONTACT & LOCATION'),
+                  _buildPairRow(
+                    _buildInfoTile('Phone', (task.phone != null && task.phone!.isNotEmpty) ? task.phone! : '-', Icons.phone_outlined),
+                    _buildInfoTile('WhatsApp', (task.whatsappNumber != null && task.whatsappNumber!.isNotEmpty) ? task.whatsappNumber! : ((task.phone != null && task.phone!.isNotEmpty) ? task.phone! : '-'), Icons.chat_bubble_outline),
                   ),
-                  const SizedBox(height: 8),
-                  _buildMetaRow(
-                    'Assigned On Date',
-                    formattedAssignedDate,
-                    Icons.calendar_today_outlined,
+                  _buildPairRow(
+                    _buildInfoTile('Email', (task.email != null && task.email!.isNotEmpty) ? task.email! : '-', Icons.alternate_email_outlined),
+                    _buildInfoTile('Place', (task.place != null && task.place!.isNotEmpty) ? task.place! : (task.district.isNotEmpty ? task.district : '-'), Icons.place_outlined),
                   ),
-                  const SizedBox(height: 8),
-                  _buildMetaRow(
-                    'Manager Directive',
-                    task.description,
-                    Icons.assignment_outlined,
+                  _buildFullTile('Location Visit Address', task.location, Icons.location_on_outlined),
+
+                  // SECTION 2: Academic & Course Preferences
+                  _buildSectionHeader('ACADEMIC & COURSE PROFILE'),
+                  _buildPairRow(
+                    _buildInfoTile('Qualification', (task.qualification != null && task.qualification!.isNotEmpty) ? task.qualification! : '-', Icons.history_edu_outlined),
+                    _buildInfoTile('Current Year', (task.currentYear != null && task.currentYear!.isNotEmpty) ? task.currentYear! : '-', Icons.timeline_outlined),
                   ),
-                  const SizedBox(height: 8),
-                  _buildMetaRow(
-                    'Assigned BDE Email',
-                    task.assignedBdeEmail,
-                    Icons.email_outlined,
+                  _buildPairRow(
+                    _buildInfoTile('College / Institute', (task.collegeName != null && task.collegeName!.isNotEmpty) ? task.collegeName! : '-', Icons.account_balance_outlined),
+                    _buildInfoTile('Age', (task.age != null && task.age! > 0) ? '${task.age} yrs' : '-', Icons.person_outline),
                   ),
-                  const SizedBox(height: 8),
-                  _buildMetaRow(
-                    'Territory',
-                    '${task.zone} / ${task.district}',
-                    Icons.public_outlined,
+                  _buildPairRow(
+                    _buildInfoTile('Interested Course', task.course.isNotEmpty ? task.course : (task.interestedCourse ?? '-'), Icons.school_outlined),
+                    _buildInfoTile('Interested Topic', (task.interestedTopic != null && task.interestedTopic!.isNotEmpty) ? task.interestedTopic! : '-', Icons.lightbulb_outline),
                   ),
-                  if (isCompleted) ...[
-                    const SizedBox(height: 8),
-                    _buildMetaRow(
-                      'Lead Status',
-                      task.leadStatus,
-                      Icons.info_outline_rounded,
-                    ),
-                  ],
+
+                  // SECTION 3: Assignment & Source
+                  _buildSectionHeader('ASSIGNMENT & SOURCE'),
+                  _buildPairRow(
+                    _buildInfoTile('Lead Source', (task.leadSource != null && task.leadSource!.isNotEmpty) ? task.leadSource! : '-', Icons.source_outlined),
+                    _buildInfoTile('Assigned On', formattedAssignedDate, Icons.calendar_today_outlined),
+                  ),
+                  _buildPairRow(
+                    _buildInfoTile('Assigned BDE', task.assignedBdeEmail, Icons.email_outlined),
+                    _buildInfoTile('Territory', '${task.zone} / ${task.district}', Icons.public_outlined),
+                  ),
+                  if (task.description.isNotEmpty)
+                    _buildFullTile('Manager Directive / Notes', task.description, Icons.assignment_outlined),
+                  if (isCompleted)
+                    _buildFullTile('Lead Status', task.leadStatus, Icons.info_outline_rounded),
                   if (isCompleted) ...[
                     const Divider(color: Color(0xFFE2E8F0), height: 32),
                     const Text(
@@ -248,47 +344,6 @@ void showTaskDetailsBottomSheet(
                   ] else ...[
                     const Divider(color: Color(0xFFE2E8F0), height: 32),
 
-                    const Text(
-                      'VISIT REMARKS / DISCUSSION NOTE',
-                      style: TextStyle(
-                        color: AppColors.textSecondary,
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 1.0,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    TextField(
-                      controller: remarksController,
-                      maxLines: 3,
-                      style: const TextStyle(
-                        fontSize: 13,
-                        color: AppColors.textPrimary,
-                      ),
-                      decoration: InputDecoration(
-                        hintText: 'e.g., Parent requested fee split options, positive response.',
-                        hintStyle: const TextStyle(
-                          color: AppColors.textSecondary,
-                          fontSize: 12,
-                        ),
-                        filled: true,
-                        fillColor: AppColors.bgInput,
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(
-                            color: Colors.black.withOpacity(0.06),
-                          ),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(
-                            color: AppColors.accentTeal,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-
                     SizedBox(
                       width: double.infinity,
                       height: 50,
@@ -300,7 +355,7 @@ void showTaskDetailsBottomSheet(
                           ),
                           boxShadow: [
                             BoxShadow(
-                              color: AppColors.accentTeal.withOpacity(0.25),
+                              color: AppColors.accentTeal.withValues(alpha: 0.25),
                               blurRadius: 8,
                               offset: const Offset(0, 3),
                             ),
@@ -310,36 +365,24 @@ void showTaskDetailsBottomSheet(
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.transparent,
                             shadowColor: Colors.transparent,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
                           ),
-                          onPressed: isSubmitting
-                              ? null
-                              : () async {
-                                  if (remarksController.text.trim().isEmpty) {
-                                    UiHelpers.showSnackBar(
-                                      context,
-                                      'Please fill in visit remarks!',
-                                      Colors.orange,
-                                    );
-                                    return;
-                                  }
-                                  setSheetState(() {
-                                    isSubmitting = true;
-                                  });
-                                  Navigator.pop(context); // Close details sheet
-                                  await onSubmitVisitReport(
-                                    remarks: remarksController.text.trim(),
-                                    leadStatus: 'Closed',
-                                  );
-                                },
+                          onPressed: () {
+                            Navigator.pop(context); // Close details sheet
+                            showCloseLeadSheet(context, task);
+                          },
                           icon: const Icon(
-                            Icons.cloud_done_rounded,
+                            Icons.assignment_turned_in_rounded,
                             color: Colors.white,
                           ),
                           label: const Text(
-                            'Submit Visit Report & Sync',
+                            'Submit Visit Report & Close Lead',
                             style: TextStyle(
                               color: Colors.white,
                               fontWeight: FontWeight.bold,
+                              fontSize: 14,
                             ),
                           ),
                         ),

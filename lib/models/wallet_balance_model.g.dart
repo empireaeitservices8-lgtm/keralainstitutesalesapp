@@ -11,9 +11,9 @@ WalletBalanceModel _$WalletBalanceModelFromJson(Map<String, dynamic> json) =>
       balance: _doubleFromString(json['balance']),
       totalPaid: _doubleFromString(json['total_paid']),
       totalEarned: _doubleFromString(json['total_earned']),
-      withdrawRequestsWrapper: WithdrawRequestsWrapper.fromJson(
-        json['withdraw_requests'] as Map<String, dynamic>,
-      ),
+      withdrawRequestsWrapper: json['withdraw_requests'] != null
+          ? WithdrawRequestsWrapper.fromJson(json['withdraw_requests'])
+          : WithdrawRequestsWrapper(data: []),
     );
 
 Map<String, dynamic> _$WalletBalanceModelToJson(WalletBalanceModel instance) =>
@@ -27,9 +27,11 @@ Map<String, dynamic> _$WalletBalanceModelToJson(WalletBalanceModel instance) =>
 WithdrawRequestsWrapper _$WithdrawRequestsWrapperFromJson(
   Map<String, dynamic> json,
 ) => WithdrawRequestsWrapper(
-  data: (json['data'] as List<dynamic>)
-      .map((e) => WithdrawRequest.fromJson(e as Map<String, dynamic>))
-      .toList(),
+  data: (json['data'] as List<dynamic>?)
+          ?.whereType<Map>()
+          .map((e) => WithdrawRequest.fromJson(Map<String, dynamic>.from(e)))
+          .toList() ??
+      [],
 );
 
 Map<String, dynamic> _$WithdrawRequestsWrapperToJson(

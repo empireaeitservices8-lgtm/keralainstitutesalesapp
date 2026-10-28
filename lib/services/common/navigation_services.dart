@@ -15,8 +15,29 @@ import '../../screens/attendance_history_screen.dart';
 import '../../screens/employee_dashboard_screen.dart';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+String? currentRouteName;
+
+/// Safely navigates the user to the login screen and clears the entire route stack.
+void navigateToLogin() {
+  void doNavigate([int retryCount = 0]) {
+    final state = navigatorKey.currentState;
+    if (state != null) {
+      if (currentRouteName != LoginScreen.path) {
+        state.pushNamedAndRemoveUntil(LoginScreen.path, (route) => false);
+      }
+    } else if (retryCount < 5) {
+      Future.delayed(
+        const Duration(milliseconds: 100),
+        () => doNavigate(retryCount + 1),
+      );
+    }
+  }
+
+  WidgetsBinding.instance.addPostFrameCallback((_) => doNavigate());
+}
 
 Route<dynamic>? generateRoute(RouteSettings settings) {
+  currentRouteName = settings.name;
   debugPrint(settings.name);
   switch (settings.name) {
     case SplashScreen.path:
@@ -46,11 +67,15 @@ Route<dynamic>? generateRoute(RouteSettings settings) {
     case AttendanceHistoryScreen.path:
       return MaterialPageRoute(builder: (_) => const AttendanceHistoryScreen());
     case EmployeeDashboardScreen.path:
-      final args = settings.arguments as Map<String, dynamic>;
+      final args = settings.arguments is Map ? settings.arguments as Map : {};
+      final rawEmpId = args['employeeId'];
+      final empId = rawEmpId is num
+          ? rawEmpId.toInt()
+          : (int.tryParse(rawEmpId?.toString() ?? '') ?? 0);
       return MaterialPageRoute(
         builder: (_) => EmployeeDashboardScreen(
-          employeeId: args['employeeId'] as int,
-          employeeName: args['employeeName'] as String,
+          employeeId: empId,
+          employeeName: args['employeeName']?.toString() ?? 'Employee',
         ),
       );
     default:

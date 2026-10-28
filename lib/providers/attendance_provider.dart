@@ -177,15 +177,34 @@ class AttendanceProvider extends ChangeNotifier {
         ApiEndpoints.attendanceStatus,
       );
       if (response.statusCode == 200 && response.data != null) {
-        final data = response.data['data'] as Map<String, dynamic>;
-        final String apiStatus = data['status'] as String? ?? 'absent';
+        dynamic rawData = response.data;
+        if (rawData is Map && rawData.containsKey('data')) {
+          rawData = rawData['data'];
+        }
 
-        final todayRecords = data['today_records'] as List<dynamic>?;
-        _todayRecordsList = todayRecords ?? [];
-        final record = data['record'] as Map<String, dynamic>? ??
-            (todayRecords != null && todayRecords.isNotEmpty
-                ? todayRecords.last as Map<String, dynamic>?
-                : null);
+        Map<String, dynamic> data = {};
+        List<dynamic> todayRecords = [];
+        Map<String, dynamic>? record;
+
+        if (rawData is Map) {
+          data = Map<String, dynamic>.from(rawData);
+          if (data['today_records'] is List) {
+            todayRecords = data['today_records'] as List<dynamic>;
+          }
+          if (data['record'] is Map) {
+            record = Map<String, dynamic>.from(data['record'] as Map);
+          } else if (todayRecords.isNotEmpty && todayRecords.last is Map) {
+            record = Map<String, dynamic>.from(todayRecords.last as Map);
+          }
+        } else if (rawData is List) {
+          todayRecords = rawData;
+          if (todayRecords.isNotEmpty && todayRecords.last is Map) {
+            record = Map<String, dynamic>.from(todayRecords.last as Map);
+          }
+        }
+
+        final String apiStatus = data['status']?.toString() ?? 'absent';
+        _todayRecordsList = todayRecords;
 
         if (record != null) {
           final String checkInTimeStr =
@@ -217,7 +236,7 @@ class AttendanceProvider extends ChangeNotifier {
           final int recordId = record['id'] as int? ?? 0;
 
           List<dynamic>? mediaList = record['media'] as List<dynamic>?;
-          if (mediaList == null && todayRecords != null && recordId != 0) {
+          if (mediaList == null && todayRecords.isNotEmpty && recordId != 0) {
             for (var r in todayRecords) {
               if (r is Map<String, dynamic> && r['id'] == recordId) {
                 mediaList = r['media'] as List<dynamic>?;
@@ -444,10 +463,20 @@ class AttendanceProvider extends ChangeNotifier {
         ApiEndpoints.attendanceHistory,
       );
       if (response.statusCode == 200 && response.data != null) {
-        final data = response.data['data'] as Map<String, dynamic>;
-        final recordsMap = data['records'] as Map<String, dynamic>?;
-        if (recordsMap != null) {
-          _historyRecords = recordsMap['data'] as List<dynamic>? ?? [];
+        dynamic rawData = response.data;
+        if (rawData is Map && rawData.containsKey('data')) {
+          rawData = rawData['data'];
+        }
+        if (rawData is List) {
+          _historyRecords = rawData;
+        } else if (rawData is Map) {
+          if (rawData['records'] is Map && rawData['records']['data'] is List) {
+            _historyRecords = rawData['records']['data'] as List<dynamic>;
+          } else if (rawData['records'] is List) {
+            _historyRecords = rawData['records'] as List<dynamic>;
+          } else if (rawData['data'] is List) {
+            _historyRecords = rawData['data'] as List<dynamic>;
+          }
         }
       }
     } catch (e) {

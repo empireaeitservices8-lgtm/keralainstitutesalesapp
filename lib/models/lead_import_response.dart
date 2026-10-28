@@ -9,8 +9,8 @@ class LeadImportData {
 
   factory LeadImportData.fromJson(Map<String, dynamic> json) {
     return LeadImportData(
-      importId: json['import_id'] as int,
-      totalRows: json['total_rows'] as int,
+      importId: json['import_id'] is num ? (json['import_id'] as num).toInt() : (int.tryParse(json['import_id']?.toString() ?? '') ?? 0),
+      totalRows: json['total_rows'] is num ? (json['total_rows'] as num).toInt() : (int.tryParse(json['total_rows']?.toString() ?? '') ?? 0),
     );
   }
 
@@ -37,8 +37,8 @@ class LeadImportResult {
     return LeadImportResult(
       success: json['success'] as bool? ?? false,
       message: json['message'] as String? ?? '',
-      data: json['data'] != null
-          ? LeadImportData.fromJson(json['data'] as Map<String, dynamic>)
+      data: json['data'] != null && json['data'] is Map
+          ? LeadImportData.fromJson(Map<String, dynamic>.from(json['data'] as Map))
           : null,
     );
   }

@@ -30,6 +30,19 @@ TaskModel _$TaskModelFromJson(Map<String, dynamic> json) => TaskModel(
   district: json['district'] as String,
   zone: json['zone'] as String,
   creatorEmail: json['creator_email'] as String? ?? 'md@keralainstitute.org',
+  whatsappNumber: json['whatsapp_number'] as String?,
+  place: json['place'] as String?,
+  age: json['age'] is num
+      ? (json['age'] as num).toInt()
+      : int.tryParse(json['age']?.toString() ?? ''),
+  qualification: json['qualification'] as String?,
+  collegeName: json['college_name'] as String?,
+  currentYear: json['current_year'] as String?,
+  interestedTopic: json['interested_topic'] as String?,
+  interestedCourse: json['interested_course'] as String?,
+  leadSource: json['lead_source'] as String?,
+  admissionStatus: json['admission_status'] as String?,
+  employee: json['employee'] as String?,
 );
 
 Map<String, dynamic> _$TaskModelToJson(TaskModel instance) => <String, dynamic>{
@@ -52,4 +65,15 @@ Map<String, dynamic> _$TaskModelToJson(TaskModel instance) => <String, dynamic>{
   'district': instance.district,
   'zone': instance.zone,
   'creator_email': instance.creatorEmail,
+  'whatsapp_number': instance.whatsappNumber,
+  'place': instance.place,
+  'age': instance.age,
+  'qualification': instance.qualification,
+  'college_name': instance.collegeName,
+  'current_year': instance.currentYear,
+  'interested_topic': instance.interestedTopic,
+  'interested_course': instance.interestedCourse,
+  'lead_source': instance.leadSource,
+  'admission_status': instance.admissionStatus,
+  'employee': instance.employee,
 };

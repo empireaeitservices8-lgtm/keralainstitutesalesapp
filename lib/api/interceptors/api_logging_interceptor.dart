@@ -107,12 +107,10 @@ class ApiLoggingInterceptor extends Interceptor {
       if (duration != null) {
         debugPrint('│ Total API Request Time: ${duration}ms');
       }
-      if (err.stackTrace != null) {
-        debugPrint('│ Stack Trace:');
-        final lines = err.stackTrace.toString().split('\n');
-        for (var line in lines.take(10)) { // limit printing of stacktrace lines to keep output clean
-          debugPrint('│   $line');
-        }
+      debugPrint('│ Stack Trace:');
+      final lines = err.stackTrace.toString().split('\n');
+      for (var line in lines.take(10)) { // limit printing of stacktrace lines to keep output clean
+        debugPrint('│   $line');
       }
       debugPrint('└───────────────────────────────────────────────────────────────');
     }

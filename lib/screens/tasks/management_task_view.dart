@@ -7,6 +7,7 @@ import 'components/bulk_upload_sheet.dart';
 import 'components/follow_up_sheet.dart';
 import 'components/task_card.dart';
 import 'components/task_details_sheet.dart';
+import 'components/upload_institute_sheet.dart';
 
 class ManagementTaskView extends StatefulWidget {
   final dynamic user;
@@ -195,7 +196,7 @@ class _ManagementTaskViewState extends State<ManagementTaskView>
       onRefresh: _refreshLeads,
       color: AppColors.accentTeal,
       child: ListView.separated(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        padding: const EdgeInsets.only(left: 16, right: 16, top: 8, bottom: 96),
         itemCount: list.length,
         separatorBuilder: (context, index) => const SizedBox(height: 12),
         itemBuilder: (context, index) {
@@ -340,6 +341,11 @@ class _ManagementTaskViewState extends State<ManagementTaskView>
             style: const TextStyle(fontSize: 12, color: AppColors.textPrimary),
             decoration: InputDecoration(
               hintText: 'Search leads by student name...',
+              hintStyle: const TextStyle(
+                color: Color(0xFF94A3B8),
+                fontSize: 12,
+                fontWeight: FontWeight.normal,
+              ),
               prefixIcon: const Icon(
                 Icons.search_rounded,
                 color: AppColors.accentTeal,
@@ -396,7 +402,7 @@ class _ManagementTaskViewState extends State<ManagementTaskView>
                                   val.toLowerCase(),
                               orElse: () => <String, dynamic>{},
                             );
-                            asmId = asm['id'] as int?;
+                            asmId = UiHelpers.parseIntNullable(asm['id']);
                           }
                           provider.setSelectedAsm(
                             val == 'All ASMs' ? null : val,
@@ -443,7 +449,7 @@ class _ManagementTaskViewState extends State<ManagementTaskView>
                                   val.toLowerCase(),
                               orElse: () => <String, dynamic>{},
                             );
-                            teamId = team['id'] as int?;
+                            teamId = UiHelpers.parseIntNullable(team['id']);
                           }
                           provider.setSelectedTeam(
                             val == 'All Teams' ? null : val,
@@ -495,7 +501,7 @@ class _ManagementTaskViewState extends State<ManagementTaskView>
                                   val.toLowerCase(),
                               orElse: () => <String, dynamic>{},
                             );
-                            districtId = dist['id'] as int?;
+                            districtId = UiHelpers.parseIntNullable(dist['id']);
                           }
                           provider.setSelectedDistrict(
                             val == 'All Districts' ? null : val,
@@ -562,7 +568,7 @@ class _ManagementTaskViewState extends State<ManagementTaskView>
                                       val.toLowerCase(),
                                   orElse: () => <String, dynamic>{},
                                 );
-                                employeeId = employee['id'] as int?;
+                                employeeId = UiHelpers.parseIntNullable(employee['id']);
                               }
 
                               provider.setSelectedBde(
@@ -612,7 +618,7 @@ class _ManagementTaskViewState extends State<ManagementTaskView>
                                       val.toLowerCase(),
                                   orElse: () => <String, dynamic>{},
                                 );
-                                teamId = team['id'] as int?;
+                                teamId = UiHelpers.parseIntNullable(team['id']);
                               }
 
                               provider.setSelectedTeam(
@@ -671,7 +677,7 @@ class _ManagementTaskViewState extends State<ManagementTaskView>
                                         val.toLowerCase(),
                                     orElse: () => <String, dynamic>{},
                                   );
-                              districtId = dist['id'] as int?;
+                              districtId = UiHelpers.parseIntNullable(dist['id']);
                             }
                             provider.setSelectedDistrict(
                               val == 'All Districts' ? null : val,
@@ -831,28 +837,92 @@ class _ManagementTaskViewState extends State<ManagementTaskView>
           ),
         ),
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        backgroundColor: AppColors.accentTeal,
-        icon: const Icon(
-          Icons.cloud_upload_outlined,
-          color: Colors.white,
-        ),
-        label: const Text(
-          'Bulk Upload',
-          style: TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        onPressed: () {
-          showBulkUploadBottomSheet(
-            context,
-            onUploaded: () async {
-              await _refreshLeads();
-            },
-          );
-        },
-      ),
+      floatingActionButton: widget.user.role == 'ASM'
+          ? FloatingActionButton.extended(
+              heroTag: 'upload_institute_fab',
+              backgroundColor: AppColors.accentTeal,
+              elevation: 4,
+              icon: const Icon(
+                Icons.school_rounded,
+                color: Colors.white,
+                size: 20,
+              ),
+              label: const Text(
+                'Upload School / Institute',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 13,
+                ),
+              ),
+              onPressed: () {
+                showUploadInstituteBottomSheet(
+                  context,
+                  onSuccess: () async {
+                    await _refreshLeads();
+                  },
+                );
+              },
+            )
+          : Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                FloatingActionButton.extended(
+                  heroTag: 'upload_institute_fab',
+                  backgroundColor: const Color(0xFF0F172A),
+                  elevation: 4,
+                  icon: const Icon(
+                    Icons.school_rounded,
+                    color: Colors.white,
+                    size: 20,
+                  ),
+                  label: const Text(
+                    'Upload School / Institute',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12.5,
+                    ),
+                  ),
+                  onPressed: () {
+                    showUploadInstituteBottomSheet(
+                      context,
+                      onSuccess: () async {
+                        await _refreshLeads();
+                      },
+                    );
+                  },
+                ),
+                const SizedBox(height: 10),
+                FloatingActionButton.extended(
+                  heroTag: 'bulk_upload_leads_fab',
+                  backgroundColor: AppColors.accentTeal,
+                  elevation: 4,
+                  icon: const Icon(
+                    Icons.cloud_upload_outlined,
+                    color: Colors.white,
+                    size: 20,
+                  ),
+                  label: const Text(
+                    'Bulk Upload',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12.5,
+                    ),
+                  ),
+                  onPressed: () {
+                    showBulkUploadBottomSheet(
+                      context,
+                      onUploaded: () async {
+                        await _refreshLeads();
+                      },
+                    );
+                  },
+                ),
+              ],
+            ),
     );
   }
 }

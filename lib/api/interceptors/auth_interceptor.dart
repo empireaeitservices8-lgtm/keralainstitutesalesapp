@@ -1,10 +1,12 @@
 import 'package:dio/dio.dart';
+import '../../services/common/navigation_services.dart';
 import '../../storage/secure_storage_service.dart';
 import '../api_endpoints.dart';
 import '../../providers/auth_provider.dart';
 
 class AuthInterceptor extends Interceptor {
   final Dio _dio;
+  static bool _isNavigatingToLogin = false;
 
   AuthInterceptor(this._dio);
 
@@ -28,27 +30,45 @@ class AuthInterceptor extends Interceptor {
   }
 
   @override
+  void onResponse(
+    Response response,
+    ResponseInterceptorHandler handler,
+  ) async {
+    final path = response.requestOptions.path;
+
+    // Check if the response body indicates unauthenticated even with a 200/2xx status
+    if (!_isAuthEndpoint(path) &&
+        _isUnauthenticated(response.statusCode, response.data)) {
+      await _performForceLogout();
+    }
+
+    return handler.next(response);
+  }
+
+  @override
   Future<void> onError(
     DioException err,
     ErrorInterceptorHandler handler,
   ) async {
-    // Intercept 401 or 403 authorization failures, skipping auth/logout endpoints to prevent loops
-    if ((err.response?.statusCode == 401 || err.response?.statusCode == 403) &&
-        err.requestOptions.path != ApiEndpoints.login &&
-        err.requestOptions.path != ApiEndpoints.refreshToken &&
-        err.requestOptions.path != ApiEndpoints.logout) {
-      
+    final statusCode = err.response?.statusCode;
+    final path = err.requestOptions.path;
+
+    final isAuth = _isAuthEndpoint(path);
+
+    // Intercept unauthenticated / 401 / 403 authorization failures, skipping auth endpoints to prevent loops
+    if (!isAuth && _isUnauthenticated(statusCode, err.response?.data)) {
       final bool isRefreshed = await _attemptTokenRefresh();
-      
+
       if (isRefreshed) {
         try {
-          final newAccessToken = await SecureStorageService.instance.getAccessToken();
+          final newAccessToken =
+              await SecureStorageService.instance.getAccessToken();
           final options = err.requestOptions;
-          
+
           if (newAccessToken != null) {
             options.headers['Authorization'] = 'Bearer $newAccessToken';
           }
-          
+
           // Re-dispatch original request with new token
           final response = await _dio.fetch(options);
           return handler.resolve(response);
@@ -57,12 +77,50 @@ class AuthInterceptor extends Interceptor {
           return handler.next(err);
         }
       } else {
-        // Refresh token failed or is invalid, perform automatic logout
+        // Refresh token failed or is invalid, perform automatic logout and navigate to login
         await _performForceLogout();
       }
     }
 
     return handler.next(err);
+  }
+
+  bool _isAuthEndpoint(String path) {
+    final cleanPath = Uri.tryParse(path)?.path ?? path;
+    final normalized = cleanPath.replaceAll(RegExp(r'/+$'), '');
+    return normalized.endsWith(ApiEndpoints.login) ||
+        normalized.endsWith(ApiEndpoints.refreshToken) ||
+        normalized.endsWith(ApiEndpoints.logout);
+  }
+
+  bool _isUnauthenticated(int? statusCode, dynamic data) {
+    if (statusCode == 401 || statusCode == 403) {
+      return true;
+    }
+    if (data != null) {
+      if (data is Map) {
+        final message =
+            (data['message'] ?? data['error'] ?? data['msg'] ?? '')
+                .toString()
+                .toLowerCase();
+        if (message.contains('unauthenticated') ||
+            message.contains('unauthorized') ||
+            message.contains('token expired') ||
+            message.contains('token has expired') ||
+            message.contains('token invalid') ||
+            message.contains('jwt expired')) {
+          return true;
+        }
+      } else if (data is String) {
+        final lower = data.toLowerCase();
+        if (lower.contains('unauthenticated') ||
+            lower.contains('token expired') ||
+            lower.contains('jwt expired')) {
+          return true;
+        }
+      }
+    }
+    return false;
   }
 
   /// Attempts to perform a refresh token operation.
@@ -81,7 +139,7 @@ class AuthInterceptor extends Interceptor {
           receiveTimeout: const Duration(seconds: 10),
         ),
       );
-      
+
       final response = await refreshDio.post(
         ApiEndpoints.refreshToken,
         data: {'refreshToken': refreshToken},
@@ -108,11 +166,26 @@ class AuthInterceptor extends Interceptor {
   }
 
   /// Handles forced logout of the user, resetting local authentication states
+  /// and navigating to the Login screen.
   Future<void> _performForceLogout() async {
-    await SecureStorageService.instance.clearAuthData();
-    // Safely update AuthProvider to log user out visually
+    if (_isNavigatingToLogin) return;
+    _isNavigatingToLogin = true;
+
     try {
-      await AuthProvider.instance.logout();
-    } catch (_) {}
+      // 1. Immediately trigger navigation to login screen
+      navigateToLogin();
+
+      // 2. Clear credentials in secure storage
+      await SecureStorageService.instance.clearAuthData();
+
+      // 3. Clear auth session in AuthProvider and SharedPreferences WITHOUT calling API logout
+      try {
+        await AuthProvider.instance.logout(callApi: false);
+      } catch (_) {}
+    } finally {
+      Future.delayed(const Duration(seconds: 2), () {
+        _isNavigatingToLogin = false;
+      });
+    }
   }
 }

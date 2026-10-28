@@ -5,11 +5,10 @@ import 'package:dio/dio.dart';
 import '../api/api_client.dart';
 import '../api/api_endpoints.dart';
 import '../api/api_response.dart';
+import '../api/exceptions/api_exception.dart';
 import '../models/home_dashboard_model.dart';
 import 'base_provider.dart';
 import 'auth_provider.dart';
-import '../storage/secure_storage_service.dart';
-import '../services/auth_service.dart';
 import 'operations_provider.dart';
 import 'wallet_provider.dart';
 import 'user_profile_provider.dart';
@@ -18,6 +17,9 @@ import '../models/performance_task.dart';
 class HomeProvider extends BaseProvider<HomeDashboardModel> {
   static final HomeProvider instance = HomeProvider._internal();
   HomeProvider._internal();
+
+  PerformanceTasksSummary? _tasksSummary;
+  PerformanceTasksSummary? get tasksSummary => _tasksSummary;
 
   List<PerformanceTask> _performanceTasks = [];
   List<PerformanceTask> get performanceTasks => _performanceTasks;
@@ -103,15 +105,19 @@ class HomeProvider extends BaseProvider<HomeDashboardModel> {
     notifyListeners();
   }
 
+  bool _isFetchingHome = false;
+
   Future<void> fetchHomeData({bool isRefresh = false, int? districtId}) async {
     // If already fetching, ignore duplicate call
-    if (state.isLoading) {
+    if (_isFetchingHome || state.isLoading) {
       return;
     }
     // If already loaded in memory and not a manual refresh, do not fetch again
-    if (!isRefresh && state.data != null) {
+    if (!isRefresh && state.data != null && districtId == null) {
       return;
     }
+
+    _isFetchingHome = true;
 
     final user = AuthProvider.instance.session;
     if (user.role == 'ZM' &&
@@ -131,6 +137,15 @@ class HomeProvider extends BaseProvider<HomeDashboardModel> {
         if (state.data == null) {
           setState(ApiResponse.success(cachedModel));
         }
+      } catch (_) {}
+    }
+
+    final cachedTasksStr = prefs.getString('cached_tasks_summary');
+    if (cachedTasksStr != null) {
+      try {
+        final decodedTasks = jsonDecode(cachedTasksStr);
+        _tasksSummary = PerformanceTasksSummary.fromJson(decodedTasks);
+        _performanceTasks = _tasksSummary!.list;
       } catch (_) {}
     }
 
@@ -165,18 +180,55 @@ class HomeProvider extends BaseProvider<HomeDashboardModel> {
       final homeResponse = results[0];
       final tasksResponse = results[1];
 
-      if (tasksResponse.data != null && tasksResponse.data['data'] != null) {
-        final taskDataList =
-            tasksResponse.data['data']['tasks'] as List<dynamic>? ?? [];
-        _performanceTasks = taskDataList
-            .map((j) => PerformanceTask.fromJson(j as Map<String, dynamic>))
-            .toList();
+      dynamic extractTasksPayload(Response? resp) {
+        if (resp == null || resp.data == null) return null;
+        final data = resp.data;
+        if (data is! Map) return null;
+
+        if (data['data'] is Map && data['data']['tasks'] != null) {
+          return data['data']['tasks'];
+        }
+        if (data['tasks'] != null) {
+          return data['tasks'];
+        }
+        if (data['data'] is Map &&
+            (data['data']['list'] != null || data['data']['total'] != null)) {
+          return data['data'];
+        }
+        if (data['data'] is List) {
+          return data['data'];
+        }
+        return null;
+      }
+
+      dynamic tasksPayload = extractTasksPayload(tasksResponse);
+      if (tasksPayload == null ||
+          (tasksPayload is Map &&
+              (tasksPayload['list'] as List?)?.isEmpty == true) ||
+          (tasksPayload is List && tasksPayload.isEmpty)) {
+        final homeTasks = extractTasksPayload(homeResponse);
+        if (homeTasks != null) {
+          tasksPayload = homeTasks;
+        }
+      }
+
+      if (tasksPayload != null) {
+        _tasksSummary = PerformanceTasksSummary.fromJson(tasksPayload);
+        _performanceTasks = _tasksSummary!.list;
+        await prefs.setString(
+          'cached_tasks_summary',
+          jsonEncode(_tasksSummary!.toJson()),
+        );
       } else {
+        _tasksSummary = null;
         _performanceTasks = [];
       }
 
-      if (homeResponse.data != null) {
-        final data = homeResponse.data['data'] as Map<String, dynamic>;
+      if (homeResponse.data != null && homeResponse.data is Map) {
+        final rawData = homeResponse.data['data'];
+        final Map<String, dynamic> data = rawData is Map
+            ? Map<String, dynamic>.from(rawData)
+            : Map<String, dynamic>.from(homeResponse.data);
         final model = HomeDashboardModel.fromJson(data);
         // Save fresh data to local cache
         await prefs.setString('cached_home_data', jsonEncode(model.toJson()));
@@ -186,7 +238,10 @@ class HomeProvider extends BaseProvider<HomeDashboardModel> {
       }
       throw Exception('Failed to fetch home dashboard data: empty response');
     } catch (e) {
-      if (e is DioException && CancelToken.isCancel(e)) return;
+      if ((e is DioException && CancelToken.isCancel(e)) ||
+          (e is ApiException && e.statusCode == 499)) {
+        return;
+      }
 
       // 2. Fall back to cached data if network fails so user is not blocked
       if (cachedModel != null) {
@@ -208,6 +263,8 @@ class HomeProvider extends BaseProvider<HomeDashboardModel> {
       }
 
       setState(ApiResponse.error(errorMsg));
+    } finally {
+      _isFetchingHome = false;
     }
   }
 }

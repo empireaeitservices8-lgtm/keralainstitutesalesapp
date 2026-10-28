@@ -224,7 +224,14 @@ class AuthService {
     final prefs = await SharedPreferences.getInstance();
     final isLoggedIn = prefs.getBool(_keyIsLoggedIn) ?? false;
     final rememberMe = prefs.getBool(_keyRememberMe) ?? false;
-    return isLoggedIn && rememberMe;
+    if (!isLoggedIn || !rememberMe) return false;
+
+    final token = await SecureStorageService.instance.getAccessToken();
+    final authType = prefs.getString(_keyAuthType) ?? '';
+    if (authType.contains('Email') && (token == null || token.isEmpty)) {
+      return false;
+    }
+    return true;
   }
 
   /// Get details of the active session
@@ -291,18 +298,26 @@ class AuthService {
       if (response.statusCode == 200 && response.data != null) {
         final Map<String, dynamic> body = response.data as Map<String, dynamic>;
         if (body['success'] == true) {
-          final data = body['data'] as Map<String, dynamic>;
-          final String token = data['token'] as String;
-          final Map<String, dynamic> user =
-              data['user'] as Map<String, dynamic>;
+          final Map<String, dynamic>? data = body['data'] is Map<String, dynamic>
+              ? body['data'] as Map<String, dynamic>
+              : null;
+          final String token = (body['token'] ?? data?['token'] ?? '').toString();
+          final Map<String, dynamic> user = (body['user'] is Map<String, dynamic>
+                  ? body['user']
+                  : (data?['user'] is Map<String, dynamic>
+                      ? data!['user']
+                      : <String, dynamic>{}))
+              as Map<String, dynamic>;
 
           // Save the token to SecureStorageService
-          await SecureStorageService.instance.saveAccessToken(token);
+          if (token.isNotEmpty) {
+            await SecureStorageService.instance.saveAccessToken(token);
+          }
 
           // Extract require_password_change key
           final bool requirePasswordChange =
               body['require_password_change'] == true ||
-              data['require_password_change'] == true ||
+              data?['require_password_change'] == true ||
               user['require_password_change'] == true;
 
           // Get SharedPreferences instance
@@ -313,9 +328,10 @@ class AuthService {
           await prefs.setBool(_keyRequirePasswordChange, requirePasswordChange);
 
           // Extract user details
-          final String name = user['name'] ?? 'User';
-          final String userEmail = user['email'] ?? email;
-          final String designation = user['designation_name'] ?? 'BDE';
+          final String name = user['name']?.toString() ?? 'User';
+          final String userEmail = user['email']?.toString() ?? email;
+          final String designation =
+              (user['designation'] ?? user['designation_name'] ?? 'BDE').toString();
           final int designationId = (user['designation_id'] as num? ?? 0).toInt();
 
           // Use mapped details from mock users if they exist to keep compatibility
@@ -323,11 +339,14 @@ class AuthService {
           final mockProfile = mockUsers[cleanEmail];
 
           // Map designation to user role code: 'MD' | 'ZM' | 'ASM' | 'BDM' | 'BDE'
-          final String role = mockProfile?['role'] ?? mapDesignationIdToRole(designationId, designation);
+          final rawRole = user['role']?.toString().toUpperCase() ?? '';
+          final bool isStandardRole = ['MD', 'ZM', 'ASM', 'BDM', 'BDE'].contains(rawRole);
+          final String role = mockProfile?['role'] ??
+              (isStandardRole ? rawRole : mapDesignationIdToRole(designationId, designation));
 
-          final String zone = mockProfile?['zone'] ?? '';
-          final String district = mockProfile?['district'] ?? '';
-          final String team = mockProfile?['team'] ?? '';
+          final String zone = mockProfile?['zone'] ?? user['zone']?.toString() ?? '';
+          final String district = mockProfile?['district'] ?? user['district']?.toString() ?? '';
+          final String team = mockProfile?['team'] ?? user['team']?.toString() ?? '';
 
           await prefs.setString(_keyUserEmail, userEmail);
           await prefs.setString(_keyUserName, name);
@@ -450,7 +469,8 @@ class AuthService {
   }
 
   /// Logout and clear user session
-  Future<bool> logout() async {
+  Future<bool> logout({bool callApi = true}) async {
+    if (callApi) {
     try {
       final session = await getSessionDetails();
       final email = session['email'] ?? '';
@@ -461,6 +481,7 @@ class AuthService {
       }
     } catch (e) {
       debugPrint('Logout API failed: $e');
+    }
     }
 
     final prefs = await SharedPreferences.getInstance();
@@ -555,3 +576,5 @@ class AuthService {
     }
   }
 }
+
+

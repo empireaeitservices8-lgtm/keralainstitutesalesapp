@@ -6,7 +6,6 @@ import '../api/api_client.dart';
 import '../api/api_endpoints.dart';
 import '../providers/operations_provider.dart';
 import '../providers/home_provider.dart';
-import '../utils/helpers.dart';
 
 class EmployeeDashboardScreen extends StatefulWidget {
   static const String path = '/employee-dashboard';
@@ -47,17 +46,20 @@ class _EmployeeDashboardScreenState extends State<EmployeeDashboardScreen> {
       );
 
       if (response.data != null && response.data['success'] == true) {
-        final dataMap = response.data['data'] as Map<String, dynamic>;
-        setState(() {
-          _dashboardData = HomeDashboardModel.fromJson(dataMap);
-          _isLoading = false;
-        });
-      } else {
-        setState(() {
-          _errorMessage = response.data?['message'] ?? 'Failed to load dashboard data.';
-          _isLoading = false;
-        });
+        final rawData = response.data['data'];
+        if (rawData is Map) {
+          final dataMap = Map<String, dynamic>.from(rawData);
+          setState(() {
+            _dashboardData = HomeDashboardModel.fromJson(dataMap);
+            _isLoading = false;
+          });
+          return;
+        }
       }
+      setState(() {
+        _errorMessage = response.data?['message'] ?? 'Failed to load dashboard data.';
+        _isLoading = false;
+      });
     } catch (e) {
       setState(() {
         _errorMessage = 'An error occurred while loading dashboard: $e';

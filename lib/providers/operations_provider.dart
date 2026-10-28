@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:http_parser/http_parser.dart';
 import 'package:flutter/material.dart';
@@ -9,7 +8,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
 import '../api/api_client.dart';
 import '../api/api_endpoints.dart';
-import '../api/exceptions/api_exception.dart';
 import '../api/exceptions/network_exception.dart';
 import '../models/beat_plan_model.dart';
 import '../models/lead_model.dart';
@@ -209,13 +207,19 @@ class OperationsProvider extends ChangeNotifier {
 
   List<TaskModel> _filterTasks(dynamic user) {
     final String role = user.role;
-    debugPrint('[TaskFilter] role=$role, tasks=${_tasks.length}, userEmail=${user.email}');
+    debugPrint(
+      '[TaskFilter] role=$role, tasks=${_tasks.length}, userEmail=${user.email}',
+    );
     switch (role) {
       case 'MD':
         return _tasks;
       case 'ZM':
         // If zone info isn't in API data yet, return all tasks
-        final zoneFiltered = _tasks.where((t) => t.zone == user.zone || t.zone == null || t.zone.isEmpty).toList();
+        final zoneFiltered = _tasks
+            .where(
+              (t) => t.zone == user.zone || t.zone == null || t.zone.isEmpty,
+            )
+            .toList();
         if (_selectedDistrictFilter != null &&
             _selectedDistrictFilter!.isNotEmpty) {
           return zoneFiltered
@@ -224,9 +228,21 @@ class OperationsProvider extends ChangeNotifier {
         }
         return zoneFiltered;
       case 'ASM':
-        return _tasks.where((t) => t.district == user.district || (user.district == null || user.district.isEmpty)).toList();
+        return _tasks
+            .where(
+              (t) =>
+                  t.district == user.district ||
+                  (user.district == null || user.district.isEmpty),
+            )
+            .toList();
       case 'BDM':
-        return _tasks.where((t) => t.team == user.team || (user.team == null || user.team.isEmpty)).toList();
+        return _tasks
+            .where(
+              (t) =>
+                  t.team == user.team ||
+                  (user.team == null || user.team.isEmpty),
+            )
+            .toList();
       case 'BDE':
       default:
         // API already scopes results to the authenticated user via Bearer token.
@@ -262,18 +278,55 @@ class OperationsProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> saveFollowUp(String leadId, DateTime combinedDateTime, String remark) async {
-    // 1. Call API
-    final numericId = int.tryParse(leadId.replaceFirst('LD_', ''));
+  Future<void> saveFollowUp({
+    required String leadId,
+    required String leadSource,
+    required String studentInterest,
+    required String nextFollowupDate,
+    required String remarks,
+    required String admissionStatus,
+    required String paymentVerification,
+    required String studentId,
+    required String course,
+  }) async {
+    final numericId = int.tryParse(leadId.replaceAll(RegExp(r'[^0-9]'), ''));
     if (numericId != null) {
-      final formattedApiDate = DateFormat("yyyy-MM-dd'T'HH:mm:ss").format(combinedDateTime);
+      final payload = {
+        'lead_source': leadSource,
+        'student_interest': studentInterest,
+        'next_followup_date': nextFollowupDate,
+        'remarks': remarks,
+        'admission_status': admissionStatus,
+        'payment_verification': paymentVerification,
+        'student_id': studentId,
+        'course': course,
+      };
+
+      debugPrint('[saveFollowUp] Posting to /leads/$numericId/followup: $payload');
       await ApiClient.instance.post(
         ApiEndpoints.followUpLead(numericId),
-        data: {
-          'followup_date': formattedApiDate,
-          'notes': remark,
-        },
+        data: payload,
       );
+
+      // Update local state
+      final index = _tasks.indexWhere((t) => t.id == leadId);
+      if (index != -1) {
+        final currentTask = _tasks[index];
+        final updatedFollowUps = List<FollowUpItem>.from(
+          currentTask.followUps ?? [],
+        )..add(FollowUpItem(
+            dateTime: nextFollowupDate,
+            remark: remarks,
+          ));
+
+        _tasks[index] = currentTask.copyWith(
+          followUps: updatedFollowUps,
+          remarks: remarks,
+          leadStatus: admissionStatus,
+        );
+      }
+
+      await fetchLeads(status: 1, isRefresh: true);
     }
   }
 
@@ -542,15 +595,75 @@ class OperationsProvider extends ChangeNotifier {
 
     try {
       final response = await ApiClient.instance.get(ApiEndpoints.leaves);
-      if (response.data != null && response.data['success'] == true) {
-        final data = response.data['data'];
+      if (response.data != null) {
+        final dynamic rawResponse = response.data;
 
-        // Update balances
-        if (data['balances'] != null) {
-          final balances = data['balances'];
-          _leaveBalanceCasual = balances['casual'] ?? _leaveBalanceCasual;
-          _leaveBalanceMedical = balances['medical'] ?? _leaveBalanceMedical;
-          _leaveBalanceEarned = balances['earned'] ?? _leaveBalanceEarned;
+        // If response is a Map with 'success' == false, abort
+        if (rawResponse is Map && rawResponse['success'] == false) {
+          return;
+        }
+
+        dynamic rawData = rawResponse;
+        if (rawResponse is Map && rawResponse.containsKey('data')) {
+          rawData = rawResponse['data'];
+        }
+
+        // 1. Extract balances (can be in rawResponse['balances'], rawData['balances'], or rawData['leave_balances'])
+        dynamic rawBalances;
+        if (rawResponse is Map && rawResponse['balances'] != null) {
+          rawBalances = rawResponse['balances'];
+        } else if (rawData is Map) {
+          rawBalances = rawData['balances'] ?? rawData['leave_balances'];
+        }
+
+        if (rawBalances != null) {
+          if (rawBalances is Map) {
+            final casual = rawBalances['casual'];
+            final medical = rawBalances['medical'];
+            final earned = rawBalances['earned'];
+
+            if (casual is num) {
+              _leaveBalanceCasual = casual.toInt();
+            } else if (casual != null) {
+              _leaveBalanceCasual =
+                  int.tryParse(casual.toString()) ?? _leaveBalanceCasual;
+            }
+
+            if (medical is num) {
+              _leaveBalanceMedical = medical.toInt();
+            } else if (medical != null) {
+              _leaveBalanceMedical =
+                  int.tryParse(medical.toString()) ?? _leaveBalanceMedical;
+            }
+
+            if (earned is num) {
+              _leaveBalanceEarned = earned.toInt();
+            } else if (earned != null) {
+              _leaveBalanceEarned =
+                  int.tryParse(earned.toString()) ?? _leaveBalanceEarned;
+            }
+          } else if (rawBalances is List) {
+            for (final b in rawBalances) {
+              if (b is Map) {
+                final type = (b['type'] ??
+                        b['name'] ??
+                        b['leave_type'] ??
+                        '')
+                    .toString()
+                    .toLowerCase();
+                final val =
+                    b['balance'] ?? b['count'] ?? b['remaining'] ?? b['days'];
+                final count = val is num
+                    ? val.toInt()
+                    : int.tryParse(val?.toString() ?? '');
+                if (count != null) {
+                  if (type.contains('casual')) _leaveBalanceCasual = count;
+                  if (type.contains('medical')) _leaveBalanceMedical = count;
+                  if (type.contains('earned')) _leaveBalanceEarned = count;
+                }
+              }
+            }
+          }
 
           final prefs = await SharedPreferences.getInstance();
           await prefs.setInt('leave_bal_casual', _leaveBalanceCasual);
@@ -558,25 +671,97 @@ class OperationsProvider extends ChangeNotifier {
           await prefs.setInt('leave_bal_earned', _leaveBalanceEarned);
         }
 
-        // Update leave history list
-        if (data['history'] != null) {
-          final List<dynamic> history = data['history'];
-          _leaves = history.map((item) {
-            final id = item['id'].toString();
-            final typeName = item['type_name'] ?? '';
-            String mappedLeaveType = typeName;
-            if (mappedLeaveType.isNotEmpty &&
-                !mappedLeaveType.toLowerCase().contains('leave')) {
-              mappedLeaveType = '$mappedLeaveType Leave';
+        // 2. Extract leave history list
+        List<dynamic> historyList = [];
+        if (rawData is List) {
+          historyList = rawData;
+        } else if (rawData is Map) {
+          if (rawData['history'] is List) {
+            historyList = rawData['history'] as List<dynamic>;
+          } else if (rawData['leaves'] is List) {
+            historyList = rawData['leaves'] as List<dynamic>;
+          } else if (rawData['data'] is List) {
+            historyList = rawData['data'] as List<dynamic>;
+          } else if (rawData['items'] is List) {
+            historyList = rawData['items'] as List<dynamic>;
+          }
+        }
+
+        if (historyList.isNotEmpty || (rawData is List)) {
+          _leaves = historyList.map((item) {
+            if (item is! Map) {
+              return LeaveModel(
+                id: '',
+                leaveType: 'Leave',
+                fromDate: DateTime.now(),
+                toDate: DateTime.now(),
+                reason: '',
+                status: 'Pending',
+                appliedDate: DateTime.now(),
+              );
             }
-            final fromDate =
-                DateTime.tryParse(item['start_date'] ?? '') ?? DateTime.now();
-            final toDate =
-                DateTime.tryParse(item['end_date'] ?? '') ?? DateTime.now();
-            final reason = item['reason'] ?? '';
-            final status = item['status_name'] ?? 'Pending';
-            final appliedDate =
-                DateTime.tryParse(item['applied_on'] ?? '') ?? DateTime.now();
+
+            final id = (item['id'] ?? '').toString();
+
+            // Determine leave type name
+            String mappedLeaveType = '';
+            final rawType =
+                item['type_name'] ?? item['leave_type'] ?? item['type'];
+            if (rawType is int || rawType is num) {
+              final typeCode = (rawType as num).toInt();
+              if (typeCode == 1) {
+                mappedLeaveType = 'Casual Leave';
+              } else if (typeCode == 2) {
+                mappedLeaveType = 'Medical Leave';
+              } else if (typeCode == 3) {
+                mappedLeaveType = 'Earned Leave';
+              } else {
+                mappedLeaveType = 'Leave';
+              }
+            } else if (rawType != null) {
+              mappedLeaveType = rawType.toString();
+              if (mappedLeaveType.isNotEmpty &&
+                  !mappedLeaveType.toLowerCase().contains('leave')) {
+                mappedLeaveType = '$mappedLeaveType Leave';
+              }
+            } else {
+              mappedLeaveType = 'Leave';
+            }
+
+            final fromDate = DateTime.tryParse(
+                  (item['start_date'] ?? item['from_date'] ?? '').toString(),
+                ) ??
+                DateTime.now();
+            final toDate = DateTime.tryParse(
+                  (item['end_date'] ?? item['to_date'] ?? '').toString(),
+                ) ??
+                fromDate;
+            final reason = (item['reason'] ?? '').toString();
+
+            // Determine status
+            final rawStatus = item['status_name'] ?? item['status'];
+            String status = 'Pending';
+            if (rawStatus is int || rawStatus is num) {
+              final statusCode = (rawStatus as num).toInt();
+              if (statusCode == 1) {
+                status = 'Approved';
+              } else if (statusCode == 2) {
+                status = 'Rejected';
+              } else {
+                status = 'Pending';
+              }
+            } else if (rawStatus != null && rawStatus.toString().isNotEmpty) {
+              status = rawStatus.toString();
+            }
+
+            final appliedDate = DateTime.tryParse(
+                  (item['applied_on'] ??
+                          item['applied_date'] ??
+                          item['created_at'] ??
+                          '')
+                      .toString(),
+                ) ??
+                fromDate;
 
             return LeaveModel(
               id: id,
@@ -694,6 +879,61 @@ class OperationsProvider extends ChangeNotifier {
 
   // --- Task Actions ---
 
+  /// Closes a lead with student admission details via POST /api/leads/{id}/close
+  Future<void> closeLead({
+    required String id,
+    required String studentId,
+    required String course,
+    required num payment,
+    required String paymentVerification,
+    required String remarks,
+  }) async {
+    _isSubmittingTask = true;
+    notifyListeners();
+    try {
+      final numericId = int.tryParse(id.replaceAll(RegExp(r'[^0-9]'), ''));
+      if (numericId == null) {
+        throw Exception('Invalid lead ID: $id');
+      }
+
+      final payload = {
+        'student_id': studentId,
+        'course': course,
+        'payment': payment,
+        'payment_verification': paymentVerification,
+        'remarks': remarks,
+      };
+
+      debugPrint('[closeLead] Sending payload to /leads/$numericId/close: $payload');
+      await ApiClient.instance.post(
+        ApiEndpoints.closeLead(numericId),
+        data: payload,
+      );
+
+      // Update local state to reflect the change immediately in the UI.
+      final index = _tasks.indexWhere((t) => t.id == id);
+      if (index != -1) {
+        final currentTask = _tasks[index];
+        _tasks[index] = currentTask.copyWith(
+          status: 'Completed',
+          leadStatus: 'Closed',
+          completedDate: DateTime.now(),
+          remarks: remarks,
+        );
+      }
+
+      // Refresh lead lists so the UI reflects the latest server state.
+      await fetchLeads(status: 1, isRefresh: true);
+      await fetchCompletedLeads(isRefresh: true);
+    } catch (e) {
+      debugPrint('[closeLead] ERROR: $e');
+      rethrow;
+    } finally {
+      _isSubmittingTask = false;
+      notifyListeners();
+    }
+  }
+
   /// Update task status (Student Lead admission / close)
   Future<void> updateTaskStatus(
     String id,
@@ -702,21 +942,30 @@ class OperationsProvider extends ChangeNotifier {
     required String remarks,
     required String proof,
     String? followUpDate,
+    String? studentId,
+    String? course,
+    num? payment,
+    String? paymentVerification,
   }) async {
     _isSubmittingTask = true;
     notifyListeners();
     try {
       // If the BDE is closing the lead, hit the dedicated close endpoint.
-      // Only `remark` is required — no schedule_date or status field.
       if (leadStatus == 'Closed') {
-        // Task IDs are stored as 'LD_<numericId>' — extract the numeric part.
-        final numericId = int.tryParse(id.replaceFirst('LD_', ''));
+        final numericId = int.tryParse(id.replaceAll(RegExp(r'[^0-9]'), ''));
         if (numericId != null) {
+          final payload = <String, dynamic>{
+            'student_id': studentId ?? 'STU-$numericId',
+            'course': (course != null && course.isNotEmpty) ? course : 'Full-Stack Web Development',
+            'payment': payment ?? 0,
+            'payment_verification': (paymentVerification != null && paymentVerification.isNotEmpty)
+                ? paymentVerification
+                : 'Verified',
+            'remarks': remarks,
+          };
           await ApiClient.instance.post(
             ApiEndpoints.closeLead(numericId),
-            data: {
-              'remarks': remarks,
-            },
+            data: payload,
           );
         }
       }
@@ -727,8 +976,9 @@ class OperationsProvider extends ChangeNotifier {
         final currentTask = _tasks[index];
         List<FollowUpItem>? updatedFollowUps = currentTask.followUps;
         if (followUpDate != null && followUpDate.isNotEmpty) {
-          updatedFollowUps = List<FollowUpItem>.from(currentTask.followUps ?? [])
-            ..add(FollowUpItem(dateTime: followUpDate, remark: remarks));
+          updatedFollowUps = List<FollowUpItem>.from(
+            currentTask.followUps ?? [],
+          )..add(FollowUpItem(dateTime: followUpDate, remark: remarks));
         }
 
         _tasks[index] = currentTask.copyWith(
@@ -742,7 +992,8 @@ class OperationsProvider extends ChangeNotifier {
       }
 
       // Refresh lead lists so the UI reflects the latest server state.
-      await fetchLeads(status: 1);
+      await fetchLeads(status: 1, isRefresh: true);
+      await fetchCompletedLeads(isRefresh: true);
     } catch (e) {
       debugPrint('[updateTaskStatus] ERROR: $e');
       rethrow;
@@ -751,7 +1002,6 @@ class OperationsProvider extends ChangeNotifier {
       notifyListeners();
     }
   }
-
 
   /// Bulk Lead Upload & Assign (For BDM/TL)
   Future<void> bulkUploadLeads(List<TaskModel> newLeads) async {
@@ -774,13 +1024,12 @@ class OperationsProvider extends ChangeNotifier {
 
       final response = await ApiClient.instance.uploadMultipart(
         ApiEndpoints.importLeads,
-        data: {
-          'file': multipartFile,
-        },
+        data: {'file': multipartFile},
       );
 
       if (response.data != null) {
-        final Map<String, dynamic> responseData = response.data as Map<String, dynamic>;
+        final Map<String, dynamic> responseData =
+            response.data as Map<String, dynamic>;
         return LeadImportResult.fromJson(responseData);
       }
       return null;
@@ -817,9 +1066,22 @@ class OperationsProvider extends ChangeNotifier {
     try {
       final response = await ApiClient.instance.get(ApiEndpoints.courses);
       if (response.data != null) {
-        final Map<String, dynamic> data = response.data['data'] as Map<String, dynamic>;
-        final List<dynamic> list = data['courses'] as List<dynamic>;
-        _courses = list.map((c) => c as Map<String, dynamic>).toList();
+        dynamic rawData = response.data;
+        if (rawData is Map && rawData.containsKey('data')) {
+          rawData = rawData['data'];
+        }
+        final List<dynamic> list;
+        if (rawData is List) {
+          list = rawData;
+        } else if (rawData is Map && rawData['courses'] is List) {
+          list = rawData['courses'] as List<dynamic>;
+        } else {
+          list = [];
+        }
+        _courses = list
+            .whereType<Map>()
+            .map((c) => Map<String, dynamic>.from(c))
+            .toList();
       }
     } catch (e) {
       debugPrint('Failed to fetch courses from server: $e');
@@ -837,8 +1099,22 @@ class OperationsProvider extends ChangeNotifier {
     try {
       final response = await ApiClient.instance.get(ApiEndpoints.districts);
       if (response.data != null) {
-        final List<dynamic> list = response.data['data'] as List<dynamic>;
-        _districts = list.map((d) => d as Map<String, dynamic>).toList();
+        dynamic rawData = response.data;
+        if (rawData is Map && rawData.containsKey('data')) {
+          rawData = rawData['data'];
+        }
+        final List<dynamic> list;
+        if (rawData is List) {
+          list = rawData;
+        } else if (rawData is Map && rawData['districts'] is List) {
+          list = rawData['districts'] as List<dynamic>;
+        } else {
+          list = [];
+        }
+        _districts = list
+            .whereType<Map>()
+            .map((d) => Map<String, dynamic>.from(d))
+            .toList();
       }
     } catch (e) {
       debugPrint('Failed to fetch districts from server: $e');
@@ -854,40 +1130,63 @@ class OperationsProvider extends ChangeNotifier {
     _isLoadingHierarchyFilters = true;
     notifyListeners();
     try {
-      final response = await ApiClient.instance.get(ApiEndpoints.hierarchyFilters);
+      final response = await ApiClient.instance.get(
+        ApiEndpoints.hierarchyFilters,
+      );
       if (response.data != null && response.data['success'] == true) {
-        final Map<String, dynamic> data = response.data['data'] is Map<String, dynamic>
+        final Map<String, dynamic> data =
+            response.data['data'] is Map<String, dynamic>
             ? response.data['data'] as Map<String, dynamic>
             : {};
-        
+
         final rawDistricts = data['districts'];
-        final List<dynamic> districtsList = (rawDistricts is List<dynamic>) ? rawDistricts : [];
-        _hierarchyDistricts = districtsList.map((d) => d as Map<String, dynamic>).toList();
+        final List<dynamic> districtsList = (rawDistricts is List<dynamic>)
+            ? rawDistricts
+            : [];
+        _hierarchyDistricts = districtsList
+            .whereType<Map>()
+            .map((d) => Map<String, dynamic>.from(d))
+            .toList();
 
         final rawTeams = data['teams'];
-        final List<dynamic> teamsList = (rawTeams is List<dynamic>) ? rawTeams : [];
-        _hierarchyTeams = teamsList.map((t) => t as Map<String, dynamic>).toList();
+        final List<dynamic> teamsList = (rawTeams is List<dynamic>)
+            ? rawTeams
+            : [];
+        _hierarchyTeams = teamsList
+            .whereType<Map>()
+            .map((t) => Map<String, dynamic>.from(t))
+            .toList();
 
         final rawEmployees = data['employees'];
-        final Map<String, dynamic> employeesMap = (rawEmployees is Map<String, dynamic>) ? rawEmployees : {};
-        
-        if (employeesMap['BDE'] is List<dynamic>) {
-          final List<dynamic> bdeList = employeesMap['BDE'] as List<dynamic>;
-          _hierarchyBdes = bdeList.map((b) => b as Map<String, dynamic>).toList();
+        final Map<String, dynamic> employeesMap =
+            (rawEmployees is Map) ? Map<String, dynamic>.from(rawEmployees) : {};
+
+        if (employeesMap['BDE'] is List) {
+          final List<dynamic> bdeList = employeesMap['BDE'] as List;
+          _hierarchyBdes = bdeList
+              .whereType<Map>()
+              .map((b) => Map<String, dynamic>.from(b))
+              .toList();
         } else {
           _hierarchyBdes = [];
         }
 
-        if (employeesMap['BDM'] is List<dynamic>) {
-          final List<dynamic> bdmList = employeesMap['BDM'] as List<dynamic>;
-          _hierarchyBdms = bdmList.map((b) => b as Map<String, dynamic>).toList();
+        if (employeesMap['BDM'] is List) {
+          final List<dynamic> bdmList = employeesMap['BDM'] as List;
+          _hierarchyBdms = bdmList
+              .whereType<Map>()
+              .map((b) => Map<String, dynamic>.from(b))
+              .toList();
         } else {
           _hierarchyBdms = [];
         }
 
-        if (employeesMap['ASM'] is List<dynamic>) {
-          final List<dynamic> asmList = employeesMap['ASM'] as List<dynamic>;
-          _hierarchyAsms = asmList.map((a) => a as Map<String, dynamic>).toList();
+        if (employeesMap['ASM'] is List) {
+          final List<dynamic> asmList = employeesMap['ASM'] as List;
+          _hierarchyAsms = asmList
+              .whereType<Map>()
+              .map((a) => Map<String, dynamic>.from(a))
+              .toList();
         } else {
           _hierarchyAsms = [];
         }
@@ -915,56 +1214,80 @@ class OperationsProvider extends ChangeNotifier {
   /// Converts a [LeadModel] to the [TaskModel] used by the UI.
   TaskModel _mapLead(LeadModel lead) {
     final currentUser = AuthProvider.instance.session;
-    final zoneName  = currentUser.zone  ?? '';
-    final teamName  = currentUser.team  ?? '';
-    
+    final zoneName = currentUser.zone ?? '';
+    final teamName = currentUser.team ?? '';
+
     final leadId = 'LD_${lead.id}';
 
     // Map API follow-ups to FollowUpItem
-    final apiFollowUps = lead.followups?.map((f) {
-      String formattedDate = f.followupDate;
-      try {
-        final parsed = DateTime.parse(f.followupDate);
-        formattedDate = DateFormat('dd MMM yyyy, hh:mm a').format(parsed);
-      } catch (_) {
-        // Fallback to original
-      }
-      return FollowUpItem(
-        dateTime: formattedDate,
-        remark: f.notes ?? '',
-      );
-    }).toList() ?? [];
+    final apiFollowUps =
+        lead.followups?.map((f) {
+          String formattedDate = f.followupDate;
+          try {
+            final parsed = DateTime.parse(f.followupDate);
+            formattedDate = DateFormat('dd MMM yyyy, hh:mm a').format(parsed);
+          } catch (_) {
+            // Fallback to original
+          }
+          return FollowUpItem(dateTime: formattedDate, remark: f.notes ?? '');
+        }).toList() ??
+        [];
 
     // API already scopes results via Bearer token; use session values as fallback.
     return TaskModel(
       id: leadId,
       studentName: lead.name,
       location: lead.address,
-      course: lead.course?.name ?? '',
+      course: lead.interestedCourse?.isNotEmpty == true
+          ? lead.interestedCourse!
+          : (lead.course?.name ?? ''),
       description: lead.notes,
       assignedDate: lead.createdAt,
       assignedBdeEmail: currentUser.email,
       team: teamName,
-      district: lead.district?.name ?? currentUser.district ?? '',
+      district: lead.district?.name ?? (lead.districtName ?? currentUser.district ?? ''),
       zone: zoneName,
       creatorEmail: currentUser.email,
       status: lead.isCompleted ? 'Completed' : 'Pending',
-      leadStatus: lead.statusLabel,
+      leadStatus: lead.admissionStatus ?? lead.statusLabel,
       followUps: apiFollowUps,
       phone: lead.phone,
       email: lead.email,
+      whatsappNumber: lead.whatsappNumber,
+      place: lead.place,
+      age: lead.age,
+      qualification: lead.qualification,
+      collegeName: lead.collegeName,
+      currentYear: lead.currentYear,
+      interestedTopic: lead.interestedTopic,
+      interestedCourse: lead.interestedCourse,
+      leadSource: lead.leadSource,
+      admissionStatus: lead.admissionStatus,
+      employee: lead.employee,
     );
   }
 
   /// // Fetches pending leads (status=1) and populates [tasks].
-  Future<void> fetchLeads({int status = 1, int? employeeId, int? teamId, int? districtId, bool isRefresh = false}) async {
+  Future<void> fetchLeads({
+    int status = 1,
+    int? employeeId,
+    int? teamId,
+    int? districtId,
+    bool isRefresh = false,
+  }) async {
     if (_isLoadingLeads) return;
-    if (!isRefresh && _tasks.isNotEmpty && employeeId == null && teamId == null && districtId == null) return;
+    if (!isRefresh &&
+        _tasks.isNotEmpty &&
+        employeeId == null &&
+        teamId == null &&
+        districtId == null)
+      return;
     _isLoadingLeads = true;
     notifyListeners();
     try {
       final Map<String, dynamic> queryParams = {'status': status};
-      final activeEmployeeId = employeeId ?? _selectedBdeId ?? _selectedBdmId ?? _selectedAsmId;
+      final activeEmployeeId =
+          employeeId ?? _selectedBdeId ?? _selectedBdmId ?? _selectedAsmId;
       if (activeEmployeeId != null) {
         queryParams['employee_id'] = activeEmployeeId;
       }
@@ -981,13 +1304,22 @@ class OperationsProvider extends ChangeNotifier {
         ApiEndpoints.leads,
         queryParameters: queryParams,
       );
-      if (response.data != null && response.data['success'] == true) {
-        final leadsPage = LeadsPage.fromJson(
-          response.data['data']['leads'] as Map<String, dynamic>,
-        );
+      if (response.data != null) {
+        dynamic rawData = response.data;
+        if (rawData is Map && rawData.containsKey('data')) {
+          rawData = rawData['data'];
+        }
+        dynamic leadsPayload = rawData;
+        if (rawData is Map && rawData.containsKey('leads')) {
+          leadsPayload = rawData['leads'];
+        }
+
+        final leadsPage = LeadsPage.fromJson(leadsPayload);
         final allMapped = leadsPage.data.map(_mapLead).toList();
         _tasks = allMapped.where((t) => t.status == 'Pending').toList();
-        debugPrint('[fetchLeads] status=1, employee_id=$activeEmployeeId, team_id=$activeTeamId, district_id=$activeDistrictId → ${_tasks.length} pending leads loaded');
+        debugPrint(
+          '[fetchLeads] status=1, employee_id=$activeEmployeeId, team_id=$activeTeamId, district_id=$activeDistrictId → ${_tasks.length} pending leads loaded',
+        );
       }
     } catch (e, st) {
       debugPrint('[fetchLeads] ERROR: $e\n$st');
@@ -998,15 +1330,26 @@ class OperationsProvider extends ChangeNotifier {
   }
 
   /// Fetches completed leads (status=4 and status=5) and populates [completedTasks].
-  Future<void> fetchCompletedLeads({int? employeeId, int? teamId, int? districtId, bool isRefresh = false}) async {
+  Future<void> fetchCompletedLeads({
+    int? employeeId,
+    int? teamId,
+    int? districtId,
+    bool isRefresh = false,
+  }) async {
     if (_isLoadingCompletedLeads) return;
-    if (!isRefresh && _completedTasks.isNotEmpty && employeeId == null && teamId == null && districtId == null) return;
+    if (!isRefresh &&
+        _completedTasks.isNotEmpty &&
+        employeeId == null &&
+        teamId == null &&
+        districtId == null)
+      return;
     _isLoadingCompletedLeads = true;
     notifyListeners();
     try {
       final Map<String, dynamic> queryParams4 = {'status': 4};
       final Map<String, dynamic> queryParams5 = {'status': 5};
-      final activeEmployeeId = employeeId ?? _selectedBdeId ?? _selectedBdmId ?? _selectedAsmId;
+      final activeEmployeeId =
+          employeeId ?? _selectedBdeId ?? _selectedBdmId ?? _selectedAsmId;
       if (activeEmployeeId != null) {
         queryParams4['employee_id'] = activeEmployeeId;
         queryParams5['employee_id'] = activeEmployeeId;
@@ -1035,15 +1378,24 @@ class OperationsProvider extends ChangeNotifier {
 
       final List<TaskModel> combined = [];
       for (final response in responses) {
-        if (response.data != null && response.data['success'] == true) {
-          final leadsPage = LeadsPage.fromJson(
-            response.data['data']['leads'] as Map<String, dynamic>,
-          );
+        if (response.data != null) {
+          dynamic rawData = response.data;
+          if (rawData is Map && rawData.containsKey('data')) {
+            rawData = rawData['data'];
+          }
+          dynamic leadsPayload = rawData;
+          if (rawData is Map && rawData.containsKey('leads')) {
+            leadsPayload = rawData['leads'];
+          }
+
+          final leadsPage = LeadsPage.fromJson(leadsPayload);
           combined.addAll(leadsPage.data.map(_mapLead));
         }
       }
       _completedTasks = combined.where((t) => t.status == 'Completed').toList();
-      debugPrint('[fetchCompletedLeads] status=4,5, employee_id=$activeEmployeeId, team_id=$activeTeamId, district_id=$activeDistrictId → ${_completedTasks.length} completed leads loaded');
+      debugPrint(
+        '[fetchCompletedLeads] status=4,5, employee_id=$activeEmployeeId, team_id=$activeTeamId, district_id=$activeDistrictId → ${_completedTasks.length} completed leads loaded',
+      );
     } catch (e, st) {
       debugPrint('[fetchCompletedLeads] ERROR: $e\n$st');
     } finally {
@@ -1055,49 +1407,127 @@ class OperationsProvider extends ChangeNotifier {
   Future<bool> createLeadOnServer({
     required String name,
     required String phone,
+    String? whatsappNumber,
     required String email,
     required String address,
-    required int districtId,
-    required int courseId,
-    required int source,
-    required int status,
-    required int assignedEmployeeId,
+    String? place,
+    String? districtName,
+    int? districtId,
+    int? age,
+    String? qualification,
+    String? collegeName,
+    String? currentYear,
+    String? interestedTopic,
+    String? interestedCourseName,
+    int? courseId,
+    String? leadSourceName,
+    int? source,
+    String? admissionStatus,
+    int? status,
+    String? employeeName,
+    int? assignedEmployeeId,
     required String notes,
   }) async {
     _isSubmittingTask = true;
     notifyListeners();
     try {
+      // Map course_id back to name if not provided
+      final courseName = (interestedCourseName != null && interestedCourseName.isNotEmpty)
+          ? interestedCourseName
+          : (courseId != null
+              ? (_courses.firstWhere(
+                    (c) => c['id'] == courseId,
+                    orElse: () => {'name': 'Full-Stack Web Development'},
+                  )['name']?.toString() ??
+                  'Full-Stack Web Development')
+              : 'Full-Stack Web Development');
+
+      // Map district_id back to name if not provided
+      final district = (districtName != null && districtName.isNotEmpty)
+          ? districtName
+          : (districtId != null
+              ? (_districts.firstWhere(
+                    (d) => d['id'] == districtId,
+                    orElse: () => {'name': 'Ernakulam'},
+                  )['name']?.toString() ??
+                  'Ernakulam')
+              : 'Ernakulam');
+
+      // Resolve lead source string
+      final String resolvedLeadSource = (leadSourceName != null && leadSourceName.isNotEmpty)
+          ? leadSourceName
+          : (source == 1
+              ? 'Cold Call'
+              : source == 2
+                  ? 'Referral'
+                  : source == 3
+                      ? 'Website'
+                      : source == 4
+                          ? 'Advertisement'
+                          : source == 5
+                              ? 'Campus Drive / College Seminar'
+                              : 'Campus Drive / College Seminar');
+
+      // Resolve admission status
+      final String resolvedAdmissionStatus = (admissionStatus != null && admissionStatus.isNotEmpty)
+          ? admissionStatus
+          : (status == 1
+              ? 'New'
+              : status == 4
+                  ? 'Admitted'
+                  : 'Closed');
+
+      // Resolve employee name
+      final String resolvedEmployee = (employeeName != null && employeeName.isNotEmpty)
+          ? employeeName
+          : (AuthProvider.instance.session.name.isNotEmpty
+              ? AuthProvider.instance.session.name
+              : (UserProfileProvider.instance.state.data?.name ?? ''));
+
+      final payload = {
+        'name': name,
+        'phone': phone,
+        'whatsapp_number': (whatsappNumber != null && whatsappNumber.isNotEmpty) ? whatsappNumber : phone,
+        'email': email,
+        'address': address,
+        'place': (place != null && place.isNotEmpty) ? place : address,
+        'district': district,
+        if (districtId != null && districtId > 0) 'district_id': districtId,
+        'age': age ?? 0,
+        'qualification': qualification ?? '',
+        'college_name': collegeName ?? '',
+        'current_year': currentYear ?? '',
+        'interested_topic': interestedTopic ?? '',
+        'interested_course': courseName,
+        if (courseId != null && courseId > 0) 'course_id': courseId,
+        'lead_source': resolvedLeadSource,
+        if (source != null && source > 0) 'source': source,
+        'admission_status': resolvedAdmissionStatus,
+        'status': status ?? 1,
+        if (resolvedEmployee.isNotEmpty) 'employee': resolvedEmployee,
+        if (assignedEmployeeId != null && assignedEmployeeId > 0) 'assigned_employee_id': assignedEmployeeId,
+        'notes': notes,
+      };
+
       final response = await ApiClient.instance.post(
         ApiEndpoints.createLead,
-        data: {
-          'name': name,
-          'phone': phone,
-          'email': email,
-          'address': address,
-          'district_id': districtId,
-          'course_id': courseId,
-          'source': source,
-          'status': status,
-          'assigned_employee_id': assignedEmployeeId,
-          'notes': notes,
-        },
+        data: payload,
       );
 
-      if (response.data != null && response.data['success'] == true) {
-        final Map<String, dynamic> data = response.data['data'] as Map<String, dynamic>;
-        final leadData = data['lead'] as Map<String, dynamic>;
-        
-        // Map course_id back to name
-        final courseName = _courses.firstWhere(
-          (c) => c['id'] == courseId,
-          orElse: () => {'name': 'Web Development Bootcamp'},
-        )['name'] as String;
-
-        // Map district_id back to name
-        final districtName = _districts.firstWhere(
-          (d) => d['id'] == districtId,
-          orElse: () => {'name': 'Ernakulam'},
-        )['name'] as String;
+      if (response.data != null &&
+          (response.data['success'] == true ||
+              response.statusCode == 200 ||
+              response.statusCode == 201)) {
+        dynamic rawData = response.data;
+        if (rawData is Map && rawData.containsKey('data')) {
+          rawData = rawData['data'];
+        }
+        Map<String, dynamic> leadData = {};
+        if (rawData is Map && rawData.containsKey('lead') && rawData['lead'] is Map) {
+          leadData = Map<String, dynamic>.from(rawData['lead'] as Map);
+        } else if (rawData is Map) {
+          leadData = Map<String, dynamic>.from(rawData);
+        }
 
         // Add to local list to reflect in UI immediately
         final newLead = TaskModel(
@@ -1109,13 +1539,24 @@ class OperationsProvider extends ChangeNotifier {
           assignedDate: DateTime.now(),
           assignedBdeEmail: AuthProvider.instance.session.email,
           team: AuthProvider.instance.session.team ?? 'Ernakulam Team A',
-          district: districtName,
+          district: district,
           zone: AuthProvider.instance.session.zone ?? 'Central Zone',
           creatorEmail: AuthProvider.instance.session.email,
           status: 'Pending',
-          leadStatus: 'Interested',
+          leadStatus: resolvedAdmissionStatus,
           phone: phone,
           email: email,
+          whatsappNumber: (whatsappNumber != null && whatsappNumber.isNotEmpty) ? whatsappNumber : phone,
+          place: (place != null && place.isNotEmpty) ? place : address,
+          age: age,
+          qualification: qualification,
+          collegeName: collegeName,
+          currentYear: currentYear,
+          interestedTopic: interestedTopic,
+          interestedCourse: courseName,
+          leadSource: resolvedLeadSource,
+          admissionStatus: resolvedAdmissionStatus,
+          employee: resolvedEmployee,
         );
 
         addTask(newLead);
@@ -1130,6 +1571,60 @@ class OperationsProvider extends ChangeNotifier {
       notifyListeners();
     }
     return false;
+  }
+
+  /// Upload or register an Institution/School contact
+  /// POST /institutes
+  /// Body: {
+  ///   "institute_name": "...",
+  ///   "person_name": "...",
+  ///   "position": "...",
+  ///   "phone": "..."
+  /// }
+  Future<Map<String, dynamic>> createInstitute({
+    required String instituteName,
+    required String personName,
+    required String position,
+    required String phone,
+  }) async {
+    try {
+      final payload = {
+        'institute_name': instituteName.trim(),
+        'person_name': personName.trim(),
+        'position': position.trim(),
+        'phone': phone.trim(),
+      };
+
+      final response = await ApiClient.instance.post(
+        ApiEndpoints.institutes,
+        data: payload,
+      );
+
+      if (response.data != null &&
+          (response.statusCode == 200 || response.statusCode == 201)) {
+        final data = response.data;
+        final String message = data is Map && data['message'] != null
+            ? data['message'].toString()
+            : 'Institution details uploaded successfully!';
+        return {
+          'success': true,
+          'message': message,
+          'data': data,
+        };
+      }
+      return {
+        'success': false,
+        'message': response.data is Map && response.data['message'] != null
+            ? response.data['message'].toString()
+            : 'Failed to upload institution details.',
+      };
+    } catch (e) {
+      debugPrint('[createInstitute] Error: $e');
+      return {
+        'success': false,
+        'message': 'Failed to upload institution details: $e',
+      };
+    }
   }
 
   // --- Incentive Actions ---
@@ -1194,7 +1689,9 @@ class OperationsProvider extends ChangeNotifier {
       now.minute,
       now.second,
     );
-    final formattedFrom = DateFormat("yyyy-MM-dd'T'HH:mm:ss").format(startDateTime);
+    final formattedFrom = DateFormat(
+      "yyyy-MM-dd'T'HH:mm:ss",
+    ).format(startDateTime);
     final formattedTo = DateFormat('yyyy-MM-dd').format(to);
 
     try {

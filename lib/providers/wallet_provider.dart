@@ -28,10 +28,12 @@ class WalletProvider extends BaseProvider<WalletBalanceModel> {
     WalletBalanceModel? cachedModel;
     if (cachedJson != null) {
       try {
-        final Map<String, dynamic> decoded = jsonDecode(cachedJson);
-        cachedModel = WalletBalanceModel.fromJson(decoded);
-        if (state.data == null) {
-          setState(ApiResponse.success(cachedModel));
+        final decoded = jsonDecode(cachedJson);
+        if (decoded is Map) {
+          cachedModel = WalletBalanceModel.fromJson(Map<String, dynamic>.from(decoded));
+          if (state.data == null) {
+            setState(ApiResponse.success(cachedModel));
+          }
         }
       } catch (_) {}
     }
@@ -48,14 +50,19 @@ class WalletProvider extends BaseProvider<WalletBalanceModel> {
         cancelToken: token,
       );
       if (response.data != null) {
-        final data = response.data['data'] as Map<String, dynamic>;
-        final model = WalletBalanceModel.fromJson(data);
+        dynamic rawData = response.data;
+        if (rawData is Map && rawData.containsKey('data')) {
+          rawData = rawData['data'];
+        }
+        if (rawData is Map) {
+          final model = WalletBalanceModel.fromJson(Map<String, dynamic>.from(rawData));
 
-        // Save fresh data to local cache
-        await prefs.setString('cached_wallet_data', jsonEncode(model.toJson()));
+          // Save fresh data to local cache
+          await prefs.setString('cached_wallet_data', jsonEncode(model.toJson()));
 
-        setState(ApiResponse.success(model));
-        return;
+          setState(ApiResponse.success(model));
+          return;
+        }
       }
       throw Exception('Failed to fetch wallet balance data: empty response');
     } catch (e) {

@@ -8,6 +8,7 @@ import 'components/create_lead_sheet.dart';
 import 'components/follow_up_sheet.dart';
 import 'components/task_card.dart';
 import 'components/task_details_sheet.dart';
+import 'components/close_lead_sheet.dart';
 
 class BdeTaskView extends StatefulWidget {
   final dynamic user;

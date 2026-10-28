@@ -29,6 +29,24 @@ class TaskModel {
 
   final String? phone;
   final String? email;
+  @JsonKey(name: 'whatsapp_number')
+  final String? whatsappNumber;
+  final String? place;
+  final int? age;
+  final String? qualification;
+  @JsonKey(name: 'college_name')
+  final String? collegeName;
+  @JsonKey(name: 'current_year')
+  final String? currentYear;
+  @JsonKey(name: 'interested_topic')
+  final String? interestedTopic;
+  @JsonKey(name: 'interested_course')
+  final String? interestedCourse;
+  @JsonKey(name: 'lead_source')
+  final String? leadSource;
+  @JsonKey(name: 'admission_status')
+  final String? admissionStatus;
+  final String? employee;
   
   @JsonKey(name: 'assigned_bde_email')
   final String assignedBdeEmail;
@@ -58,6 +76,17 @@ class TaskModel {
     required this.district,
     required this.zone,
     this.creatorEmail = 'md@keralainstitute.org',
+    this.whatsappNumber,
+    this.place,
+    this.age,
+    this.qualification,
+    this.collegeName,
+    this.currentYear,
+    this.interestedTopic,
+    this.interestedCourse,
+    this.leadSource,
+    this.admissionStatus,
+    this.employee,
   });
 
   factory TaskModel.fromJson(Map<String, dynamic> json) => _$TaskModelFromJson(json);
@@ -77,6 +106,17 @@ class TaskModel {
     String? district,
     String? zone,
     String? creatorEmail,
+    String? whatsappNumber,
+    String? place,
+    int? age,
+    String? qualification,
+    String? collegeName,
+    String? currentYear,
+    String? interestedTopic,
+    String? interestedCourse,
+    String? leadSource,
+    String? admissionStatus,
+    String? employee,
   }) {
     return TaskModel(
       id: id,
@@ -98,6 +138,17 @@ class TaskModel {
       district: district ?? this.district,
       zone: zone ?? this.zone,
       creatorEmail: creatorEmail ?? this.creatorEmail,
+      whatsappNumber: whatsappNumber ?? this.whatsappNumber,
+      place: place ?? this.place,
+      age: age ?? this.age,
+      qualification: qualification ?? this.qualification,
+      collegeName: collegeName ?? this.collegeName,
+      currentYear: currentYear ?? this.currentYear,
+      interestedTopic: interestedTopic ?? this.interestedTopic,
+      interestedCourse: interestedCourse ?? this.interestedCourse,
+      leadSource: leadSource ?? this.leadSource,
+      admissionStatus: admissionStatus ?? this.admissionStatus,
+      employee: employee ?? this.employee,
     );
   }
 }

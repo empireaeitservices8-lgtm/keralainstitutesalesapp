@@ -23,7 +23,7 @@ class UserProfileModel {
       contactNumber: json['contact_number'] as String? ?? json['phone'] as String? ?? '',
       employeeId: json['employee_id'] as String? ?? '',
       leaveBalances: json['leave_balances'] != null && json['leave_balances'] is Map
-          ? LeaveBalances.fromJson(json['leave_balances'] as Map<String, dynamic>)
+          ? LeaveBalances.fromJson(Map<String, dynamic>.from(json['leave_balances'] as Map))
           : LeaveBalances(casual: 0, medical: 0, earned: 0),
     );
   }
