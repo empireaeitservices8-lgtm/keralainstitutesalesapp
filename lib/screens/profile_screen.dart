@@ -702,6 +702,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget _buildMdUserControlSection() {
     final List<Map<String, String>> users = [
       {'name': 'Dr. K. Kurian', 'role': 'MD', 'scope': 'State-wide'},
+      {'name': 'Alex Varghese', 'role': 'SM', 'scope': 'Kerala State Operations'},
       {'name': 'Thomas Mathew', 'role': 'ZM', 'scope': 'South Zone'},
       {'name': 'Sandhya Nair', 'role': 'ZM', 'scope': 'Central Zone'},
       {'name': 'Raghesh Pillai', 'role': 'ZM', 'scope': 'North Zone'},

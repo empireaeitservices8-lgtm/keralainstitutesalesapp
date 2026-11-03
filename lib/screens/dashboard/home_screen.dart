@@ -74,7 +74,23 @@ class HomeScreen extends StatelessWidget {
           );
         }
 
-        Widget dashboardWidget = user.role == 'BDE'
+        final desigLower = data.designationName.toLowerCase();
+        final bool isAsm = user.role == 'ASM' ||
+            data.dashboardType?.toUpperCase() == 'ASM' ||
+            data.designationName.toUpperCase() == 'ASM' ||
+            desigLower.contains('area sales') ||
+            desigLower.contains('area manager') ||
+            desigLower.contains('area') ||
+            desigLower == 'asm' ||
+            desigLower.contains('asm');
+
+        final bool isSm = !isAsm && (user.role == 'SM' ||
+            data.dashboardType?.toUpperCase() == 'SM' ||
+            data.designationName.toUpperCase() == 'SM' ||
+            data.designationName.toLowerCase().contains('state manager') ||
+            data.designationName.toLowerCase().contains('sales manager'));
+
+        Widget dashboardWidget = (!isSm && !isAsm && user.role == 'BDE')
             ? BdeDashboardView(data: data)
             : ManagementDashboardView(data: data, user: user);
 
@@ -84,10 +100,22 @@ class HomeScreen extends StatelessWidget {
             await Future.wait([
               HomeProvider.instance.fetchHomeData(isRefresh: true),
               OperationsProvider.instance.loadOperationsData(),
+              OperationsProvider.instance.fetchSmAsms(isRefresh: true),
+              OperationsProvider.instance.fetchOfficeTelecallers(isRefresh: true),
+              OperationsProvider.instance.fetchSmPayoutRequests(isRefresh: true),
+              OperationsProvider.instance.fetchAsmBdes(isRefresh: true),
+              OperationsProvider.instance.fetchBdePendingRequests(isRefresh: true),
+              OperationsProvider.instance.fetchWalletApprovalRequests(isRefresh: true),
               AttendanceProvider.instance.loadTodayAttendance(isRefresh: true),
             ]);
           },
-          child: dashboardWidget,
+          child: Align(
+            alignment: Alignment.topCenter,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 800),
+              child: dashboardWidget,
+            ),
+          ),
         );
       },
     );

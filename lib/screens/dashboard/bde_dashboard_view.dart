@@ -8,6 +8,7 @@ import '../../providers/operations_provider.dart';
 import '../../widgets/dashboard_module_card.dart';
 import '../attendance_screen.dart';
 import '../../models/performance_task.dart';
+import 'incentive_request_sheet.dart';
 
 class BdeDashboardView extends StatelessWidget {
   final HomeDashboardModel data;
@@ -18,11 +19,16 @@ class BdeDashboardView extends StatelessWidget {
   });
 
   String _formatTime12Hr(String timeStr) {
-    if (timeStr == '--:--' || timeStr.isEmpty) return '--:--';
+    if (timeStr == '--:--' || timeStr.isEmpty || timeStr == 'null') return '--:--';
+    final trimmed = timeStr.trim();
+    final upper = trimmed.toUpperCase();
+    if (upper.contains('AM') || upper.contains('PM')) {
+      return trimmed;
+    }
     try {
-      DateTime? parsed = DateTime.tryParse(timeStr);
+      DateTime? parsed = DateTime.tryParse(trimmed);
       if (parsed == null) {
-        final parts = timeStr.split(':');
+        final parts = trimmed.split(':');
         if (parts.length >= 2) {
           final hr = int.tryParse(parts[0]) ?? 0;
           final min = int.tryParse(parts[1]) ?? 0;
@@ -34,7 +40,19 @@ class BdeDashboardView extends StatelessWidget {
         return DateFormat('hh:mm a').format(parsed.toLocal());
       }
     } catch (_) {}
-    return timeStr;
+    return trimmed;
+  }
+
+  String _formatAttendanceDate(String dateStr) {
+    if (dateStr.isNotEmpty && dateStr != 'null') {
+      try {
+        final parsed = DateTime.tryParse(dateStr);
+        if (parsed != null) {
+          return DateFormat('EEEE, dd MMMM yyyy').format(parsed.toLocal());
+        }
+      } catch (_) {}
+    }
+    return DateFormat('EEEE, dd MMMM yyyy').format(DateTime.now());
   }
 
   Widget _buildAttendanceCard({
@@ -44,6 +62,7 @@ class BdeDashboardView extends StatelessWidget {
     required String checkInTime,
     required String checkOutTime,
     required String shiftStatus,
+    String? date,
   }) {
     return Container(
       padding: const EdgeInsets.all(20),
@@ -77,7 +96,7 @@ class BdeDashboardView extends StatelessWidget {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    DateFormat('EEEE, dd MMMM yyyy').format(DateTime.now()),
+                    _formatAttendanceDate(date ?? ''),
                     style: const TextStyle(
                       color: AppColors.textSecondary,
                       fontSize: 11,
@@ -115,17 +134,17 @@ class BdeDashboardView extends StatelessWidget {
                     const SizedBox(width: 6),
                     Text(
                       checkedOut
-                          ? 'COMPLETED'
+                          ? 'LOGGED OUT'
                           : checkedIn
-                          ? 'ACTIVE SHIFT'
-                          : 'NOT CHECKED-IN',
+                          ? 'LOGGED IN'
+                          : 'NOT LOGGED IN',
                       style: TextStyle(
                         color: checkedOut
                             ? Colors.red.shade700
                             : checkedIn
                             ? Colors.green.shade700
                             : Colors.amber.shade700,
-                        fontSize: 9,
+                        fontSize: 9.5,
                         fontWeight: FontWeight.w900,
                         letterSpacing: 0.5,
                       ),
@@ -267,67 +286,36 @@ class BdeDashboardView extends StatelessWidget {
   }
 
   Widget _buildAttendanceSection(BuildContext context, [HomeAttendance? apiAttendance]) {
-    if (apiAttendance != null) {
-      final bool checkedIn = apiAttendance.isCheckedIn;
-      final bool checkedOut =
-          apiAttendance.shiftStatus == 'COMPLETED' ||
-          apiAttendance.shiftStatus == 'CHECKED_OUT';
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildAttendanceCard(
-            context: context,
-            checkedIn: checkedIn,
-            checkedOut: checkedOut,
-            checkInTime: _formatTime12Hr(apiAttendance.checkInTime),
-            checkOutTime: _formatTime12Hr(apiAttendance.checkOutTime),
-            shiftStatus: apiAttendance.shiftStatus,
-          ),
-          const SizedBox(height: 20),
-        ],
-      );
-    }
+    final effectiveAtt = apiAttendance ?? data.attendance;
+    final bool checkedIn = data.isUserCheckedIn || (effectiveAtt?.isCheckedIn ?? false);
+    final bool checkedOut = data.isUserCheckedOut ||
+        (effectiveAtt != null &&
+            (effectiveAtt.isCheckedOut ||
+                effectiveAtt.shiftStatus == 'COMPLETED' ||
+                effectiveAtt.shiftStatus == 'CHECKED_OUT'));
+
+    final String checkInTime = checkedIn && effectiveAtt != null && effectiveAtt.checkInTime.isNotEmpty && effectiveAtt.checkInTime != 'null'
+        ? _formatTime12Hr(effectiveAtt.checkInTime)
+        : (checkedIn ? 'Logged In' : '--:--');
+
+    final String checkOutTime = checkedOut && effectiveAtt != null && effectiveAtt.checkOutTime.isNotEmpty && effectiveAtt.checkOutTime != 'null'
+        ? _formatTime12Hr(effectiveAtt.checkOutTime)
+        : (checkedOut ? 'Logged Out' : '--:--');
+
+    final String shiftStatus = effectiveAtt?.shiftStatus ??
+        (checkedOut ? 'LOGGED OUT' : (checkedIn ? 'LOGGED IN' : 'NOT LOGGED IN'));
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Daily Attendance Activity',
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-            color: AppColors.textPrimary,
-            letterSpacing: 0.5,
-          ),
-        ),
-        const SizedBox(height: 12),
-        ListenableBuilder(
-          listenable: AttendanceProvider.instance,
-          builder: (context, _) {
-            final attProvider = AttendanceProvider.instance;
-            final att = attProvider.currentAttendance;
-            final bool checkedIn = att.isPresent || att.isCompleted;
-            final bool checkedOut = att.isCompleted;
-            final String checkInTime = att.isAbsent
-                ? '--:--'
-                : DateFormat('hh:mm a').format(att.checkInTime);
-            final String checkOutTime = (att.checkOutTime == null)
-                ? '--:--'
-                : DateFormat('hh:mm a').format(att.checkOutTime!);
-
-            return _buildAttendanceCard(
-              context: context,
-              checkedIn: checkedIn,
-              checkedOut: checkedOut,
-              checkInTime: checkInTime,
-              checkOutTime: checkOutTime,
-              shiftStatus: checkedOut
-                  ? 'COMPLETED'
-                  : checkedIn
-                  ? 'ACTIVE'
-                  : 'OFFLINE',
-            );
-          },
+        _buildAttendanceCard(
+          context: context,
+          checkedIn: checkedIn,
+          checkedOut: checkedOut,
+          checkInTime: checkInTime,
+          checkOutTime: checkOutTime,
+          shiftStatus: shiftStatus,
+          date: effectiveAtt?.date,
         ),
         const SizedBox(height: 20),
       ],
@@ -336,14 +324,23 @@ class BdeDashboardView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final totalTasks = data.eodSync?.totalTasks ?? 0;
-    final completedTasks = data.eodSync?.tasksCompleted ?? 0;
-    final progressPct = (data.eodSync?.completionPercentage ?? 0.0) / 100.0;
+    final bool isUserLoggedIn = data.isUserCheckedIn;
+    final totalTasks = data.totalTasksCount;
+    final completedTasks = data.completedTasksCount;
+    final progressPct = (data.eodSync?.completionPercentage ?? (totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0.0)) / 100.0;
 
-    final assignedLeads = data.operationalOverview?.assignedLeads ?? 0;
-    final followUpLeads = data.operationalOverview?.followUpLeads ?? 0;
-    final closedLeads = data.operationalOverview?.closedLeads ?? 0;
-    final incentives = data.operationalOverview?.incentivesEarned ?? 0;
+    final assignedLeads = data.totalMonthlyLeadsCount > 0
+        ? data.totalMonthlyLeadsCount
+        : (data.operationalOverview?.assignedLeads ?? 0);
+    final followUpLeads = data.teamFollowUpCount > 0
+        ? data.teamFollowUpCount
+        : (data.operationalOverview?.followUpLeads ?? 0);
+    final closedLeads = data.admittedLeadsCount > 0
+        ? data.admittedLeadsCount
+        : (data.operationalOverview?.closedLeads ?? 0);
+    final incentives = data.walletBalance > 0
+        ? data.walletBalance
+        : (data.operationalOverview?.incentivesEarned ?? 0);
 
     return SingleChildScrollView(
       physics: const AlwaysScrollableScrollPhysics(),
@@ -351,6 +348,25 @@ class BdeDashboardView extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                data.teamName ?? (data.user.team.isNotEmpty ? data.user.team : 'BDE Workspace'),
+                style: const TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                '${data.user.name} • Executive Command Center',
+                style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+              ),
+            ],
+          ),
+          const Divider(height: 24, color: Color(0xFFE2E8F0)),
           _buildAttendanceSection(context, data.attendance),
           const Text(
             'Operational Overview',
@@ -362,76 +378,233 @@ class BdeDashboardView extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 12),
-          GridView.count(
-            crossAxisCount: 2,
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            crossAxisSpacing: 16,
-            mainAxisSpacing: 16,
-            childAspectRatio: 1.15,
-            children: [
-              DashboardModuleCard(
-                title: 'Assigned Leads',
-                value: '$assignedLeads Active',
-                icon: Icons.task_alt_rounded,
-                iconColor: Colors.cyan,
-                onTap: () => HomeProvider.instance.setCurrentIndex(1),
-                bottom: ClipRRect(
-                  borderRadius: BorderRadius.circular(4),
-                  child: LinearProgressIndicator(
-                    value: totalTasks > 0 ? (completedTasks / totalTasks) : 0.0,
-                    minHeight: 4,
-                    backgroundColor: const Color(0xFFE2E8F0),
-                    valueColor: const AlwaysStoppedAnimation<Color>(
-                      Colors.cyan,
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final width = constraints.maxWidth;
+              final crossAxisCount = width > 600 ? 4 : 2;
+              final aspectRatio = width > 600
+                  ? 1.45
+                  : (width < 345 ? 1.05 : (width < 380 ? 1.12 : 1.2));
+
+              return GridView.count(
+                crossAxisCount: crossAxisCount,
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                crossAxisSpacing: 14,
+                mainAxisSpacing: 14,
+                childAspectRatio: aspectRatio,
+                children: [
+                  DashboardModuleCard(
+                    title: 'Assigned Leads',
+                    value: '$assignedLeads Active',
+                    icon: Icons.task_alt_rounded,
+                    iconColor: Colors.cyan,
+                    onTap: () => HomeProvider.instance.setCurrentIndex(1),
+                    bottom: ClipRRect(
+                      borderRadius: BorderRadius.circular(4),
+                      child: LinearProgressIndicator(
+                        value: totalTasks > 0 ? (completedTasks / totalTasks) : 0.0,
+                        minHeight: 4,
+                        backgroundColor: const Color(0xFFE2E8F0),
+                        valueColor: const AlwaysStoppedAnimation<Color>(
+                          Colors.cyan,
+                        ),
+                      ),
+                    ),
+                  ),
+                  DashboardModuleCard(
+                    title: 'Follow-up Leads',
+                    value: '$followUpLeads Scheduled',
+                    icon: Icons.next_plan_outlined,
+                    iconColor: Colors.teal,
+                    onTap: () => HomeProvider.instance.setCurrentIndex(1),
+                    bottom: const Text(
+                      'Interested status leads',
+                      style: TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ),
+                  DashboardModuleCard(
+                    title: 'Closed & Converted',
+                    value: '$closedLeads Resolved',
+                    icon: Icons.done_all_rounded,
+                    iconColor: Colors.orange,
+                    onTap: () => HomeProvider.instance.setCurrentIndex(1, initialTaskTabIndex: 1),
+                    bottom: const Text(
+                      'Admitted or closed leads',
+                      style: TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ),
+                  DashboardModuleCard(
+                    title: 'Incentives',
+                    value: '\u20B9${NumberFormat('#,##,###').format(incentives.toInt())} Earn.',
+                    icon: Icons.auto_graph_rounded,
+                    iconColor: Colors.amber,
+                    onTap: () {
+                      showModalBottomSheet(
+                        context: context,
+                        backgroundColor: Colors.white,
+                        shape: const RoundedRectangleBorder(
+                          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                        ),
+                        builder: (ctx) => SafeArea(
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Container(
+                                  width: 40,
+                                  height: 4,
+                                  margin: const EdgeInsets.only(bottom: 16),
+                                  decoration: BoxDecoration(
+                                    color: Colors.grey.shade300,
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                ),
+                                ListTile(
+                                  leading: Container(
+                                    padding: const EdgeInsets.all(8),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF0F766E).withOpacity(0.12),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: const Icon(Icons.payments_rounded, color: Color(0xFF0F766E)),
+                                  ),
+                                  title: const Text('Request Incentive Withdrawal', style: TextStyle(fontWeight: FontWeight.bold)),
+                                  subtitle: const Text('Submit claim directly to ASM'),
+                                  trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 14),
+                                  onTap: () {
+                                    Navigator.pop(ctx);
+                                    showIncentiveRequestSheet(context, currentBalance: incentives.toDouble());
+                                  },
+                                ),
+                                const Divider(),
+                                ListTile(
+                                  leading: Container(
+                                    padding: const EdgeInsets.all(8),
+                                    decoration: BoxDecoration(
+                                      color: Colors.amber.withOpacity(0.12),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: const Icon(Icons.auto_graph_rounded, color: Colors.amber),
+                                  ),
+                                  title: const Text('View Incentives & Milestones', style: TextStyle(fontWeight: FontWeight.bold)),
+                                  subtitle: const Text('See transaction history and performance bonus'),
+                                  trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 14),
+                                  onTap: () {
+                                    Navigator.pop(ctx);
+                                    HomeProvider.instance.setCurrentIndex(2);
+                                  },
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                    bottom: const Text(
+                      'Tap to Request or View',
+                      style: TextStyle(
+                        color: AppColors.accentTeal,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
+          // Quick Action Banner: Request Incentive Withdrawal to ASM
+          Container(
+            margin: const EdgeInsets.only(top: 14),
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFF0F172A), Color(0xFF1E293B)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: const Color(0xFF334155)),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.08),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF59E0B).withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(
+                    Icons.payments_rounded,
+                    color: Color(0xFFFBBF24),
+                    size: 24,
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Incentive Wallet',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Available: \u20B9${NumberFormat('#,##,###').format(incentives.toInt())}',
+                        style: const TextStyle(
+                          color: Color(0xFF94A3B8),
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                ElevatedButton.icon(
+                  onPressed: () => showIncentiveRequestSheet(
+                    context,
+                    currentBalance: incentives.toDouble(),
+                  ),
+                  icon: const Icon(Icons.send_rounded, size: 14),
+                  label: const Text(
+                    'Request',
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.accentTeal,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
                     ),
                   ),
                 ),
-              ),
-              DashboardModuleCard(
-                title: 'Follow-up Leads',
-                value: '$followUpLeads Scheduled',
-                icon: Icons.next_plan_outlined,
-                iconColor: Colors.teal,
-                onTap: () => HomeProvider.instance.setCurrentIndex(1),
-                bottom: const Text(
-                  'Interested status leads',
-                  style: TextStyle(
-                    color: AppColors.textSecondary,
-                    fontSize: 11,
-                  ),
-                ),
-              ),
-              DashboardModuleCard(
-                title: 'Closed & Converted',
-                value: '$closedLeads Resolved',
-                icon: Icons.done_all_rounded,
-                iconColor: Colors.orange,
-                onTap: () => HomeProvider.instance.setCurrentIndex(1, initialTaskTabIndex: 1),
-                bottom: const Text(
-                  'Admitted or closed leads',
-                  style: TextStyle(
-                    color: AppColors.textSecondary,
-                    fontSize: 11,
-                  ),
-                ),
-              ),
-              DashboardModuleCard(
-                title: 'Incentives',
-                value: '₹${incentives.toStringAsFixed(0)} Earn.',
-                icon: Icons.auto_graph_rounded,
-                iconColor: Colors.amber,
-                onTap: () => HomeProvider.instance.setCurrentIndex(2),
-                bottom: const Text(
-                  'Target & Volume bonus',
-                  style: TextStyle(
-                    color: AppColors.textSecondary,
-                    fontSize: 11,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
           _buildPerformanceSection(),
           const SizedBox(height: 40),

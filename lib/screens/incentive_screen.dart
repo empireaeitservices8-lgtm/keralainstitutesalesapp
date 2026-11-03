@@ -5,6 +5,7 @@ import '../providers/operations_provider.dart';
 import '../providers/wallet_provider.dart';
 import '../models/wallet_balance_model.dart';
 import '../utils/helpers.dart';
+import 'dashboard/incentive_request_sheet.dart';
 
 class IncentiveScreen extends StatefulWidget {
   static const String path = '/incentives';
@@ -21,6 +22,10 @@ class _IncentiveScreenState extends State<IncentiveScreen> {
   }
 
   void _openCreateIncentiveDialog() {
+    showIncentiveRequestSheet(context);
+  }
+
+  void _unusedOldDialog() {
     final formKey = GlobalKey<FormState>();
     final amountController = TextEditingController();
     final remarkController = TextEditingController();
@@ -57,11 +62,11 @@ class _IncentiveScreenState extends State<IncentiveScreen> {
                           decimal: true,
                         ),
                         decoration: InputDecoration(
-                          labelText: 'Amount (INR)',
+                          labelText: 'Amount (\u20B9)',
                           labelStyle: const TextStyle(
                             color: AppColors.textSecondary,
                           ),
-                          prefixText: '₹ ',
+                          prefixText: '\u20B9 ',
                           prefixStyle: const TextStyle(
                             color: AppColors.accentTeal,
                             fontWeight: FontWeight.bold,
@@ -447,7 +452,7 @@ class _IncentiveScreenState extends State<IncentiveScreen> {
                                           ),
                                           const SizedBox(height: 6),
                                           Text(
-                                            '₹ ${NumberFormat('#,##,###.00').format(walletData.balance)}',
+                                            '\u20B9 ${NumberFormat('#,##,###.00').format(walletData.balance)}',
                                             style: const TextStyle(
                                               color: Colors.white,
                                               fontSize: 24,
@@ -484,7 +489,7 @@ class _IncentiveScreenState extends State<IncentiveScreen> {
                                             ),
                                             const SizedBox(height: 2),
                                             Text(
-                                              '₹ ${NumberFormat('#,##,###').format(walletData.totalPaid)}',
+                                              '\u20B9 ${NumberFormat('#,##,###').format(walletData.totalPaid)}',
                                               style: const TextStyle(
                                                 color: Colors.white,
                                                 fontSize: 13,
@@ -639,7 +644,7 @@ class _IncentiveScreenState extends State<IncentiveScreen> {
                                                   ),
                                                   const SizedBox(width: 12),
                                                   Text(
-                                                    '₹ ${NumberFormat('#,##,###').format(incentive.amount)}',
+                                                    '\u20B9 ${NumberFormat('#,##,###').format(incentive.amount)}',
                                                     style: const TextStyle(
                                                       color:
                                                           AppColors.textPrimary,

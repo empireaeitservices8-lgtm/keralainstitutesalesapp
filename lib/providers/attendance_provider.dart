@@ -119,6 +119,38 @@ class AttendanceProvider extends ChangeNotifier {
   static const String _keyWorkingHours = 'attendance_working_hours';
   static const String _keyStatusText = 'attendance_status_text';
 
+  static DateTime _parseTimeString(String str) {
+    if (str.isEmpty || str == '--:--' || str == 'null') return DateTime.now();
+    try {
+      final parsed = DateTime.tryParse(str);
+      if (parsed != null) return parsed.toLocal();
+    } catch (_) {}
+    try {
+      final upper = str.toUpperCase().trim();
+      final now = DateTime.now();
+      if (upper.contains('AM') || upper.contains('PM')) {
+        final isPm = upper.contains('PM');
+        final clean = upper.replaceAll('AM', '').replaceAll('PM', '').trim();
+        final parts = clean.split(':');
+        if (parts.isNotEmpty) {
+          int hr = int.tryParse(parts[0].trim()) ?? 0;
+          int min = parts.length > 1 ? (int.tryParse(parts[1].trim()) ?? 0) : 0;
+          if (isPm && hr < 12) hr += 12;
+          if (!isPm && hr == 12) hr = 0;
+          return DateTime(now.year, now.month, now.day, hr, min);
+        }
+      } else {
+        final parts = str.split(':');
+        if (parts.isNotEmpty) {
+          int hr = int.tryParse(parts[0].trim()) ?? 0;
+          int min = parts.length > 1 ? (int.tryParse(parts[1].trim()) ?? 0) : 0;
+          return DateTime(now.year, now.month, now.day, hr, min);
+        }
+      }
+    } catch (_) {}
+    return DateTime.now();
+  }
+
   /// Load today's attendance state from SharedPreferences (with live backend synchronization)
   Future<void> loadTodayAttendance({bool isRefresh = false}) async {
     if (!isRefresh && _todayRecordsList.isNotEmpty) return;
@@ -193,6 +225,12 @@ class AttendanceProvider extends ChangeNotifier {
           }
           if (data['record'] is Map) {
             record = Map<String, dynamic>.from(data['record'] as Map);
+          } else if (data['attendance'] is Map) {
+            record = Map<String, dynamic>.from(data['attendance'] as Map);
+          } else if (data.containsKey('check_in') ||
+              data.containsKey('check_in_time') ||
+              data.containsKey('checked_in')) {
+            record = data;
           } else if (todayRecords.isNotEmpty && todayRecords.last is Map) {
             record = Map<String, dynamic>.from(todayRecords.last as Map);
           }
@@ -203,19 +241,22 @@ class AttendanceProvider extends ChangeNotifier {
           }
         }
 
-        final String apiStatus = data['status']?.toString() ?? 'absent';
+        final String apiStatus =
+            (data['status'] ?? record?['status'] ?? 'absent').toString();
         _todayRecordsList = todayRecords;
 
         if (record != null) {
           final String checkInTimeStr =
-              record['check_in_time'] as String? ?? '';
-          final checkInTime = checkInTimeStr.isNotEmpty
-              ? DateTime.parse(checkInTimeStr)
-              : DateTime.now();
+              (record['check_in_time'] ?? record['check_in'] ?? '').toString();
+          final checkInTime = _parseTimeString(checkInTimeStr);
           final String checkOutTimeStr =
-              record['check_out_time'] as String? ?? '';
-          final checkOutTime = checkOutTimeStr.isNotEmpty
-              ? DateTime.parse(checkOutTimeStr)
+              (record['check_out_time'] ?? record['check_out'] ?? '')
+                  .toString();
+          final checkOutTime =
+              (checkOutTimeStr.isNotEmpty &&
+                  checkOutTimeStr != 'null' &&
+                  checkOutTimeStr != '--:--')
+              ? _parseTimeString(checkOutTimeStr)
               : null;
 
           final latVal = record['check_in_lat'];
@@ -227,46 +268,89 @@ class AttendanceProvider extends ChangeNotifier {
               ? double.tryParse(lngVal.toString()) ?? 0.0
               : 0.0;
 
-          final String hoursStr = record['hours_worked'] as String? ?? '0.0';
-          final double workingHours = (double.tryParse(hoursStr) ?? 0.0).abs();
+          final double workingHours;
+          final rawHours = record['hours_worked'] ?? record['working_hours'];
+          if (rawHours is num) {
+            workingHours = rawHours.toDouble().abs();
+          } else if (rawHours != null) {
+            workingHours = (double.tryParse(rawHours.toString()) ?? 0.0).abs();
+          } else {
+            workingHours = 0.0;
+          }
 
-          String checkInSelfie = '';
-          String checkOutSelfie = '';
+          String checkInSelfie =
+              (record['check_in_selfie'] ?? record['selfie'] ?? '').toString();
+          if (checkInSelfie == 'null') checkInSelfie = '';
+          String checkOutSelfie = (record['check_out_selfie'] ?? '').toString();
+          if (checkOutSelfie == 'null') checkOutSelfie = '';
 
-          final int recordId = record['id'] as int? ?? 0;
+          final dynamic rawId = record['id'] ?? record['_id'];
 
-          List<dynamic>? mediaList = record['media'] as List<dynamic>?;
-          if (mediaList == null && todayRecords.isNotEmpty && recordId != 0) {
+          List<dynamic>? mediaList;
+          if (record['media'] is List) {
+            mediaList = record['media'] as List<dynamic>;
+          }
+          if (mediaList == null && todayRecords.isNotEmpty && rawId != null) {
             for (var r in todayRecords) {
-              if (r is Map<String, dynamic> && r['id'] == recordId) {
-                mediaList = r['media'] as List<dynamic>?;
-                break;
+              if (r is Map && (r['id'] == rawId || r['_id'] == rawId)) {
+                if (r['media'] is List) {
+                  mediaList = r['media'] as List<dynamic>;
+                  break;
+                }
               }
             }
           }
 
           if (mediaList != null) {
             for (var m in mediaList) {
-              if (m is Map<String, dynamic>) {
-                final typeText = m['type_text'] as String?;
-                final filePath = m['file_path'] as String?;
-                if (typeText == 'check-in') {
+              if (m is Map) {
+                final typeText = m['type_text']?.toString().toLowerCase();
+                final filePath = (m['file_path'] ?? m['url'] ?? m['path'])
+                    ?.toString();
+                if (typeText == 'check-in' || typeText == 'check_in') {
                   checkInSelfie = filePath ?? '';
-                } else if (typeText == 'check-out') {
+                } else if (typeText == 'check-out' || typeText == 'check_out') {
                   checkOutSelfie = filePath ?? '';
                 }
               }
             }
           }
 
-          String localStatus = 'Absent';
-          if (apiStatus == 'checked_in') {
-            localStatus = 'Present';
-          } else if (apiStatus == 'checked_out') {
-            localStatus = 'Completed';
-          }
+          final rawCheckedIn = record['checked_in'] ?? record['is_checked_in'];
+          final rawCheckedOut =
+              record['checked_out'] ?? record['is_checked_out'];
+          final String recordStatusText =
+              (record['status_text'] ?? record['status'] ?? apiStatus)
+                  .toString();
 
-          final String recordStatusText = record['status_text'] as String? ?? 'pending';
+          final bool isCheckedIn = rawCheckedIn != null
+              ? (rawCheckedIn == true ||
+                    rawCheckedIn.toString() == '1' ||
+                    rawCheckedIn.toString().toLowerCase() == 'true')
+              : (apiStatus.toLowerCase() == 'checked_in' ||
+                    recordStatusText.toUpperCase() == 'ONLINE' ||
+                    recordStatusText.toUpperCase() == 'PRESENT' ||
+                    (checkInTimeStr.isNotEmpty &&
+                        checkInTimeStr != '--:--' &&
+                        checkInTimeStr != 'null'));
+
+          final bool isCheckedOut = rawCheckedOut != null
+              ? (rawCheckedOut == true ||
+                    rawCheckedOut.toString() == '1' ||
+                    rawCheckedOut.toString().toLowerCase() == 'true')
+              : (apiStatus.toLowerCase() == 'checked_out' ||
+                    recordStatusText.toUpperCase() == 'COMPLETED' ||
+                    recordStatusText.toUpperCase() == 'CHECKED_OUT' ||
+                    (checkOutTimeStr.isNotEmpty &&
+                        checkOutTimeStr != '--:--' &&
+                        checkOutTimeStr != 'null'));
+
+          String localStatus = 'Absent';
+          if (isCheckedOut) {
+            localStatus = 'Completed';
+          } else if (isCheckedIn) {
+            localStatus = 'Present';
+          }
 
           final email = AuthProvider.instance.session.email;
           final empName = email.isNotEmpty
@@ -424,8 +508,7 @@ class AttendanceProvider extends ChangeNotifier {
 
       // Calculate total hours
       final diff = checkOutTime.difference(_currentAttendance.checkInTime);
-      final double workingHours =
-          diff.inMinutes / 60.0; // Return double hours
+      final double workingHours = diff.inMinutes / 60.0; // Return double hours
 
       // Update model
       _currentAttendance = _currentAttendance.copyWith(
@@ -533,6 +616,54 @@ class AttendanceProvider extends ChangeNotifier {
     } catch (_) {
       return null;
     }
+  }
+
+  /// Sync attendance status from Home Dashboard response
+  void syncAttendanceFromHome({
+    required bool checkedIn,
+    required bool checkedOut,
+    required String checkInTimeStr,
+    required String checkOutTimeStr,
+    required String status,
+  }) async {
+    String localStatus = 'Absent';
+    if (checkedOut) {
+      localStatus = 'Completed';
+    } else if (checkedIn) {
+      localStatus = 'Present';
+    }
+
+    final DateTime checkInTime = _parseTimeString(checkInTimeStr);
+    final DateTime? checkOutTime =
+        (checkedOut &&
+            checkOutTimeStr.isNotEmpty &&
+            checkOutTimeStr != '--:--' &&
+            checkOutTimeStr != 'null')
+        ? _parseTimeString(checkOutTimeStr)
+        : null;
+
+    _currentAttendance = _currentAttendance.copyWith(
+      status: localStatus,
+      statusText: status.isNotEmpty ? status : localStatus.toLowerCase(),
+      checkInTime: checkInTime,
+      checkOutTime: checkOutTime,
+    );
+    notifyListeners();
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_keyStatus, localStatus);
+      await prefs.setString(
+        _keyStatusText,
+        status.isNotEmpty ? status : localStatus.toLowerCase(),
+      );
+      if (checkedIn) {
+        await prefs.setString(_keyCheckInTime, checkInTime.toIso8601String());
+      }
+      if (checkOutTime != null) {
+        await prefs.setString(_keyCheckOutTime, checkOutTime.toIso8601String());
+      }
+    } catch (_) {}
   }
 
   /// Clear in-memory attendance state on logout

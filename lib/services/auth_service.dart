@@ -28,6 +28,34 @@ class AuthService {
 
   // Preconfigured roles database for Kerala Institute Sales App SFA
   static const Map<String, Map<String, String>> mockUsers = {
+    'sm@keralainstitute.org': {
+      'name': 'Gopakumar S.',
+      'role': 'SM',
+      'zone': 'Kerala State',
+      'district': 'All Districts',
+      'team': 'State Sales & Office Team',
+    },
+    'smtest@gmail.com': {
+      'name': 'Sales Manager (Test)',
+      'role': 'SM',
+      'zone': 'Kerala State',
+      'district': 'All Districts',
+      'team': 'State Sales & Office Team',
+    },
+    'accounts@keralainstitute.org': {
+      'name': 'Nandakumar P. (Accounts Head)',
+      'role': 'ACCOUNTS',
+      'zone': 'Head Office',
+      'district': 'Ernakulam HQ',
+      'team': 'Finance & Accounts',
+    },
+    'admin@keralainstitute.org': {
+      'name': 'Super Administrator',
+      'role': 'ADMIN',
+      'zone': 'Head Office',
+      'district': 'Ernakulam HQ',
+      'team': 'Admin & Finance',
+    },
     'md@keralainstitute.org': {
       'name': 'Dr. K. Kurian',
       'role': 'MD',
@@ -340,9 +368,12 @@ class AuthService {
 
           // Map designation to user role code: 'MD' | 'ZM' | 'ASM' | 'BDM' | 'BDE'
           final rawRole = user['role']?.toString().toUpperCase() ?? '';
-          final bool isStandardRole = ['MD', 'ZM', 'ASM', 'BDM', 'BDE'].contains(rawRole);
+          final bool isStandardRole = ['MD', 'ZM', 'ASM', 'BDM', 'BDE', 'SM', 'ADMIN', 'ACCOUNTS'].contains(rawRole);
+          final mappedRole = mapDesignationIdToRole(designationId, designation);
           final String role = mockProfile?['role'] ??
-              (isStandardRole ? rawRole : mapDesignationIdToRole(designationId, designation));
+              (mappedRole == 'ASM' || rawRole == 'ASM'
+                  ? 'ASM'
+                  : (isStandardRole ? rawRole : mappedRole));
 
           final String zone = mockProfile?['zone'] ?? user['zone']?.toString() ?? '';
           final String district = mockProfile?['district'] ?? user['district']?.toString() ?? '';
@@ -540,19 +571,17 @@ class AuthService {
 
   static String mapDesignationIdToRole(int designationId, String designationName) {
     final cleanDes = designationName.toLowerCase();
-    if (cleanDes.contains('executive') || cleanDes.contains('bde')) {
-      return 'BDE';
-    } else if (cleanDes.contains('managing director') ||
-        cleanDes.contains('super admin') ||
-        cleanDes.contains('admin') ||
-        cleanDes == 'md') {
-      return 'MD';
-    } else if (cleanDes.contains('zonal') || cleanDes == 'zm') {
-      return 'ZM';
+    if (cleanDes.contains('accounts') || cleanDes.contains('accountant') || cleanDes.contains('finance')) {
+      return 'ACCOUNTS';
     } else if (cleanDes.contains('area sales') ||
+        cleanDes.contains('area manager') ||
+        cleanDes.contains('area') ||
         cleanDes.contains('district') ||
-        cleanDes == 'asm') {
+        cleanDes == 'asm' ||
+        cleanDes.contains('asm')) {
       return 'ASM';
+    } else if (cleanDes.contains('state manager') || cleanDes.contains('sales manager') || cleanDes == 'sm') {
+      return 'SM';
     } else if (cleanDes.contains('business development manager') ||
         cleanDes.contains('team leader') ||
         cleanDes.contains('bdm') ||

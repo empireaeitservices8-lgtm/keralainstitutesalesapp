@@ -30,12 +30,24 @@ class ApiEndpoints {
   static const String courses = '/courses';
   static const String createLead = '/leads/create';
   static const String sources = '/sources';
+  static const String zones = '/zones';
   static const String districts = '/districts';
   static const String leads = '/leads';
   static const String importLeads = '/leads/import';
   static const String hierarchyFilters = '/hierarchy/filters';
   static const String performanceTasks = '/tasks';
   static const String institutes = '/institutes';
+  static const String smAsms = '/sm/asms';
+  static const String smCreateAsm = '/sm/create-asm';
+  static const String officeCreateTelecaller = '/office/create-telecaller';
+  static const String officeTelecallers = '/office/telecallers';
+  static const String salaryWorkflow = '/salary/workflow';
+  static const String walletWorkflow = '/wallet/workflow';
+  static const String salaryRequests = '/salary/requests';
+  static const String walletRequests = '/wallet/requests';
+  static const String asmCreateBde = '/asm/create-bde';
+  static const String asmBdes = '/asm/bdes';
+  static String asmBdeById(String id) => '/asm/bdes/$id';
 
   /// Returns the close endpoint for a specific lead: POST /leads/{id}/close
   static String closeLead(int id) => '/leads/$id/close';

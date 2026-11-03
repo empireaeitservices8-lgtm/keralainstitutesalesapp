@@ -60,6 +60,7 @@ class AttendanceModel {
   Map<String, dynamic> toJson() => _$AttendanceModelToJson(this);
 
   AttendanceModel copyWith({
+    DateTime? checkInTime,
     String? checkOutSelfie,
     DateTime? checkOutTime,
     double? workingHours,
@@ -70,7 +71,7 @@ class AttendanceModel {
       employeeId: employeeId,
       employeeName: employeeName,
       checkInSelfie: checkInSelfie,
-      checkInTime: checkInTime,
+      checkInTime: checkInTime ?? this.checkInTime,
       checkInLatitude: checkInLatitude,
       checkInLongitude: checkInLongitude,
       checkOutSelfie: checkOutSelfie ?? this.checkOutSelfie,

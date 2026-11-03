@@ -87,6 +87,15 @@ class UiHelpers {
     return defaultValue;
   }
 
+  static num parseNum(dynamic val, [num defaultValue = 0]) {
+    if (val == null) return defaultValue;
+    if (val is num) return val;
+    if (val is String) {
+      return num.tryParse(val.trim()) ?? defaultValue;
+    }
+    return defaultValue;
+  }
+
   static int? parseIntNullable(dynamic val) {
     if (val == null) return null;
     if (val is int) return val;

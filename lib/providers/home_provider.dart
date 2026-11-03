@@ -9,6 +9,7 @@ import '../api/exceptions/api_exception.dart';
 import '../models/home_dashboard_model.dart';
 import 'base_provider.dart';
 import 'auth_provider.dart';
+import 'attendance_provider.dart';
 import 'operations_provider.dart';
 import 'wallet_provider.dart';
 import 'user_profile_provider.dart';
@@ -42,6 +43,32 @@ class HomeProvider extends BaseProvider<HomeDashboardModel> {
 
   void setSelectedDistrictId(int? id) {
     _selectedDistrictId = id;
+    notifyListeners();
+  }
+
+  void addPerformanceTask(PerformanceTask task) {
+    _performanceTasks.insert(0, task);
+    if (_tasksSummary != null) {
+      _tasksSummary = PerformanceTasksSummary(
+        total: _tasksSummary!.total + 1,
+        completed: _tasksSummary!.completed + (task.isCompleted ? 1 : 0),
+        pending: _tasksSummary!.pending + (task.isCompleted ? 0 : 1),
+        list: _performanceTasks,
+      );
+    } else {
+      _tasksSummary = PerformanceTasksSummary(
+        total: 1,
+        completed: task.isCompleted ? 1 : 0,
+        pending: task.isCompleted ? 0 : 1,
+        list: _performanceTasks,
+      );
+    }
+    SharedPreferences.getInstance().then((prefs) {
+      prefs.setString(
+        'cached_tasks_summary',
+        jsonEncode(_tasksSummary!.toJson()),
+      );
+    }).catchError((_) {});
     notifyListeners();
   }
 
@@ -119,10 +146,10 @@ class HomeProvider extends BaseProvider<HomeDashboardModel> {
 
     _isFetchingHome = true;
 
-    final user = AuthProvider.instance.session;
-    if (user.role == 'ZM' &&
-        (isRefresh || OperationsProvider.instance.districts.isEmpty)) {
-      OperationsProvider.instance.fetchDistricts();
+    if (isRefresh || OperationsProvider.instance.districts.isEmpty) {
+      OperationsProvider.instance.fetchDistricts(isRefresh: isRefresh);
+      OperationsProvider.instance.fetchZones(isRefresh: isRefresh);
+      OperationsProvider.instance.fetchCourses(isRefresh: isRefresh);
     }
 
     final prefs = await SharedPreferences.getInstance();
@@ -136,6 +163,15 @@ class HomeProvider extends BaseProvider<HomeDashboardModel> {
         cachedModel = HomeDashboardModel.fromJson(decoded);
         if (state.data == null) {
           setState(ApiResponse.success(cachedModel));
+        }
+        if (cachedModel.attendance != null) {
+          AttendanceProvider.instance.syncAttendanceFromHome(
+            checkedIn: cachedModel.attendance!.isCheckedIn,
+            checkedOut: cachedModel.attendance!.isCheckedOut,
+            checkInTimeStr: cachedModel.attendance!.checkInTime,
+            checkOutTimeStr: cachedModel.attendance!.checkOutTime,
+            status: cachedModel.attendance!.shiftStatus,
+          );
         }
       } catch (_) {}
     }
@@ -230,7 +266,47 @@ class HomeProvider extends BaseProvider<HomeDashboardModel> {
             ? Map<String, dynamic>.from(rawData)
             : Map<String, dynamic>.from(homeResponse.data);
         final model = HomeDashboardModel.fromJson(data);
-        // Save fresh data to local cache
+
+        // 1. Sync attendance
+        if (model.attendance != null) {
+          AttendanceProvider.instance.syncAttendanceFromHome(
+            checkedIn: model.attendance!.isCheckedIn,
+            checkedOut: model.attendance!.isCheckedOut,
+            checkInTimeStr: model.attendance!.checkInTime,
+            checkOutTimeStr: model.attendance!.checkOutTime,
+            status: model.attendance!.shiftStatus,
+          );
+        }
+
+        // 2. Sync tasks if returned in home data
+        if (model.tasks != null && model.tasks!.list.isNotEmpty) {
+          _tasksSummary = PerformanceTasksSummary(
+            total: model.tasks!.total,
+            completed: model.tasks!.completed,
+            pending: model.tasks!.pending,
+            list: model.tasks!.list,
+          );
+          _performanceTasks = _tasksSummary!.list;
+          await prefs.setString(
+            'cached_tasks_summary',
+            jsonEncode(_tasksSummary!.toJson()),
+          );
+        }
+
+        // 3. Sync ASM role to AuthProvider if designation or dashboard indicates ASM
+        final desigLower = model.designationName.toLowerCase();
+        final bool isAsm = model.dashboardType?.toUpperCase() == 'ASM' ||
+            model.designationName.toUpperCase() == 'ASM' ||
+            desigLower.contains('area sales') ||
+            desigLower.contains('area manager') ||
+            desigLower.contains('area') ||
+            desigLower == 'asm' ||
+            desigLower.contains('asm');
+        if (isAsm && AuthProvider.instance.session.role != 'ASM') {
+          AuthProvider.instance.updateSessionRole('ASM');
+        }
+
+        // 4. Save fresh data to local cache
         await prefs.setString('cached_home_data', jsonEncode(model.toJson()));
 
         setState(ApiResponse.success(model));

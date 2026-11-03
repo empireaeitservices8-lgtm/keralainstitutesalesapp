@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../constants/colors.dart';
 import '../models/home_dashboard_model.dart';
@@ -321,7 +321,7 @@ class _EmployeeDashboardScreenState extends State<EmployeeDashboardScreen> {
               _buildStatCard('Assigned Leads', '$assignedLeads', Icons.assignment_outlined, Colors.purple),
               _buildStatCard('Follow-Up Needed', '$followUpLeads', Icons.chat_bubble_outline_rounded, Colors.teal),
               _buildStatCard('Admissions Registered', '$closedLeads', Icons.check_circle_outline_rounded, Colors.green),
-              _buildStatCard('Incentives Earned', '₹$incentives', Icons.monetization_on_outlined, Colors.amber),
+              _buildStatCard('Incentives Earned', '\u20B9${NumberFormat('#,##,###').format(incentives)}', Icons.monetization_on_outlined, Colors.amber),
             ],
           ),
           const SizedBox(height: 30),
@@ -354,11 +354,16 @@ class _EmployeeDashboardScreenState extends State<EmployeeDashboardScreen> {
   }
 
   String _formatTime12Hr(String timeStr) {
-    if (timeStr == '--:--' || timeStr.isEmpty) return '--:--';
+    if (timeStr == '--:--' || timeStr.isEmpty || timeStr == 'null') return '--:--';
+    final trimmed = timeStr.trim();
+    final upper = trimmed.toUpperCase();
+    if (upper.contains('AM') || upper.contains('PM')) {
+      return trimmed;
+    }
     try {
-      DateTime? parsed = DateTime.tryParse(timeStr);
+      DateTime? parsed = DateTime.tryParse(trimmed);
       if (parsed == null) {
-        final parts = timeStr.split(':');
+        final parts = trimmed.split(':');
         if (parts.length >= 2) {
           final hr = int.tryParse(parts[0]) ?? 0;
           final min = int.tryParse(parts[1]) ?? 0;
@@ -370,14 +375,14 @@ class _EmployeeDashboardScreenState extends State<EmployeeDashboardScreen> {
         return DateFormat('hh:mm a').format(parsed.toLocal());
       }
     } catch (_) {}
-    return timeStr;
+    return trimmed;
   }
 
   Widget _buildAttendanceSection(HomeAttendance? apiAttendance) {
     if (apiAttendance == null) return const SizedBox.shrink();
 
     final bool checkedIn = apiAttendance.isCheckedIn;
-    final bool checkedOut = apiAttendance.shiftStatus == 'COMPLETED' || apiAttendance.shiftStatus == 'CHECKED_OUT';
+    final bool checkedOut = apiAttendance.isCheckedOut || apiAttendance.shiftStatus == 'COMPLETED' || apiAttendance.shiftStatus == 'CHECKED_OUT';
 
     return Container(
       width: double.infinity,
@@ -434,7 +439,7 @@ class _EmployeeDashboardScreenState extends State<EmployeeDashboardScreen> {
                 children: [
                   const Text('CHECK IN', style: TextStyle(color: AppColors.textSecondary, fontSize: 10, fontWeight: FontWeight.w600)),
                   const SizedBox(height: 4),
-                  Text(_formatTime12Hr(apiAttendance.checkInTime), style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.textPrimary, fontSize: 13)),
+                  Text(checkedIn && apiAttendance.checkInTime.isNotEmpty ? _formatTime12Hr(apiAttendance.checkInTime) : '--:--', style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.textPrimary, fontSize: 13)),
                 ],
                ),
                Column(
@@ -442,7 +447,7 @@ class _EmployeeDashboardScreenState extends State<EmployeeDashboardScreen> {
                 children: [
                   const Text('CHECK OUT', style: TextStyle(color: AppColors.textSecondary, fontSize: 10, fontWeight: FontWeight.w600)),
                   const SizedBox(height: 4),
-                  Text(_formatTime12Hr(apiAttendance.checkOutTime), style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.textPrimary, fontSize: 13)),
+                  Text(checkedOut && apiAttendance.checkOutTime.isNotEmpty ? _formatTime12Hr(apiAttendance.checkOutTime) : '--:--', style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.textPrimary, fontSize: 13)),
                 ],
                ),
              ],

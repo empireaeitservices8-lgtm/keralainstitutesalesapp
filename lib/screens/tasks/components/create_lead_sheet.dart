@@ -179,6 +179,16 @@ void _showCoursePickerSheet(
                             color: isSelected ? AppColors.accentTeal : AppColors.textPrimary,
                           ),
                         ),
+                        subtitle: matchingServer.isNotEmpty &&
+                                (matchingServer['fee'] != null || matchingServer['duration'] != null)
+                            ? Text(
+                                'Fee: ₹${matchingServer['fee']} • Duration: ${matchingServer['duration']}',
+                                style: const TextStyle(
+                                  fontSize: 11.5,
+                                  color: AppColors.textSecondary,
+                                ),
+                              )
+                            : null,
                         trailing: isSelected
                             ? const Icon(Icons.check_circle_rounded, color: AppColors.accentTeal, size: 20)
                             : const Icon(Icons.chevron_right_rounded, color: AppColors.textMuted, size: 18),

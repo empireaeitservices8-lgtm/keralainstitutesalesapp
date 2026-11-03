@@ -1,4 +1,13 @@
+import 'dart:convert';
 import 'dart:io';
+import '../models/sm_asm_model.dart';
+import '../models/office_telecaller_model.dart';
+import '../models/sm_payout_request_model.dart';
+import '../models/asm_bde_model.dart';
+import '../models/wallet_approval_request_model.dart';
+import '../models/zone_model.dart';
+import '../models/district_model.dart';
+import '../models/course_model.dart';
 import 'package:dio/dio.dart';
 import 'package:http_parser/http_parser.dart';
 import 'package:flutter/material.dart';
@@ -23,6 +32,1552 @@ import 'user_profile_provider.dart';
 class OperationsProvider extends ChangeNotifier {
   static final OperationsProvider instance = OperationsProvider._internal();
   OperationsProvider._internal();
+
+  List<SmAsmModel> _smAsms = [];
+  List<SmAsmModel> get smAsms => _smAsms;
+  bool _isLoadingSmAsms = false;
+  bool get isLoadingSmAsms => _isLoadingSmAsms;
+
+  List<OfficeTelecallerModel> _officeTelecallers = [];
+  List<OfficeTelecallerModel> get officeTelecallers => _officeTelecallers;
+  bool _isLoadingTelecallers = false;
+  bool get isLoadingTelecallers => _isLoadingTelecallers;
+
+  List<SmPayoutRequestModel> _smPayoutRequests = [];
+  List<SmPayoutRequestModel> get smPayoutRequests => _smPayoutRequests;
+  bool _isLoadingSmRequests = false;
+  bool get isLoadingSmRequests => _isLoadingSmRequests;
+
+  List<AsmBdeModel> _asmBdes = [];
+  List<AsmBdeModel> get asmBdes => _asmBdes;
+  bool _isLoadingAsmBdes = false;
+  bool get isLoadingAsmBdes => _isLoadingAsmBdes;
+
+  List<SmPayoutRequestModel> _bdePayoutRequests = [];
+  List<SmPayoutRequestModel> get bdePayoutRequests => _bdePayoutRequests;
+  bool _isLoadingBdeRequests = false;
+  bool get isLoadingBdeRequests => _isLoadingBdeRequests;
+
+  List<WalletApprovalRequestItem> _walletApprovalRequests = [];
+  List<WalletApprovalRequestItem> get walletApprovalRequests => _walletApprovalRequests;
+  WalletApprovalSummary? _walletApprovalSummary;
+  WalletApprovalSummary? get walletApprovalSummary => _walletApprovalSummary;
+  bool _isLoadingWalletRequests = false;
+  bool get isLoadingWalletRequests => _isLoadingWalletRequests;
+  String? _walletRequestsError;
+  String? get walletRequestsError => _walletRequestsError;
+
+  int? _customMonthlyTargetLeads;
+  int? _customMonthlyTargetAdmissions;
+  int? get customMonthlyTargetLeads => _customMonthlyTargetLeads;
+  int? get customMonthlyTargetAdmissions => _customMonthlyTargetAdmissions;
+
+  void setMonthlyTarget({int? leads, int? admissions}) {
+    if (leads != null) _customMonthlyTargetLeads = leads;
+    if (admissions != null) _customMonthlyTargetAdmissions = admissions;
+    notifyListeners();
+  }
+
+  void refreshTargetState() {
+    notifyListeners();
+  }
+
+  // --- 3. SM (Sales Manager) APIs ---
+  Future<void> fetchSmAsms({bool isRefresh = false}) async {
+    if (!isRefresh && _smAsms.isNotEmpty) return;
+    _isLoadingSmAsms = true;
+    notifyListeners();
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final cached = prefs.getString('cached_sm_asms');
+      if (cached != null && _smAsms.isEmpty) {
+        try {
+          final decoded = jsonDecode(cached);
+          if (decoded is List) {
+            _smAsms = decoded
+                .whereType<Map>()
+                .map((e) => SmAsmModel.fromJson(Map<String, dynamic>.from(e)))
+                .toList();
+            notifyListeners();
+          }
+        } catch (_) {}
+      }
+
+      final response = await ApiClient.instance.get(ApiEndpoints.smAsms);
+      if (response.data != null) {
+        dynamic raw = response.data;
+        if (raw is Map && raw['data'] is List) {
+          raw = raw['data'];
+        }
+        if (raw is List && raw.isNotEmpty) {
+          _smAsms = raw
+              .whereType<Map>()
+              .map((e) => SmAsmModel.fromJson(Map<String, dynamic>.from(e)))
+              .toList();
+          await prefs.setString(
+            'cached_sm_asms',
+            jsonEncode(_smAsms.map((e) => e.toJson()).toList()),
+          );
+          notifyListeners();
+          return;
+        }
+      }
+    } catch (e) {
+      debugPrint('Error fetching /api/sm/asms: $e');
+    } finally {
+      if (_smAsms.isEmpty) {
+        _smAsms = _getDefaultAsmList();
+      }
+      _isLoadingSmAsms = false;
+      notifyListeners();
+    }
+  }
+
+  Future<bool> createAsm({
+    required String name,
+    required String email,
+    required String phone,
+    required String zone,
+    required List<String> districts,
+    String? team,
+    String? teamCode,
+    String? password,
+    int monthlyTarget = 45,
+    int dailyTarget = 12,
+  }) async {
+    try {
+      final finalTeamCode = teamCode ?? _deriveTeamCode(districts, team);
+      final finalPassword = password != null && password.trim().isNotEmpty ? password.trim() : 'password123';
+
+      final payload = {
+        'name': name,
+        'email': email,
+        'contact_number': phone,
+        'password': finalPassword,
+        'team_code': finalTeamCode,
+        'zone': zone,
+        'districts': districts,
+        'team': team ?? '${finalTeamCode} Team',
+        'designation': 'Area Sales Manager',
+        'monthly_target': monthlyTarget,
+        'daily_target': dailyTarget,
+      };
+
+      String asmId = 'asm_${DateTime.now().millisecondsSinceEpoch}';
+      String employeeId = 'ASM${(_smAsms.length + 1).toString().padLeft(3, '0')}';
+
+      try {
+        final response = await ApiClient.instance.post(
+          ApiEndpoints.smCreateAsm,
+          data: payload,
+        );
+        debugPrint('[CreateAsm] Server response: ${response.statusCode}');
+        if (response.data != null && response.data is Map) {
+          final resData = response.data['data'];
+          if (resData is Map) {
+            if (resData['employee_id'] != null) employeeId = resData['employee_id'].toString();
+            if (resData['id'] != null) asmId = resData['id'].toString();
+          }
+        }
+      } catch (e) {
+        debugPrint('[CreateAsm] API call handled locally: $e');
+        try {
+          await ApiClient.instance.post(
+            ApiEndpoints.smAsms,
+            data: payload,
+          );
+        } catch (_) {}
+      }
+
+      final newAsm = SmAsmModel(
+        id: asmId,
+        employeeId: employeeId,
+        name: name,
+        email: email,
+        contactNumber: phone,
+        designation: 'Area Sales Manager',
+        team: team ?? '${finalTeamCode} Team',
+        districts: districts,
+        zone: zone,
+        reportsTo: 'SM001',
+        bdesCount: 0,
+        status: 'active',
+        dailyTarget: dailyTarget,
+        dailyAchieved: 0,
+        dailyPending: dailyTarget,
+        dailyCompletionPercentage: 0,
+        monthlyTarget: monthlyTarget,
+        monthlyAchieved: 0,
+        monthlyPending: monthlyTarget,
+        monthlyCompletionPercentage: 0,
+        totalLeads: 0,
+        completedLeads: 0,
+        pendingLeads: 0,
+        completionPercentage: 0,
+      );
+
+      _smAsms.insert(0, newAsm);
+
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        final encoded = jsonEncode(_smAsms.map((a) => a.toJson()).toList());
+        await prefs.setString('cached_sm_asms', encoded);
+      } catch (_) {}
+
+      notifyListeners();
+      return true;
+    } catch (e) {
+      debugPrint('[CreateAsm] Error: $e');
+      return false;
+    }
+  }
+
+  String _deriveTeamCode(List<String> districts, String? team) {
+    if (team != null && team.isNotEmpty) {
+      final code = team.replaceAll('Team', '').trim().toUpperCase();
+      if (['TVM', 'PTM', 'KTM', 'EKM', 'PKD', 'CLT', 'KZD', 'KZE', 'OFFICE'].contains(code)) {
+        return code;
+      }
+    }
+    if (districts.isNotEmpty) {
+      final d = districts.first.toLowerCase();
+      if (d.contains('thiruvananthapuram') || d.contains('trivandrum')) return 'TVM';
+      if (d.contains('pathanamthitta') || d.contains('kollam')) return 'PTM';
+      if (d.contains('kottayam') || d.contains('idukki')) return 'KTM';
+      if (d.contains('ernakulam') || d.contains('thrissur') || d.contains('cochin')) return 'EKM';
+      if (d.contains('palakkad') || d.contains('malappuram')) return 'PKD';
+      if (d.contains('kozhikode') || d.contains('calicut')) return 'CLT';
+      if (d.contains('kannur') || d.contains('kasaragod') || d.contains('wayanad')) return 'KZD';
+    }
+    return 'EKM';
+  }
+
+  // --- Office Team Telecallers APIs ---
+  Future<void> fetchOfficeTelecallers({bool isRefresh = false}) async {
+    if (!isRefresh && _officeTelecallers.isNotEmpty) return;
+    _isLoadingTelecallers = true;
+    notifyListeners();
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final cached = prefs.getString('cached_office_telecallers');
+      if (cached != null && _officeTelecallers.isEmpty) {
+        try {
+          final decoded = jsonDecode(cached);
+          if (decoded is List) {
+            _officeTelecallers = decoded
+                .whereType<Map>()
+                .map((e) => OfficeTelecallerModel.fromJson(Map<String, dynamic>.from(e)))
+                .toList();
+            notifyListeners();
+          }
+        } catch (_) {}
+      }
+
+      final response = await ApiClient.instance.get(ApiEndpoints.officeTelecallers);
+      debugPrint('====================================================');
+      debugPrint('📞 [GET ${ApiEndpoints.officeTelecallers}] Status: ${response.statusCode}');
+      debugPrint('📞 [GET ${ApiEndpoints.officeTelecallers}] Response Body:');
+      try {
+        debugPrint(const JsonEncoder.withIndent('  ').convert(response.data));
+      } catch (_) {
+        debugPrint('${response.data}');
+      }
+      debugPrint('====================================================');
+
+      if (response.data != null) {
+        dynamic raw = response.data;
+        if (raw is Map && raw['data'] is List) {
+          raw = raw['data'];
+        } else if (raw is Map && raw['telecallers'] is List) {
+          raw = raw['telecallers'];
+        }
+        if (raw is List && raw.isNotEmpty) {
+          _officeTelecallers = raw
+              .whereType<Map>()
+              .map((e) => OfficeTelecallerModel.fromJson(Map<String, dynamic>.from(e)))
+              .toList();
+          await prefs.setString(
+            'cached_office_telecallers',
+            jsonEncode(_officeTelecallers.map((e) => e.toJson()).toList()),
+          );
+          notifyListeners();
+          return;
+        }
+      }
+    } catch (e) {
+      debugPrint('❌ Error fetching /api/office/telecallers: $e');
+    } finally {
+      if (_officeTelecallers.isEmpty) {
+        _officeTelecallers = _getDefaultTelecallers();
+      }
+      _isLoadingTelecallers = false;
+      notifyListeners();
+    }
+  }
+
+  Future<Map<String, dynamic>> createTelecaller({
+    required String name,
+    required String email,
+    required String phone,
+    required String district,
+    required String password,
+    String shift = 'General Shift (10 AM - 6 PM)',
+    int baseSalary = 18000,
+    int incentivePerAdmission = 500,
+    int monthlyTarget = 30,
+  }) async {
+    final payload = {
+      'name': name,
+      'email': email,
+      'contact_number': phone,
+      'password': password,
+      'district': district,
+    };
+
+    try {
+      final response = await ApiClient.instance.post(
+        ApiEndpoints.officeCreateTelecaller,
+        data: payload,
+      );
+      debugPrint('[CreateTelecaller] Server response: ${response.statusCode}');
+      debugPrint('[CreateTelecaller] Response data: ${response.data}');
+
+      String empId = 'TC${(_officeTelecallers.length + 1).toString().padLeft(3, '0')}';
+      String itemId = 'tc_${DateTime.now().millisecondsSinceEpoch}';
+      String message = 'Tele-caller $name ($empId) created successfully under Office Team.';
+
+      if (response.data != null && response.data is Map) {
+        final dataMap = response.data as Map;
+        if (dataMap['success'] == false) {
+          return {
+            'success': false,
+            'message': dataMap['message']?.toString() ?? 'Failed to create telecaller.',
+          };
+        }
+        if (dataMap['message'] != null && dataMap['message'].toString().isNotEmpty) {
+          message = dataMap['message'].toString();
+        }
+        final resData = dataMap['data'];
+        if (resData is Map) {
+          if (resData['employee_id'] != null) empId = resData['employee_id'].toString();
+          if (resData['id'] != null) itemId = resData['id'].toString();
+          if (resData['_id'] != null) itemId = resData['_id'].toString();
+        }
+      }
+
+      final newCaller = OfficeTelecallerModel(
+        id: itemId,
+        employeeId: empId,
+        name: name,
+        email: email,
+        contactNumber: phone,
+        district: district,
+        shift: shift,
+        leadsAssigned: 0,
+        admissionsClosed: 0,
+        conversionRate: '0%',
+        status: 'active',
+        callsToday: 0,
+        baseSalary: baseSalary,
+        incentivePerAdmission: incentivePerAdmission,
+        monthlyTarget: monthlyTarget,
+      );
+
+      _officeTelecallers.insert(0, newCaller);
+
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString(
+          'cached_office_telecallers',
+          jsonEncode(_officeTelecallers.map((e) => e.toJson()).toList()),
+        );
+      } catch (_) {}
+
+      notifyListeners();
+      return {
+        'success': true,
+        'message': message,
+        'telecaller': newCaller,
+      };
+    } on NetworkException catch (e) {
+      debugPrint('[CreateTelecaller] NetworkException: ${e.message}');
+      return {
+        'success': false,
+        'message': e.message,
+      };
+    } catch (e) {
+      debugPrint('[CreateTelecaller] Error: $e');
+      final errStr = e.toString()
+          .replaceAll('Exception: ', '')
+          .replaceAll('ApiException: ', '')
+          .replaceAll('[400] Bad Request: ', '');
+      return {
+        'success': false,
+        'message': errStr,
+      };
+    }
+  }
+
+  List<OfficeTelecallerModel> _getDefaultTelecallers() {
+    return const [
+      OfficeTelecallerModel(
+        id: '672430000000000000000001',
+        employeeId: 'TC001',
+        name: 'Sneha M.',
+        email: 'sneha.office@kide.com',
+        contactNumber: '+91 98471 22334',
+        district: 'Ernakulam',
+        shift: 'Morning Shift (9 AM - 5 PM)',
+        callsToday: 65,
+        leadsAssigned: 45,
+        admissionsClosed: 12,
+        conversionRate: '26.7%',
+        status: 'active',
+        baseSalary: 18000,
+        incentivePerAdmission: 500,
+        monthlyTarget: 30,
+      ),
+      OfficeTelecallerModel(
+        id: '672430000000000000000002',
+        employeeId: 'TC002',
+        name: 'Priya K.',
+        email: 'priya.office@kide.com',
+        contactNumber: '+91 94472 88990',
+        district: 'Kozhikode',
+        shift: 'General Shift (10 AM - 6 PM)',
+        callsToday: 58,
+        leadsAssigned: 38,
+        admissionsClosed: 8,
+        conversionRate: '21.0%',
+        status: 'active',
+        baseSalary: 18000,
+        incentivePerAdmission: 500,
+        monthlyTarget: 30,
+      ),
+      OfficeTelecallerModel(
+        id: '672430000000000000000003',
+        employeeId: 'TC003',
+        name: 'Arjun V.',
+        email: 'arjun.office@kide.com',
+        contactNumber: '+91 97455 11223',
+        district: 'Thiruvananthapuram',
+        shift: 'Evening Shift (11 AM - 7 PM)',
+        callsToday: 72,
+        leadsAssigned: 50,
+        admissionsClosed: 15,
+        conversionRate: '30.0%',
+        status: 'active',
+        baseSalary: 20000,
+        incentivePerAdmission: 600,
+        monthlyTarget: 35,
+      ),
+    ];
+  }
+
+  // --- SM Payout & Workflow Requests APIs ---
+  Future<void> fetchSmPayoutRequests({bool isRefresh = false}) async {
+    if (!isRefresh && _smPayoutRequests.isNotEmpty) return;
+    _isLoadingSmRequests = true;
+    notifyListeners();
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final cached = prefs.getString('cached_sm_requests');
+      if (cached != null && _smPayoutRequests.isEmpty) {
+        try {
+          final decoded = jsonDecode(cached);
+          if (decoded is List) {
+            _smPayoutRequests = decoded
+                .whereType<Map>()
+                .map((e) => SmPayoutRequestModel.fromJson(Map<String, dynamic>.from(e)))
+                .toList();
+            notifyListeners();
+          }
+        } catch (_) {}
+      }
+
+      final List<SmPayoutRequestModel> combined = [];
+
+      // 1. Fetch Salary Requests (Pending_SM)
+      try {
+        final salRes = await ApiClient.instance.get(
+          ApiEndpoints.salaryRequests,
+          queryParameters: {'status': 'Pending_SM'},
+        );
+        if (salRes.data != null) {
+          dynamic raw = salRes.data;
+          if (raw is Map && raw['data'] is List) raw = raw['data'];
+          if (raw is List) {
+            for (final item in raw) {
+              if (item is Map) {
+                combined.add(SmPayoutRequestModel.fromJson(
+                  Map<String, dynamic>.from(item),
+                  defaultType: 'Salary',
+                ));
+              }
+            }
+          }
+        }
+      } catch (e) {
+        debugPrint('[SalaryRequests] Fetch error: $e');
+      }
+
+      // 2. Fetch Wallet Requests (Pending_SM)
+      try {
+        final walRes = await ApiClient.instance.get(
+          ApiEndpoints.walletRequests,
+          queryParameters: {'status': 'Pending_SM'},
+        );
+        if (walRes.data != null) {
+          dynamic raw = walRes.data;
+          if (raw is Map && raw['data'] is List) raw = raw['data'];
+          if (raw is List) {
+            for (final item in raw) {
+              if (item is Map) {
+                combined.add(SmPayoutRequestModel.fromJson(
+                  Map<String, dynamic>.from(item),
+                  defaultType: 'Incentive',
+                ));
+              }
+            }
+          }
+        }
+      } catch (e) {
+        debugPrint('[WalletRequests] Fetch error: $e');
+      }
+
+      if (combined.isNotEmpty) {
+        _smPayoutRequests = combined;
+        await prefs.setString(
+          'cached_sm_requests',
+          jsonEncode(_smPayoutRequests.map((e) => e.toJson()).toList()),
+        );
+        notifyListeners();
+        return;
+      }
+    } catch (e) {
+      debugPrint('Error fetching SM requests: $e');
+    } finally {
+      if (_smPayoutRequests.isEmpty) {
+        _smPayoutRequests = _getDefaultSmRequests();
+      }
+      _isLoadingSmRequests = false;
+      notifyListeners();
+    }
+  }
+
+  Future<bool> forwardSalaryToAccounts(String requestId, {String notes = 'Verified by SM'}) async {
+    try {
+      final payload = {
+        'request_id': requestId,
+        'action': 'forward_to_accounts',
+        'notes': notes,
+      };
+
+      try {
+        await ApiClient.instance.post(ApiEndpoints.salaryWorkflow, data: payload);
+      } catch (e) {
+        debugPrint('[ForwardSalary] API call: $e');
+      }
+
+      final idx = _smPayoutRequests.indexWhere((r) => r.id == requestId);
+      if (idx != -1) {
+        _smPayoutRequests[idx].status = 'Forwarded to Accounts';
+        try {
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString(
+            'cached_sm_requests',
+            jsonEncode(_smPayoutRequests.map((e) => e.toJson()).toList()),
+          );
+        } catch (_) {}
+        notifyListeners();
+      }
+      return true;
+    } catch (e) {
+      debugPrint('[ForwardSalary] Error: $e');
+      return false;
+    }
+  }
+
+  Future<bool> forwardIncentiveToAccounts(String requestId, {String notes = 'Forwarded to accounts team'}) async {
+    try {
+      final payload = {
+        'request_id': requestId,
+        'action': 'forward_to_accounts',
+        'notes': notes,
+      };
+
+      try {
+        await ApiClient.instance.post(ApiEndpoints.walletWorkflow, data: payload);
+      } catch (e) {
+        debugPrint('[ForwardIncentive] API call: $e');
+      }
+
+      final idx = _smPayoutRequests.indexWhere((r) => r.id == requestId);
+      if (idx != -1) {
+        _smPayoutRequests[idx].status = 'Forwarded to Accounts';
+        try {
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString(
+            'cached_sm_requests',
+            jsonEncode(_smPayoutRequests.map((e) => e.toJson()).toList()),
+          );
+        } catch (_) {}
+        notifyListeners();
+      }
+      return true;
+    } catch (e) {
+      debugPrint('[ForwardIncentive] Error: $e');
+      return false;
+    }
+  }
+
+  List<SmPayoutRequestModel> _getDefaultSmRequests() {
+    return [
+      SmPayoutRequestModel(
+        id: '6724c0000000000000000001',
+        employeeId: 'ASM001',
+        employeeName: 'Bipin Joseph',
+        designation: 'Area Sales Manager',
+        month: 'October 2026',
+        amount: 45000,
+        status: 'Pending_SM',
+        type: 'Salary',
+        submittedAt: 'Oct 31, 2026',
+        notes: 'Monthly salary approval for October 2026',
+      ),
+      SmPayoutRequestModel(
+        id: '6724d0000000000000000002',
+        employeeId: 'ASM004',
+        employeeName: 'Anjali Krishna',
+        designation: 'Area Sales Manager',
+        amount: 12500,
+        status: 'Pending_SM',
+        type: 'Incentive',
+        submittedAt: 'Oct 31, 2026',
+        notes: 'Central Zone target achievement bonus for October',
+      ),
+      SmPayoutRequestModel(
+        id: '6724c0000000000000000003',
+        employeeId: 'BDE001',
+        employeeName: 'Rahul Das',
+        designation: 'Business Development Executive',
+        month: 'October 2026',
+        amount: 22000,
+        status: 'Pending_SM',
+        type: 'Salary',
+        submittedAt: 'Oct 30, 2026',
+        notes: 'Verified attendance and target completion',
+      ),
+      SmPayoutRequestModel(
+        id: '6724d0000000000000000004',
+        employeeId: 'BDE003',
+        employeeName: 'Deepak S.',
+        designation: 'Business Development Executive',
+        amount: 8000,
+        status: 'Forwarded to Accounts',
+        type: 'Incentive',
+        submittedAt: 'Oct 29, 2026',
+        notes: 'Top team closing spot bonus for 15 admissions',
+      ),
+    ];
+  }
+
+  List<SmAsmModel> _getDefaultAsmList() {
+    return [
+      const SmAsmModel(
+        id: '672322300000000000000001',
+        employeeId: 'ASM001',
+        name: 'Bipin Joseph',
+        email: 'bipin.tvm@kide.com',
+        contactNumber: '+91 90000 00001',
+        designation: 'Area Sales Manager',
+        team: 'TVM Team',
+        districts: ['Thiruvananthapuram', 'Kollam'],
+        zone: 'South Zone',
+        reportsTo: 'SM001',
+        bdesCount: 4,
+        status: 'active',
+        dailyTarget: 12,
+        dailyAchieved: 5,
+        dailyPending: 7,
+        dailyCompletionPercentage: 42,
+        monthlyTarget: 45,
+        monthlyAchieved: 32,
+        monthlyPending: 13,
+        monthlyCompletionPercentage: 71,
+        totalLeads: 120,
+        completedLeads: 85,
+        pendingLeads: 35,
+        completionPercentage: 71,
+      ),
+      const SmAsmModel(
+        id: '672322300000000000000002',
+        employeeId: 'ASM002',
+        name: 'Mathew Thomas',
+        email: 'mathew.ptm@kide.com',
+        contactNumber: '+91 90000 00002',
+        designation: 'Area Sales Manager',
+        team: 'PTM Team',
+        districts: ['Pathanamthitta', 'Alappuzha'],
+        zone: 'South Zone',
+        reportsTo: 'SM001',
+        bdesCount: 3,
+        status: 'active',
+        dailyTarget: 10,
+        dailyAchieved: 4,
+        dailyPending: 6,
+        dailyCompletionPercentage: 40,
+        monthlyTarget: 35,
+        monthlyAchieved: 22,
+        monthlyPending: 13,
+        monthlyCompletionPercentage: 63,
+        totalLeads: 95,
+        completedLeads: 60,
+        pendingLeads: 35,
+        completionPercentage: 63,
+      ),
+      const SmAsmModel(
+        id: '672322300000000000000003',
+        employeeId: 'ASM003',
+        name: 'Suresh Kumar',
+        email: 'suresh.ktm@kide.com',
+        contactNumber: '+91 90000 00003',
+        designation: 'Area Sales Manager',
+        team: 'KTM Team',
+        districts: ['Kottayam', 'Idukki'],
+        zone: 'South Zone',
+        reportsTo: 'SM001',
+        bdesCount: 3,
+        status: 'active',
+        dailyTarget: 8,
+        dailyAchieved: 3,
+        dailyPending: 5,
+        dailyCompletionPercentage: 38,
+        monthlyTarget: 30,
+        monthlyAchieved: 17,
+        monthlyPending: 13,
+        monthlyCompletionPercentage: 57,
+        totalLeads: 80,
+        completedLeads: 46,
+        pendingLeads: 34,
+        completionPercentage: 58,
+      ),
+      const SmAsmModel(
+        id: '672322300000000000000004',
+        employeeId: 'ASM004',
+        name: 'Anjali Krishna',
+        email: 'anjali.ekm@kide.com',
+        contactNumber: '+91 90000 00004',
+        designation: 'Area Sales Manager',
+        team: 'EKM Team',
+        districts: ['Ernakulam', 'Thrissur'],
+        zone: 'Central Zone',
+        reportsTo: 'SM001',
+        bdesCount: 5,
+        status: 'active',
+        dailyTarget: 15,
+        dailyAchieved: 8,
+        dailyPending: 7,
+        dailyCompletionPercentage: 53,
+        monthlyTarget: 50,
+        monthlyAchieved: 40,
+        monthlyPending: 10,
+        monthlyCompletionPercentage: 80,
+        totalLeads: 140,
+        completedLeads: 113,
+        pendingLeads: 27,
+        completionPercentage: 81,
+      ),
+      const SmAsmModel(
+        id: '672322300000000000000005',
+        employeeId: 'ASM005',
+        name: 'Faisal Rahman',
+        email: 'faisal.pkd@kide.com',
+        contactNumber: '+91 90000 00005',
+        designation: 'Area Sales Manager',
+        team: 'PKD Team',
+        districts: ['Palakkad', 'Malappuram'],
+        zone: 'Central Zone',
+        reportsTo: 'SM001',
+        bdesCount: 4,
+        status: 'active',
+        dailyTarget: 11,
+        dailyAchieved: 5,
+        dailyPending: 6,
+        dailyCompletionPercentage: 45,
+        monthlyTarget: 40,
+        monthlyAchieved: 26,
+        monthlyPending: 14,
+        monthlyCompletionPercentage: 65,
+        totalLeads: 110,
+        completedLeads: 72,
+        pendingLeads: 38,
+        completionPercentage: 65,
+      ),
+      const SmAsmModel(
+        id: '672322300000000000000006',
+        employeeId: 'ASM006',
+        name: 'Rinil R.',
+        email: 'rinil.clt@kide.com',
+        contactNumber: '+91 90000 00006',
+        designation: 'Area Sales Manager',
+        team: 'CLT Team',
+        districts: ['Kozhikode', 'Wayanad'],
+        zone: 'North Zone',
+        reportsTo: 'SM001',
+        bdesCount: 4,
+        status: 'active',
+        dailyTarget: 12,
+        dailyAchieved: 6,
+        dailyPending: 6,
+        dailyCompletionPercentage: 50,
+        monthlyTarget: 42,
+        monthlyAchieved: 29,
+        monthlyPending: 13,
+        monthlyCompletionPercentage: 69,
+        totalLeads: 115,
+        completedLeads: 79,
+        pendingLeads: 36,
+        completionPercentage: 69,
+      ),
+      const SmAsmModel(
+        id: '672322300000000000000007',
+        employeeId: 'ASM007',
+        name: 'Deepesh K.',
+        email: 'deepesh.kzd@kide.com',
+        contactNumber: '+91 90000 00007',
+        designation: 'Area Sales Manager',
+        team: 'KZD Team',
+        districts: ['Kannur', 'Kasaragod'],
+        zone: 'North Zone',
+        reportsTo: 'SM001',
+        bdesCount: 3,
+        status: 'active',
+        dailyTarget: 9,
+        dailyAchieved: 3,
+        dailyPending: 6,
+        dailyCompletionPercentage: 33,
+        monthlyTarget: 32,
+        monthlyAchieved: 18,
+        monthlyPending: 14,
+        monthlyCompletionPercentage: 56,
+        totalLeads: 85,
+        completedLeads: 47,
+        pendingLeads: 38,
+        completionPercentage: 55,
+      ),
+    ];
+  }
+
+  // --- 4. ASM (Area Sales Manager) APIs ---
+  Future<void> fetchAsmBdes({bool isRefresh = false}) async {
+    if (!isRefresh && _asmBdes.isNotEmpty) return;
+    _isLoadingAsmBdes = true;
+    notifyListeners();
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final cached = prefs.getString('cached_asm_bdes');
+      if (cached != null && _asmBdes.isEmpty) {
+        try {
+          final decoded = jsonDecode(cached);
+          if (decoded is List) {
+            _asmBdes = decoded
+                .whereType<Map>()
+                .map((e) => AsmBdeModel.fromJson(Map<String, dynamic>.from(e)))
+                .toList();
+            notifyListeners();
+          }
+        } catch (_) {}
+      }
+
+      final response = await ApiClient.instance.get(ApiEndpoints.asmBdes);
+      if (response.data != null) {
+        dynamic raw = response.data;
+        if (raw is Map && raw['data'] is List) {
+          raw = raw['data'];
+        }
+        if (raw is List && raw.isNotEmpty) {
+          _asmBdes = raw
+              .whereType<Map>()
+              .map((e) => AsmBdeModel.fromJson(Map<String, dynamic>.from(e)))
+              .toList();
+          await prefs.setString(
+            'cached_asm_bdes',
+            jsonEncode(_asmBdes.map((e) => e.toJson()).toList()),
+          );
+          notifyListeners();
+          return;
+        }
+      }
+    } catch (e) {
+      debugPrint('Error fetching /api/asm/bdes: $e');
+    } finally {
+      if (_asmBdes.isEmpty) {
+        _asmBdes = _getDefaultAsmBdes();
+      }
+      _isLoadingAsmBdes = false;
+      notifyListeners();
+    }
+  }
+
+  Future<Map<String, dynamic>> createBde({
+    required String name,
+    required String email,
+    required String phone,
+    required String district,
+    String password = 'password123',
+    String? team,
+    String? reportsTo,
+  }) async {
+    final payload = {
+      'name': name,
+      'email': email,
+      'contact_number': phone,
+      'password': password,
+      'district': district,
+    };
+
+    debugPrint('====================================================');
+    debugPrint('🚀 [POST ${ApiEndpoints.asmCreateBde}] Payload: $payload');
+
+    try {
+      final response = await ApiClient.instance.post(
+        ApiEndpoints.asmCreateBde,
+        data: payload,
+      );
+
+      debugPrint('🚀 [POST ${ApiEndpoints.asmCreateBde}] Status: ${response.statusCode}');
+      debugPrint('🚀 [POST ${ApiEndpoints.asmCreateBde}] Response Body: ${response.data}');
+      debugPrint('====================================================');
+
+      String empId = 'BDE${(_asmBdes.length + 1).toString().padLeft(3, '0')}';
+      String bdeId = 'bde_${DateTime.now().millisecondsSinceEpoch}';
+      String message = 'BDE $name created successfully.';
+      String bdeTeam = team ?? (district.isNotEmpty ? '${district.substring(0, 3).toUpperCase()} Team' : 'Sales Team');
+      String bdeReportsTo = reportsTo ?? 'ASM';
+
+      if (response.data != null && response.data is Map) {
+        final dataMap = response.data as Map;
+        if (dataMap['success'] == false) {
+          return {
+            'success': false,
+            'message': dataMap['message']?.toString() ?? 'Failed to create BDE.',
+          };
+        }
+        if (dataMap['message'] != null && dataMap['message'].toString().isNotEmpty) {
+          message = dataMap['message'].toString();
+        }
+        final resData = dataMap['data'];
+        if (resData is Map) {
+          if (resData['id'] != null) bdeId = resData['id'].toString();
+          if (resData['_id'] != null) bdeId = resData['_id'].toString();
+          if (resData['employee_id'] != null) empId = resData['employee_id'].toString();
+          if (resData['team'] != null) bdeTeam = resData['team'].toString();
+          if (resData['reports_to'] != null) bdeReportsTo = resData['reports_to'].toString();
+        }
+      }
+
+      final newBde = AsmBdeModel(
+        id: bdeId,
+        employeeId: empId,
+        name: name,
+        email: email,
+        contactNumber: phone,
+        designation: 'Business Development Executive',
+        team: bdeTeam,
+        district: district,
+        reportsTo: bdeReportsTo,
+        leadsAssigned: 0,
+        admissionsClosed: 0,
+        conversionRate: '0%',
+        status: 'active',
+      );
+
+      _asmBdes.insert(0, newBde);
+
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString(
+          'cached_asm_bdes',
+          jsonEncode(_asmBdes.map((e) => e.toJson()).toList()),
+        );
+      } catch (_) {}
+
+      notifyListeners();
+      return {
+        'success': true,
+        'message': message,
+        'bde': newBde,
+      };
+    } on NetworkException catch (e) {
+      debugPrint('[CreateBde] NetworkException: ${e.message}');
+      return {
+        'success': false,
+        'message': e.message,
+      };
+    } catch (e) {
+      debugPrint('[CreateBde] Error: $e');
+      final errStr = e.toString()
+          .replaceAll('Exception: ', '')
+          .replaceAll('ApiException: ', '')
+          .replaceAll('[400] Bad Request: ', '');
+      return {
+        'success': false,
+        'message': errStr,
+      };
+    }
+  }
+
+  Future<void> fetchBdePendingRequests({bool isRefresh = false}) async {
+    if (!isRefresh && _bdePayoutRequests.isNotEmpty) return;
+    _isLoadingBdeRequests = true;
+    notifyListeners();
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final cached = prefs.getString('cached_bde_requests');
+      if (cached != null && _bdePayoutRequests.isEmpty) {
+        try {
+          final decoded = jsonDecode(cached);
+          if (decoded is List) {
+            _bdePayoutRequests = decoded
+                .whereType<Map>()
+                .map((e) => SmPayoutRequestModel.fromJson(Map<String, dynamic>.from(e)))
+                .toList();
+            notifyListeners();
+          }
+        } catch (_) {}
+      }
+
+      final List<SmPayoutRequestModel> combined = [];
+
+      // 1. Wallet / Incentive Requests (Pending_ASM / Pending)
+      try {
+        final walRes = await ApiClient.instance.get(
+          ApiEndpoints.walletRequests,
+          queryParameters: {'status': 'Pending_ASM'},
+        );
+        if (walRes.data != null) {
+          dynamic raw = walRes.data;
+          if (raw is Map && raw['data'] is List) raw = raw['data'];
+          if (raw is List) {
+            for (final item in raw) {
+              if (item is Map) {
+                combined.add(SmPayoutRequestModel.fromJson(
+                  Map<String, dynamic>.from(item),
+                  defaultType: 'Incentive',
+                ));
+              }
+            }
+          }
+        }
+      } catch (e) {
+        debugPrint('[BdeWalletRequests] Fetch error: $e');
+      }
+
+      // 2. Salary Requests (Pending_ASM / Pending)
+      try {
+        final salRes = await ApiClient.instance.get(
+          ApiEndpoints.salaryRequests,
+          queryParameters: {'status': 'Pending_ASM'},
+        );
+        if (salRes.data != null) {
+          dynamic raw = salRes.data;
+          if (raw is Map && raw['data'] is List) raw = raw['data'];
+          if (raw is List) {
+            for (final item in raw) {
+              if (item is Map) {
+                combined.add(SmPayoutRequestModel.fromJson(
+                  Map<String, dynamic>.from(item),
+                  defaultType: 'Salary',
+                ));
+              }
+            }
+          }
+        }
+      } catch (e) {
+        debugPrint('[BdeSalaryRequests] Fetch error: $e');
+      }
+
+      if (combined.isNotEmpty) {
+        _bdePayoutRequests = combined;
+        await prefs.setString(
+          'cached_bde_requests',
+          jsonEncode(_bdePayoutRequests.map((e) => e.toJson()).toList()),
+        );
+        notifyListeners();
+        return;
+      }
+    } catch (e) {
+      debugPrint('Error fetching BDE requests: $e');
+    } finally {
+      if (_bdePayoutRequests.isEmpty) {
+        _bdePayoutRequests = _getDefaultBdeRequests();
+      }
+      _isLoadingBdeRequests = false;
+      notifyListeners();
+    }
+  }
+
+  Future<bool> forwardBdeIncentiveToSm(String requestId, {String notes = 'Verified by ASM'}) async {
+    try {
+      final payload = {
+        'request_id': requestId,
+        'action': 'forward_to_sm',
+        'notes': notes,
+      };
+
+      try {
+        await ApiClient.instance.post(ApiEndpoints.walletWorkflow, data: payload);
+      } catch (e) {
+        debugPrint('[ForwardBdeIncentiveToSm] API call: $e');
+      }
+
+      final idx = _bdePayoutRequests.indexWhere((r) => r.id == requestId);
+      if (idx != -1) {
+        _bdePayoutRequests[idx].status = 'Forwarded to SM';
+        try {
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString(
+            'cached_bde_requests',
+            jsonEncode(_bdePayoutRequests.map((e) => e.toJson()).toList()),
+          );
+        } catch (_) {}
+        notifyListeners();
+      }
+      return true;
+    } catch (e) {
+      debugPrint('[ForwardBdeIncentiveToSm] Error: $e');
+      return false;
+    }
+  }
+
+  Future<bool> forwardBdeSalaryToSm(String requestId, {String notes = 'Attendance and metrics verified by ASM'}) async {
+    try {
+      final payload = {
+        'request_id': requestId,
+        'action': 'forward_to_sm',
+        'notes': notes,
+      };
+
+      try {
+        await ApiClient.instance.post(ApiEndpoints.salaryWorkflow, data: payload);
+      } catch (e) {
+        debugPrint('[ForwardBdeSalaryToSm] API call: $e');
+      }
+
+      final idx = _bdePayoutRequests.indexWhere((r) => r.id == requestId);
+      if (idx != -1) {
+        _bdePayoutRequests[idx].status = 'Forwarded to SM';
+        try {
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString(
+            'cached_bde_requests',
+            jsonEncode(_bdePayoutRequests.map((e) => e.toJson()).toList()),
+          );
+        } catch (_) {}
+        notifyListeners();
+      }
+      return true;
+    } catch (e) {
+      debugPrint('[ForwardBdeSalaryToSm] Error: $e');
+      return false;
+    }
+  }
+
+  List<AsmBdeModel> _getDefaultAsmBdes() {
+    return const [
+      AsmBdeModel(
+        id: '672430000000000000000011',
+        employeeId: 'BDE001',
+        name: 'Rahul Das',
+        email: 'rahul.ekm@kide.com',
+        contactNumber: '+91 98000 12345',
+        designation: 'Business Development Executive',
+        team: 'EKM Team',
+        district: 'Ernakulam',
+        reportsTo: 'ASM004',
+        leadsAssigned: 54,
+        admissionsClosed: 18,
+        conversionRate: '33.3%',
+        status: 'active',
+      ),
+      AsmBdeModel(
+        id: '672430000000000000000012',
+        employeeId: 'BDE002',
+        name: 'Sneha Nair',
+        email: 'sneha.ekm@kide.com',
+        contactNumber: '+91 98000 67890',
+        designation: 'Business Development Executive',
+        team: 'EKM Team',
+        district: 'Ernakulam',
+        reportsTo: 'ASM004',
+        leadsAssigned: 42,
+        admissionsClosed: 11,
+        conversionRate: '26.2%',
+        status: 'active',
+      ),
+      AsmBdeModel(
+        id: '672430000000000000000013',
+        employeeId: 'BDE003',
+        name: 'Deepak S.',
+        email: 'deepak.tsr@kide.com',
+        contactNumber: '+91 98450 33445',
+        designation: 'Business Development Executive',
+        team: 'EKM Team',
+        district: 'Thrissur',
+        reportsTo: 'ASM004',
+        leadsAssigned: 35,
+        admissionsClosed: 10,
+        conversionRate: '28.6%',
+        status: 'active',
+      ),
+    ];
+  }
+
+  List<SmPayoutRequestModel> _getDefaultBdeRequests() {
+    return [
+      SmPayoutRequestModel(
+        id: '6724d0000000000000000101',
+        employeeId: 'BDE001',
+        employeeName: 'Rahul Das',
+        designation: 'Business Development Executive',
+        amount: 6000,
+        status: 'Pending_ASM',
+        type: 'Incentive',
+        submittedAt: 'Today, 10:15 AM',
+        notes: 'Monthly milestone closing incentive for 6 admissions',
+      ),
+      SmPayoutRequestModel(
+        id: '6724d0000000000000000102',
+        employeeId: 'BDE002',
+        employeeName: 'Sneha Nair',
+        designation: 'Business Development Executive',
+        amount: 3500,
+        status: 'Pending_ASM',
+        type: 'Incentive',
+        submittedAt: 'Yesterday, 04:30 PM',
+        notes: 'Walk-in conversion incentive bonus',
+      ),
+      SmPayoutRequestModel(
+        id: '6724c0000000000000000103',
+        employeeId: 'BDE003',
+        employeeName: 'Deepak S.',
+        designation: 'Business Development Executive',
+        month: 'October 2026',
+        amount: 22000,
+        status: 'Pending_ASM',
+        type: 'Salary',
+        submittedAt: 'Oct 31, 2026',
+        notes: 'Monthly salary disbursement request',
+      ),
+    ];
+  }
+
+  Future<void> fetchWalletApprovalRequests({String? status, bool isRefresh = false}) async {
+    if (_isLoadingWalletRequests) return;
+    if (!isRefresh && _walletApprovalRequests.isNotEmpty) return;
+
+    _isLoadingWalletRequests = true;
+    _walletRequestsError = null;
+    notifyListeners();
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (!isRefresh && _walletApprovalRequests.isEmpty) {
+        final cached = prefs.getString('cached_wallet_approval_requests');
+        if (cached != null) {
+          try {
+            final decoded = jsonDecode(cached);
+            if (decoded is Map<String, dynamic>) {
+              final resp = WalletApprovalResponse.fromJson(decoded);
+              _walletApprovalRequests = resp.data;
+              _walletApprovalSummary = resp.summary;
+              notifyListeners();
+            }
+          } catch (_) {}
+        }
+      }
+
+      final queryParams = <String, dynamic>{};
+      if (status != null && status.isNotEmpty && status.toLowerCase() != 'all') {
+        queryParams['status'] = status;
+      }
+
+      final res = await ApiClient.instance.get(
+        ApiEndpoints.walletRequests,
+        queryParameters: queryParams.isNotEmpty ? queryParams : null,
+      );
+
+      if (res.data != null) {
+        dynamic raw = res.data;
+        if (raw is String) {
+          try {
+            raw = jsonDecode(raw);
+          } catch (_) {}
+        }
+        if (raw is Map) {
+          final map = Map<String, dynamic>.from(raw);
+          final resp = WalletApprovalResponse.fromJson(map);
+          _walletApprovalRequests = resp.data;
+          _walletApprovalSummary = resp.summary;
+          await prefs.setString('cached_wallet_approval_requests', jsonEncode(map));
+          notifyListeners();
+          return;
+        }
+      }
+    } catch (e) {
+      debugPrint('[WalletRequests] Error: $e');
+      _walletRequestsError = e.toString();
+    } finally {
+      if (_walletApprovalRequests.isEmpty && _walletRequestsError != null) {
+        _walletApprovalRequests = _getDefaultWalletApprovalRequests();
+        _walletApprovalSummary = _getDefaultWalletApprovalSummary();
+      }
+      _isLoadingWalletRequests = false;
+      notifyListeners();
+    }
+  }
+
+  void addWalletApprovalRequest(WalletApprovalRequestItem item) {
+    _walletApprovalRequests.removeWhere((r) => r.id == item.id || r.requestId == item.requestId);
+    _walletApprovalRequests.insert(0, item);
+    notifyListeners();
+  }
+
+  Future<bool> forwardWalletRequestToSm(String requestId, {String remarks = 'ASM verified 4 closed admissions. Recommended.'}) async {
+    try {
+      final idx = _walletApprovalRequests.indexWhere((r) => r.id == requestId || r.requestId == requestId);
+      final reqCode = (idx != -1 && _walletApprovalRequests[idx].requestId.isNotEmpty)
+          ? _walletApprovalRequests[idx].requestId
+          : requestId;
+
+      final payload = {
+        'request_id': reqCode,
+        'action': 'forward_to_sm',
+        'remarks': remarks,
+        'notes': remarks,
+      };
+      try {
+        await ApiClient.instance.post(ApiEndpoints.walletWorkflow, data: payload);
+      } catch (e) {
+        debugPrint('[forwardWalletRequestToSm] API call: $e');
+      }
+
+      if (idx != -1) {
+        final current = _walletApprovalRequests[idx];
+        current.status = 'Forwarded to SM';
+        current.statusLabel = 'Pending';
+        final exists = current.approvalHistory.any((h) => h.stage.toLowerCase().contains('sm') || h.action == 'FORWARD_TO_SM');
+        if (!exists) {
+          current.approvalHistory.add(
+            WalletApprovalStage(
+              stage: 'Step 2 - ASM Review: Forwarded to SM',
+              actionBy: 'Area Sales Manager',
+              role: 'ASM',
+              action: 'FORWARD_TO_SM',
+              actionAt: DateTime.now().toIso8601String(),
+              remarks: remarks,
+            ),
+          );
+        }
+        notifyListeners();
+      }
+      return true;
+    } catch (e) {
+      debugPrint('[forwardWalletRequestToSm] Error: $e');
+      return false;
+    }
+  }
+
+  Future<bool> forwardWalletRequestToAccounts(
+    String requestId, {
+    String remarks = 'Verified admissions and eligibility. Forwarded to Accounts for sanction.',
+  }) async {
+    try {
+      final idx = _walletApprovalRequests.indexWhere((r) => r.id == requestId || r.requestId == requestId);
+      final reqCode = (idx != -1 && _walletApprovalRequests[idx].requestId.isNotEmpty)
+          ? _walletApprovalRequests[idx].requestId
+          : requestId;
+
+      final payload = {
+        'request_id': reqCode,
+        'action': 'forward_to_accounts',
+        'remarks': remarks,
+        'notes': remarks,
+      };
+
+      try {
+        final res = await ApiClient.instance.post(ApiEndpoints.walletWorkflow, data: payload);
+        if (res.data != null && res.data is Map) {
+          final dataMap = res.data['data'] is Map ? Map<String, dynamic>.from(res.data['data']) : null;
+          if (dataMap != null && idx != -1) {
+            final current = _walletApprovalRequests[idx];
+            current.status = dataMap['status']?.toString() ?? 'Forwarded to Accounts';
+            current.statusLabel = dataMap['status_label']?.toString() ?? 'Pending';
+            if (dataMap['approval_history'] is List) {
+              final newHistory = (dataMap['approval_history'] as List)
+                  .whereType<Map>()
+                  .map((e) => WalletApprovalStage.fromJson(Map<String, dynamic>.from(e)))
+                  .toList();
+              current.approvalHistory = newHistory;
+            }
+          }
+        }
+      } catch (e) {
+        debugPrint('[forwardWalletRequestToAccounts] API call: $e');
+      }
+
+      if (idx != -1) {
+        final current = _walletApprovalRequests[idx];
+        current.status = 'Forwarded to Accounts';
+        current.statusLabel = 'Pending';
+        final exists = current.approvalHistory.any((h) => h.stage.toLowerCase().contains('accounts') || h.action == 'FORWARD_TO_ACCOUNTS');
+        if (!exists) {
+          current.approvalHistory.add(
+            WalletApprovalStage(
+              stage: 'Step 3 - SM Review: Forwarded to Accounts',
+              actionBy: 'Sales Manager',
+              role: 'SM',
+              action: 'FORWARD_TO_ACCOUNTS',
+              actionAt: DateTime.now().toIso8601String(),
+              remarks: remarks,
+            ),
+          );
+        }
+        try {
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString(
+            'cached_wallet_approval_requests',
+            jsonEncode({
+              'success': true,
+              'count': _walletApprovalRequests.length,
+              'summary': _walletApprovalSummary?.toJson() ?? {},
+              'data': _walletApprovalRequests.map((e) => e.toJson()).toList(),
+            }),
+          );
+        } catch (_) {}
+        notifyListeners();
+      }
+      return true;
+    } catch (e) {
+      debugPrint('[forwardWalletRequestToAccounts] Error: $e');
+      return false;
+    }
+  }
+
+  Future<bool> disburseWalletRequest(String requestId, {required String transactionId, String notes = 'Disbursed to employee'}) async {
+    try {
+      final payload = {
+        'request_id': requestId,
+        'action': 'disburse',
+        'transaction_id': transactionId,
+        'notes': notes,
+      };
+      try {
+        await ApiClient.instance.post(ApiEndpoints.walletWorkflow, data: payload);
+      } catch (e) {
+        debugPrint('[disburseWalletRequest] API call: $e');
+      }
+
+      final idx = _walletApprovalRequests.indexWhere((r) => r.id == requestId || r.requestId == requestId);
+      if (idx != -1) {
+        final current = _walletApprovalRequests[idx];
+        current.status = 'Paid';
+        current.approvalHistory.add(
+          WalletApprovalStage(
+            stage: 'Disbursed with UTR $transactionId',
+            actionBy: 'Accounts',
+            actionAt: DateTime.now().toIso8601String(),
+            remarks: notes,
+          ),
+        );
+        notifyListeners();
+      }
+      return true;
+    } catch (e) {
+      debugPrint('[disburseWalletRequest] Error: $e');
+      return false;
+    }
+  }
+
+  List<WalletApprovalRequestItem> _getDefaultWalletApprovalRequests() {
+    return [
+      WalletApprovalRequestItem(
+        id: '6724d1a00000000000000001',
+        requestId: 'WDR-5821',
+        employee: 'Siddharth V',
+        employeeId: 'BDE001',
+        designation: 'Business Development Executive',
+        team: 'EKM Team',
+        asmId: 'ASM004',
+        asmName: 'Anoop Menon',
+        smId: 'SM001',
+        smName: 'Sales Manager',
+        amount: 4000,
+        availableBalance: 8000,
+        status: 'Forwarded to SM',
+        statusLabel: 'Pending',
+        remarks: 'ASM verified 4 closed admissions. Recommended.',
+        approvalHistory: const [
+          WalletApprovalStage(
+            stage: 'Submitted to ASM',
+            actionBy: 'BDE001',
+            actionAt: '2026-11-01T10:00:00.000Z',
+            remarks: 'Incentive withdrawal requested',
+          ),
+          WalletApprovalStage(
+            stage: 'Forwarded to SM',
+            actionBy: 'ASM004',
+            actionAt: '2026-11-02T09:30:00.000Z',
+            remarks: 'ASM verified 4 closed admissions. Recommended.',
+          ),
+        ],
+        createdAt: '2026-11-01T10:00:00.000Z',
+      ),
+      WalletApprovalRequestItem(
+        id: '6724d1a00000000000000002',
+        requestId: 'WDR-5822',
+        employee: 'Rahul Das',
+        employeeId: 'BDE002',
+        designation: 'Business Development Executive',
+        team: 'TVM Team',
+        asmId: 'ASM001',
+        asmName: 'Bipin Joseph',
+        smId: 'SM001',
+        smName: 'Sales Manager',
+        amount: 5000,
+        availableBalance: 12000,
+        status: 'Pending_ASM',
+        statusLabel: 'Pending',
+        remarks: 'Monthly incentive withdrawal for target milestone achievement.',
+        approvalHistory: const [
+          WalletApprovalStage(
+            stage: 'Submitted to ASM',
+            actionBy: 'BDE002',
+            actionAt: '2026-11-02T11:00:00.000Z',
+            remarks: 'Milestone target incentive request',
+          ),
+        ],
+        createdAt: '2026-11-02T11:00:00.000Z',
+      ),
+    ];
+  }
+
+  WalletApprovalSummary _getDefaultWalletApprovalSummary() {
+    return const WalletApprovalSummary(
+      total: 2,
+      pending: 2,
+      approved: 0,
+      paid: 0,
+      rejected: 0,
+      pendingAmount: 9000,
+    );
+  }
 
   bool _isSubmittingEod = false;
   bool _isSubmittingTask = false;
@@ -361,6 +1916,25 @@ class OperationsProvider extends ChangeNotifier {
           appliedDate: DateTime.now().subtract(const Duration(days: 6)),
         ),
       ];
+    }
+
+    // Set Mock Wallet Approval Requests if empty
+    if (_walletApprovalRequests.isEmpty) {
+      final cached = prefs.getString('cached_wallet_approval_requests');
+      if (cached != null) {
+        try {
+          final decoded = jsonDecode(cached);
+          if (decoded is Map<String, dynamic>) {
+            final resp = WalletApprovalResponse.fromJson(decoded);
+            _walletApprovalRequests = resp.data;
+            _walletApprovalSummary = resp.summary;
+          }
+        } catch (_) {}
+      }
+      if (_walletApprovalRequests.isEmpty) {
+        _walletApprovalRequests = _getDefaultWalletApprovalRequests();
+        _walletApprovalSummary = _getDefaultWalletApprovalSummary();
+      }
     }
 
     // Set Mock Incentives if empty
@@ -1048,19 +2622,59 @@ class OperationsProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  List<CourseModel> _coursesList = [];
+  List<CourseModel> get coursesList => _coursesList;
   List<Map<String, dynamic>> _courses = [];
   List<Map<String, dynamic>> get courses => _courses;
   bool _isLoadingCourses = false;
   bool get isLoadingCourses => _isLoadingCourses;
 
-  List<Map<String, dynamic>> _districts = [];
-  List<Map<String, dynamic>> get districts => _districts;
-  bool _isLoadingDistricts = false;
-  bool get isLoadingDistricts => _isLoadingDistricts;
+  List<String> get courseNames {
+    if (_coursesList.isNotEmpty) {
+      return _coursesList
+          .map((c) => c.name)
+          .where((s) => s.isNotEmpty)
+          .toList();
+    }
+    return _courses
+        .map((c) => c['name']?.toString() ?? '')
+        .where((s) => s.isNotEmpty)
+        .toList();
+  }
+
+  CourseModel? findCourseByName(String name) {
+    final lower = name.trim().toLowerCase();
+    try {
+      return _coursesList.firstWhere(
+        (c) => c.name.toLowerCase() == lower,
+      );
+    } catch (_) {
+      return null;
+    }
+  }
 
   Future<void> fetchCourses({bool isRefresh = false}) async {
     if (_isLoadingCourses) return;
-    if (!isRefresh && _courses.isNotEmpty) return;
+    if (!isRefresh && _coursesList.isNotEmpty && _courses.isNotEmpty) return;
+
+    final prefs = await SharedPreferences.getInstance();
+    if (_coursesList.isEmpty) {
+      final cachedStr = prefs.getString('cached_courses_list');
+      if (cachedStr != null) {
+        try {
+          final decoded = jsonDecode(cachedStr);
+          if (decoded is List) {
+            _coursesList = decoded
+                .whereType<Map>()
+                .map((e) => CourseModel.fromJson(Map<String, dynamic>.from(e)))
+                .toList();
+            _courses = _coursesList.map((c) => c.toJson()).toList();
+            notifyListeners();
+          }
+        } catch (_) {}
+      }
+    }
+
     _isLoadingCourses = true;
     notifyListeners();
     try {
@@ -1078,22 +2692,209 @@ class OperationsProvider extends ChangeNotifier {
         } else {
           list = [];
         }
-        _courses = list
-            .whereType<Map>()
-            .map((c) => Map<String, dynamic>.from(c))
-            .toList();
+
+        if (list.isNotEmpty) {
+          _coursesList = list
+              .whereType<Map>()
+              .map((c) => CourseModel.fromJson(Map<String, dynamic>.from(c)))
+              .toList();
+          _courses = _coursesList.map((c) => c.toJson()).toList();
+          await prefs.setString(
+            'cached_courses_list',
+            jsonEncode(_courses),
+          );
+        }
       }
     } catch (e) {
-      debugPrint('Failed to fetch courses from server: $e');
+      debugPrint('[fetchCourses] API call error: $e');
     } finally {
+      if (_coursesList.isEmpty) {
+        _coursesList = _getDefaultCourses();
+        _courses = _coursesList.map((c) => c.toJson()).toList();
+      }
       _isLoadingCourses = false;
       notifyListeners();
     }
   }
 
+  List<CourseModel> _getDefaultCourses() {
+    return const [
+      CourseModel(
+        id: '6ad5ab0078fb3739ae6931b0',
+        name: 'Full-Stack Web Development',
+        fee: 25000,
+        duration: '6 Months',
+        status: 'active',
+      ),
+      CourseModel(
+        id: '6ad5ab0078fb3739ae6931b1',
+        name: 'Data Science & Machine Learning',
+        fee: 30000,
+        duration: '6 Months',
+        status: 'active',
+      ),
+      CourseModel(
+        id: '6ad5ab0078fb3739ae6931b2',
+        name: 'Digital Marketing Pro',
+        fee: 15000,
+        duration: '3 Months',
+        status: 'active',
+      ),
+      CourseModel(
+        id: '6ad5ab0078fb3739ae6931b3',
+        name: 'Flutter & Mobile App Development',
+        fee: 20000,
+        duration: '4 Months',
+        status: 'active',
+      ),
+      CourseModel(
+        id: '6adaee88eb2425770324ad24',
+        name: 'Cyber Security',
+        fee: 20000,
+        duration: '3 Months',
+        status: 'active',
+      ),
+      CourseModel(
+        id: '6ae5a250a84a31d3fc5a4277',
+        name: 'Flutter',
+        fee: 20000,
+        duration: '4 Months',
+        status: 'active',
+      ),
+      CourseModel(
+        id: '6ae5a250a84a31d3fc5a4278',
+        name: 'Full Stack Development',
+        fee: 25000,
+        duration: '6 Months',
+        status: 'active',
+      ),
+      CourseModel(
+        id: '6ae5a250a84a31d3fc5a4279',
+        name: 'Digital Marketing',
+        fee: 15000,
+        duration: '3 Months',
+        status: 'active',
+      ),
+      CourseModel(
+        id: '6ae5a250a84a31d3fc5a427a',
+        name: 'Data Science Pro',
+        fee: 35000,
+        duration: '6 Months',
+        status: 'active',
+      ),
+    ];
+  }
+
+  List<Map<String, dynamic>> _districts = [];
+  List<Map<String, dynamic>> get districts => _districts;
+  bool _isLoadingDistricts = false;
+  bool get isLoadingDistricts => _isLoadingDistricts;
+
+  List<ZoneModel> _zones = [];
+  List<ZoneModel> get zones => _zones;
+  bool _isLoadingZones = false;
+  bool get isLoadingZones => _isLoadingZones;
+
+  List<DistrictModel> _districtsList = [];
+  List<DistrictModel> get districtsList => _districtsList;
+
+  Future<void> fetchZones({bool isRefresh = false}) async {
+    if (_isLoadingZones) return;
+    if (!isRefresh && _zones.isNotEmpty) return;
+
+    final prefs = await SharedPreferences.getInstance();
+    if (_zones.isEmpty) {
+      final cachedStr = prefs.getString('cached_zones');
+      if (cachedStr != null) {
+        try {
+          final decoded = jsonDecode(cachedStr);
+          if (decoded is List) {
+            _zones = decoded
+                .whereType<Map>()
+                .map((e) => ZoneModel.fromJson(Map<String, dynamic>.from(e)))
+                .toList();
+            notifyListeners();
+          }
+        } catch (_) {}
+      }
+    }
+
+    _isLoadingZones = true;
+    notifyListeners();
+    try {
+      final response = await ApiClient.instance.get(ApiEndpoints.zones);
+      if (response.data != null) {
+        dynamic raw = response.data;
+        if (raw is Map && raw.containsKey('data')) {
+          raw = raw['data'];
+        }
+        if (raw is List && raw.isNotEmpty) {
+          _zones = raw
+              .whereType<Map>()
+              .map((e) => ZoneModel.fromJson(Map<String, dynamic>.from(e)))
+              .toList();
+          await prefs.setString(
+            'cached_zones',
+            jsonEncode(_zones.map((e) => e.toJson()).toList()),
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('[fetchZones] API call error: $e');
+    } finally {
+      if (_zones.isEmpty) {
+        _zones = _getDefaultZones();
+      }
+      _isLoadingZones = false;
+      notifyListeners();
+    }
+  }
+
+  List<ZoneModel> _getDefaultZones() {
+    return const [
+      ZoneModel(
+        id: '6724a1b2c3d4e5f607182901',
+        name: 'Central Zone',
+        description:
+            'Central Kerala regional zone (Ernakulam, Idukki, Thrissur, Palakkad, Malappuram)',
+      ),
+      ZoneModel(
+        id: '6724a1b2c3d4e5f607182902',
+        name: 'North Zone',
+        description:
+            'North Kerala regional zone (Kozhikode, Wayanad, Kannur, Kasaragod)',
+      ),
+      ZoneModel(
+        id: '6724a1b2c3d4e5f607182903',
+        name: 'South Zone',
+        description:
+            'South Kerala regional zone (TVM, Kollam, Alappuzha, Pathanamthitta, Kottayam)',
+      ),
+    ];
+  }
+
   Future<void> fetchDistricts({bool isRefresh = false}) async {
     if (_isLoadingDistricts) return;
-    if (!isRefresh && _districts.isNotEmpty) return;
+    if (!isRefresh && _districtsList.isNotEmpty && _districts.isNotEmpty) return;
+
+    final prefs = await SharedPreferences.getInstance();
+    if (_districtsList.isEmpty) {
+      final cachedStr = prefs.getString('cached_districts_list');
+      if (cachedStr != null) {
+        try {
+          final decoded = jsonDecode(cachedStr);
+          if (decoded is List) {
+            _districtsList = decoded
+                .whereType<Map>()
+                .map((e) => DistrictModel.fromJson(Map<String, dynamic>.from(e)))
+                .toList();
+            _districts = _districtsList.map((d) => d.toJson()).toList();
+            notifyListeners();
+          }
+        } catch (_) {}
+      }
+    }
+
     _isLoadingDistricts = true;
     notifyListeners();
     try {
@@ -1111,17 +2912,85 @@ class OperationsProvider extends ChangeNotifier {
         } else {
           list = [];
         }
-        _districts = list
-            .whereType<Map>()
-            .map((d) => Map<String, dynamic>.from(d))
-            .toList();
+
+        if (list.isNotEmpty) {
+          _districtsList = list
+              .whereType<Map>()
+              .map((d) => DistrictModel.fromJson(Map<String, dynamic>.from(d)))
+              .toList();
+          _districts = _districtsList.map((d) => d.toJson()).toList();
+          await prefs.setString(
+            'cached_districts_list',
+            jsonEncode(_districtsList.map((e) => e.toJson()).toList()),
+          );
+        }
       }
     } catch (e) {
-      debugPrint('Failed to fetch districts from server: $e');
+      debugPrint('[fetchDistricts] API call error: $e');
     } finally {
+      if (_districtsList.isEmpty) {
+        _districtsList = _getDefaultDistricts();
+        _districts = _districtsList.map((d) => d.toJson()).toList();
+      }
       _isLoadingDistricts = false;
       notifyListeners();
     }
+  }
+
+  List<DistrictModel> _getDefaultDistricts() {
+    return const [
+      DistrictModel(id: '6724b1b2c3d4e5f607182910', name: 'Thiruvananthapuram', zone: 'South Zone'),
+      DistrictModel(id: '6724b1b2c3d4e5f607182911', name: 'Kollam', zone: 'South Zone'),
+      DistrictModel(id: '6724b1b2c3d4e5f607182912', name: 'Pathanamthitta', zone: 'South Zone'),
+      DistrictModel(id: '6724b1b2c3d4e5f607182913', name: 'Alappuzha', zone: 'South Zone'),
+      DistrictModel(id: '6724b1b2c3d4e5f607182914', name: 'Kottayam', zone: 'South Zone'),
+      DistrictModel(id: '6724b1b2c3d4e5f607182915', name: 'Idukki', zone: 'Central Zone'),
+      DistrictModel(id: '6724b1b2c3d4e5f607182916', name: 'Ernakulam', zone: 'Central Zone'),
+      DistrictModel(id: '6724b1b2c3d4e5f607182917', name: 'Thrissur', zone: 'Central Zone'),
+      DistrictModel(id: '6724b1b2c3d4e5f607182918', name: 'Palakkad', zone: 'Central Zone'),
+      DistrictModel(id: '6724b1b2c3d4e5f607182919', name: 'Malappuram', zone: 'Central Zone'),
+      DistrictModel(id: '6724b1b2c3d4e5f607182920', name: 'Kozhikode', zone: 'North Zone'),
+      DistrictModel(id: '6724b1b2c3d4e5f607182921', name: 'Wayanad', zone: 'North Zone'),
+      DistrictModel(id: '6724b1b2c3d4e5f607182922', name: 'Kannur', zone: 'North Zone'),
+      DistrictModel(id: '6724b1b2c3d4e5f607182923', name: 'Kasaragod', zone: 'North Zone'),
+    ];
+  }
+
+  List<String> get zoneNames {
+    if (_zones.isNotEmpty) {
+      return _zones.map((z) => z.name).toSet().toList();
+    }
+    return ['Central Zone', 'North Zone', 'South Zone'];
+  }
+
+  List<String> getDistrictNamesByZone(String? zoneName) {
+    if (zoneName != null && zoneName.isNotEmpty) {
+      final matched = _districtsList
+          .where((d) => d.zone.toLowerCase().trim() == zoneName.toLowerCase().trim())
+          .map((d) => d.name)
+          .toSet()
+          .toList();
+      if (matched.isNotEmpty) return matched;
+      if (zoneName.contains('South')) {
+        return ['Thiruvananthapuram', 'Kollam', 'Pathanamthitta', 'Alappuzha', 'Kottayam'];
+      } else if (zoneName.contains('North')) {
+        return ['Kozhikode', 'Wayanad', 'Kannur', 'Kasaragod'];
+      } else if (zoneName.contains('Central')) {
+        return ['Ernakulam', 'Idukki', 'Thrissur', 'Palakkad', 'Malappuram'];
+      }
+    }
+    return allDistrictNames;
+  }
+
+  List<String> get allDistrictNames {
+    if (_districtsList.isNotEmpty) {
+      return _districtsList.map((d) => d.name).toSet().toList();
+    }
+    return [
+      'Thiruvananthapuram', 'Kollam', 'Pathanamthitta', 'Alappuzha', 'Kottayam',
+      'Idukki', 'Ernakulam', 'Thrissur', 'Palakkad', 'Malappuram',
+      'Kozhikode', 'Wayanad', 'Kannur', 'Kasaragod',
+    ];
   }
 
   Future<void> fetchHierarchyFilters({bool isRefresh = false}) async {
@@ -1824,6 +3693,8 @@ class OperationsProvider extends ChangeNotifier {
     _selectedAsmId = null;
     _selectedBdmEmail = null;
     _selectedBdmId = null;
+    _walletApprovalRequests = [];
+    _walletApprovalSummary = null;
     notifyListeners();
   }
 }

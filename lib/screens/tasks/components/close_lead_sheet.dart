@@ -269,6 +269,13 @@ void showCloseLeadSheet(
                         onSelected: (selectedName) {
                           setSheetState(() {
                             courseController.text = selectedName;
+                            if (paymentController.text.trim().isEmpty) {
+                              final match = OperationsProvider.instance
+                                  .findCourseByName(selectedName);
+                              if (match != null && match.fee > 0) {
+                                paymentController.text = match.fee.toString();
+                              }
+                            }
                           });
                         },
                       );
@@ -323,7 +330,7 @@ void showCloseLeadSheet(
                   const SizedBox(height: 16),
 
                   // Field 3: Payment Amount
-                  _buildFieldLabel('PAYMENT AMOUNT (₹) *'),
+                  _buildFieldLabel('PAYMENT AMOUNT (\u20B9) *'),
                   const SizedBox(height: 6),
                   TextField(
                     controller: paymentController,
@@ -750,6 +757,7 @@ void _showCourseSelectModal(
                     itemBuilder: (_, index) {
                       final name = filteredCourses[index];
                       final isSelected = name.toLowerCase() == currentCourse.toLowerCase();
+                      final match = OperationsProvider.instance.findCourseByName(name);
 
                       return ListTile(
                         dense: true,
@@ -765,6 +773,15 @@ void _showCourseSelectModal(
                             color: isSelected ? AppColors.accentTeal : AppColors.textPrimary,
                           ),
                         ),
+                        subtitle: match != null && (match.fee > 0 || match.duration.isNotEmpty)
+                            ? Text(
+                                'Fee: ₹${match.fee} • Duration: ${match.duration}',
+                                style: const TextStyle(
+                                  fontSize: 11.5,
+                                  color: AppColors.textSecondary,
+                                ),
+                              )
+                            : null,
                         trailing: isSelected
                             ? const Icon(
                                 Icons.check_circle_rounded,

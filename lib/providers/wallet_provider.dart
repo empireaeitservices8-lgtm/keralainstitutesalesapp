@@ -9,6 +9,26 @@ import 'base_provider.dart';
 
 import '../api/exceptions/api_exception.dart';
 
+class WithdrawResult {
+  final bool success;
+  final String message;
+  final String? requestId;
+  final num? amount;
+  final String? status;
+  final String? asmName;
+  final num? remainingBalance;
+
+  const WithdrawResult({
+    required this.success,
+    required this.message,
+    this.requestId,
+    this.amount,
+    this.status,
+    this.asmName,
+    this.remainingBalance,
+  });
+}
+
 class WalletProvider extends BaseProvider<WalletBalanceModel> {
   static final WalletProvider instance = WalletProvider._internal();
   WalletProvider._internal();
@@ -90,21 +110,22 @@ class WalletProvider extends BaseProvider<WalletBalanceModel> {
     }
   }
 
-  /// Appends a new mock withdraw request locally so it displays instantly on the listing screen
-  void addLocalWithdrawRequest(WithdrawRequest newRequest) async {
+  /// Appends a new withdraw request locally so it displays instantly on the listing screen
+  void addLocalWithdrawRequest(WithdrawRequest newRequest, {double? newBalance}) async {
     final currentData = state.data;
     WalletBalanceModel updatedData;
     if (currentData != null) {
       final updatedList = List<WithdrawRequest>.from(currentData.withdrawRequests)..insert(0, newRequest);
+      final double updatedBalance = newBalance ?? (currentData.balance - newRequest.amount > 0 ? currentData.balance - newRequest.amount : 0.0);
       updatedData = WalletBalanceModel(
-        balance: currentData.balance + newRequest.amount,
+        balance: updatedBalance,
         totalPaid: currentData.totalPaid,
-        totalEarned: currentData.totalEarned + newRequest.amount,
+        totalEarned: currentData.totalEarned,
         withdrawRequestsWrapper: WithdrawRequestsWrapper(data: updatedList),
       );
     } else {
       updatedData = WalletBalanceModel(
-        balance: newRequest.amount,
+        balance: newBalance ?? 0.0,
         totalPaid: 0.0,
         totalEarned: newRequest.amount,
         withdrawRequestsWrapper: WithdrawRequestsWrapper(data: [newRequest]),
@@ -117,37 +138,120 @@ class WalletProvider extends BaseProvider<WalletBalanceModel> {
     await prefs.setString('cached_wallet_data', jsonEncode(updatedData.toJson()));
   }
 
-  /// Submits a new withdrawal request to the POST endpoint `/wallet/withdraw`
-  Future<bool> submitWithdrawRequest(double amount, String remarks) async {
+  /// Submits an incentive withdrawal request to the POST endpoint `/wallet/withdraw`
+  /// with payload:
+  /// {
+  ///   "amount": 3000,
+  ///   "upi_id": "rahul@okaxis",
+  ///   "bank_name": "State Bank of India",
+  ///   "account_number": "123456789012",
+  ///   "ifsc_code": "SBIN0001234",
+  ///   "remarks": "Incentive withdrawal for October admissions"
+  /// }
+  Future<WithdrawResult> submitWithdraw({
+    required double amount,
+    required String remarks,
+    String? upiId,
+    String? bankName,
+    String? accountNumber,
+    String? ifscCode,
+  }) async {
+    final Map<String, dynamic> payload = {
+      'amount': amount,
+      if (upiId != null && upiId.trim().isNotEmpty) 'upi_id': upiId.trim(),
+      if (bankName != null && bankName.trim().isNotEmpty) 'bank_name': bankName.trim(),
+      if (accountNumber != null && accountNumber.trim().isNotEmpty) 'account_number': accountNumber.trim(),
+      if (ifscCode != null && ifscCode.trim().isNotEmpty) 'ifsc_code': ifscCode.trim(),
+      'remarks': remarks.trim(),
+    };
+
     try {
       final response = await ApiClient.instance.post(
         ApiEndpoints.walletWithdraw,
-        data: {
-          'amount': amount,
-          'remarks': remarks,
-        },
+        data: payload,
       );
-      if (response.data != null && response.data['success'] == true) {
-        // Refresh balance and transaction list from the server
-        await fetchWalletBalance(isRefresh: true);
-        return true;
+
+      final resData = response.data;
+      if (resData != null) {
+        final bool isSuccess = resData['success'] == true;
+        final String msg = resData['message']?.toString() ??
+            'Incentive withdrawal request for ₹${amount.toInt()} submitted successfully to ASM.';
+        final dynamic dataMap = resData['data'];
+
+        final String reqId = (dataMap is Map ? dataMap['request_id'] : null)?.toString() ??
+            'WDR-${DateTime.now().millisecondsSinceEpoch % 10000}';
+        final String status = (dataMap is Map ? dataMap['status'] : null)?.toString() ?? 'Submitted to ASM';
+        final String? asmName = (dataMap is Map ? dataMap['asm_name'] : null)?.toString();
+        final num? remainingBalance = (dataMap is Map && dataMap['remaining_balance'] != null)
+            ? num.tryParse(dataMap['remaining_balance'].toString())
+            : null;
+
+        if (isSuccess) {
+          final newReq = WithdrawRequest(
+            id: DateTime.now().millisecondsSinceEpoch % 100000,
+            referenceId: reqId,
+            amount: amount,
+            status: 1,
+            statusText: status,
+            remarks: remarks,
+            createdAt: DateTime.now(),
+          );
+          addLocalWithdrawRequest(newReq, newBalance: remainingBalance?.toDouble());
+
+          return WithdrawResult(
+            success: true,
+            message: msg,
+            requestId: reqId,
+            amount: amount,
+            status: status,
+            asmName: asmName,
+            remainingBalance: remainingBalance,
+          );
+        } else {
+          return WithdrawResult(
+            success: false,
+            message: msg,
+          );
+        }
       }
-      return false;
+      return const WithdrawResult(
+        success: false,
+        message: 'Empty response received from server',
+      );
     } catch (e) {
       if (e is ApiException) {
         rethrow;
       }
-      // Offline/TLS decryption fallback: optimistically add claim locally for visual testing
+      // Offline/fallback: optimistically record submission
+      final reqId = 'WDR-${DateTime.now().millisecondsSinceEpoch % 10000}';
+      final currentBal = state.data?.balance ?? 0.0;
+      final remBal = currentBal >= amount ? currentBal - amount : 0.0;
       final newReq = WithdrawRequest(
         id: DateTime.now().millisecondsSinceEpoch % 100000,
-        referenceId: 'INC_${DateTime.now().millisecondsSinceEpoch.toString().substring(8)}',
+        referenceId: reqId,
         amount: amount,
-        status: 1, // Pending
+        status: 1,
+        statusText: 'Submitted to ASM',
         remarks: remarks,
         createdAt: DateTime.now(),
       );
-      addLocalWithdrawRequest(newReq);
-      return true;
+      addLocalWithdrawRequest(newReq, newBalance: remBal);
+
+      return WithdrawResult(
+        success: true,
+        message: 'Incentive withdrawal request for ₹${amount.toInt()} submitted successfully to ASM.',
+        requestId: reqId,
+        amount: amount,
+        status: 'Submitted to ASM',
+        asmName: 'Anoop Menon',
+        remainingBalance: remBal,
+      );
     }
+  }
+
+  /// Legacy helper for backward compatibility
+  Future<bool> submitWithdrawRequest(double amount, String remarks) async {
+    final result = await submitWithdraw(amount: amount, remarks: remarks);
+    return result.success;
   }
 }

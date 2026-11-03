@@ -1160,6 +1160,7 @@ void _showFollowUpCoursePicker(
                     itemBuilder: (_, index) {
                       final name = filteredCourses[index];
                       final isSelected = name.toLowerCase() == currentCourse.toLowerCase();
+                      final match = OperationsProvider.instance.findCourseByName(name);
 
                       return ListTile(
                         dense: true,
@@ -1175,6 +1176,15 @@ void _showFollowUpCoursePicker(
                             color: isSelected ? AppColors.accentTeal : AppColors.textPrimary,
                           ),
                         ),
+                        subtitle: match != null && (match.fee > 0 || match.duration.isNotEmpty)
+                            ? Text(
+                                'Fee: ₹${match.fee} • Duration: ${match.duration}',
+                                style: const TextStyle(
+                                  fontSize: 11.5,
+                                  color: AppColors.textSecondary,
+                                ),
+                              )
+                            : null,
                         trailing: isSelected
                             ? const Icon(
                                 Icons.check_circle_rounded,

@@ -99,6 +99,7 @@ class WithdrawRequest {
   @JsonKey(fromJson: _doubleFromString)
   final double amount;
   final int status;
+  final String? statusText;
   @JsonKey(name: 'transaction_id')
   final String? transactionId;
   final String? remarks;
@@ -110,6 +111,7 @@ class WithdrawRequest {
     required this.referenceId,
     required this.amount,
     required this.status,
+    this.statusText,
     this.transactionId,
     this.remarks,
     required this.createdAt,
@@ -119,7 +121,21 @@ class WithdrawRequest {
     final rawId = json['id'];
     final id = rawId is num ? rawId.toInt() : (int.tryParse(rawId?.toString() ?? '') ?? 0);
     final rawStatus = json['status'];
-    final status = rawStatus is num ? rawStatus.toInt() : (int.tryParse(rawStatus?.toString() ?? '') ?? 1);
+    int status = 1;
+    String? statusText;
+    if (rawStatus is num) {
+      status = rawStatus.toInt();
+    } else if (rawStatus is String) {
+      final parsed = int.tryParse(rawStatus);
+      if (parsed != null) {
+        status = parsed;
+      } else {
+        statusText = rawStatus;
+      }
+    }
+    if (json['status_label'] != null) {
+      statusText = json['status_label'].toString();
+    }
     
     DateTime parsedDate;
     try {
@@ -130,9 +146,10 @@ class WithdrawRequest {
 
     return WithdrawRequest(
       id: id,
-      referenceId: json['reference_id']?.toString() ?? '',
+      referenceId: json['reference_id']?.toString() ?? json['request_id']?.toString() ?? '',
       amount: _doubleFromString(json['amount']),
       status: status,
+      statusText: statusText,
       transactionId: json['transaction_id']?.toString(),
       remarks: json['remarks']?.toString(),
       createdAt: parsedDate,
@@ -143,12 +160,16 @@ class WithdrawRequest {
     'reference_id': referenceId,
     'amount': amount,
     'status': status,
+    if (statusText != null) 'status_text': statusText,
     'transaction_id': transactionId,
     'remarks': remarks,
     'created_at': createdAt.toIso8601String(),
   };
 
   String get statusString {
+    if (statusText != null && statusText!.isNotEmpty) {
+      return statusText!;
+    }
     switch (status) {
       case 2:
         return 'Approved';

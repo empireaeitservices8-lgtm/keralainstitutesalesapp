@@ -23,17 +23,59 @@ class _DashboardScreenState extends State<DashboardScreen> {
     super.initState();
     // Preload data
     OperationsProvider.instance.loadOperationsData();
+    OperationsProvider.instance.fetchSmAsms();
+    OperationsProvider.instance.fetchOfficeTelecallers();
+    OperationsProvider.instance.fetchSmPayoutRequests();
+    OperationsProvider.instance.fetchAsmBdes();
+    OperationsProvider.instance.fetchBdePendingRequests();
+    OperationsProvider.instance.fetchWalletApprovalRequests();
     HomeProvider.instance.fetchHomeData();
     AttendanceProvider.instance.loadTodayAttendance();
   }
 
   Widget _buildBottomNavBar(HomeProvider homeProvider) {
-    final List<Map<String, dynamic>> items = [
-      {'icon': Icons.dashboard_rounded, 'label': 'Home'},
-      {'icon': Icons.task_alt_rounded, 'label': 'Leads'},
-      {'icon': Icons.auto_graph_rounded, 'label': 'Incentive'},
-      {'icon': Icons.person_rounded, 'label': 'Profile'},
-    ];
+    final user = AuthProvider.instance.session;
+    final homeData = homeProvider.state.data;
+    final bool isAsm =
+        user.role == 'ASM' ||
+        homeData?.dashboardType?.toUpperCase() == 'ASM' ||
+        homeData?.designationName.toUpperCase() == 'ASM' ||
+        homeData?.designationName.toLowerCase().contains('area sales') == true ||
+        homeData?.designationName.toLowerCase().contains('area manager') == true ||
+        homeData?.designationName.toLowerCase().contains('asm') == true;
+
+    final bool isSm = !isAsm && (
+        user.role == 'SM' ||
+        homeData?.dashboardType?.toUpperCase() == 'SM' ||
+        homeData?.designationName.toUpperCase() == 'SM' ||
+        homeData?.designationName.toLowerCase().contains('state manager') ==
+            true ||
+        homeData?.designationName.toLowerCase().contains('sales manager') ==
+            true
+    );
+
+    final bool isAccounts = user.role == 'ACCOUNTS' || user.role == 'ADMIN';
+
+    final List<Map<String, dynamic>> items = (isSm || isAsm)
+        ? [
+            {'icon': Icons.home_rounded, 'label': 'Home'},
+            {'icon': Icons.groups_rounded, 'label': 'Teams'},
+            {'icon': Icons.check_circle_outline_rounded, 'label': 'Tasks'},
+            {'icon': Icons.person_outline_rounded, 'label': 'Profile'},
+          ]
+        : isAccounts
+        ? [
+            {'icon': Icons.account_balance_wallet_rounded, 'label': 'Accounts'},
+            {'icon': Icons.verified_user_rounded, 'label': 'Payouts'},
+            {'icon': Icons.groups_rounded, 'label': 'Staff'},
+            {'icon': Icons.person_outline_rounded, 'label': 'Profile'},
+          ]
+        : [
+            {'icon': Icons.dashboard_rounded, 'label': 'Home'},
+            {'icon': Icons.task_alt_rounded, 'label': 'Leads'},
+            {'icon': Icons.auto_graph_rounded, 'label': 'Incentive'},
+            {'icon': Icons.person_rounded, 'label': 'Profile'},
+          ];
 
     return Container(
       margin: const EdgeInsets.only(left: 16, right: 16, bottom: 20),
@@ -126,6 +168,26 @@ class _DashboardScreenState extends State<DashboardScreen> {
       listenable: HomeProvider.instance,
       builder: (context, _) {
         final homeProvider = HomeProvider.instance;
+        final homeData = homeProvider.state.data;
+        final bool isAsm =
+            user.role == 'ASM' ||
+            homeData?.dashboardType?.toUpperCase() == 'ASM' ||
+            homeData?.designationName.toUpperCase() == 'ASM' ||
+            homeData?.designationName.toLowerCase().contains('area sales') == true ||
+            homeData?.designationName.toLowerCase().contains('area manager') == true ||
+            homeData?.designationName.toLowerCase().contains('asm') == true;
+
+        final bool isSm = !isAsm && (
+            user.role == 'SM' ||
+            homeData?.dashboardType?.toUpperCase() == 'SM' ||
+            homeData?.designationName.toUpperCase() == 'SM' ||
+            homeData?.designationName.toLowerCase().contains('state manager') ==
+                true ||
+            homeData?.designationName.toLowerCase().contains('sales manager') ==
+                true
+        );
+
+        final String effectiveRole = isAsm ? 'ASM' : (isSm ? 'SM' : user.role);
         final currentIndex = homeProvider.currentIndex;
         Widget currentBody;
         switch (currentIndex) {
@@ -152,12 +214,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   backgroundColor: Colors.white,
                   elevation: 0,
                   title: Text(
-                    '${user.role} COMMAND CENTER',
+                    isAsm
+                        ? 'ASM COMMAND CENTER'
+                        : '$effectiveRole COMMAND CENTER',
                     style: const TextStyle(
-                      color: AppColors.textPrimary,
-                      fontSize: 13,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 1.5,
+                      color: Color(0xFF0F172A),
+                      fontSize: 16,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 1.0,
                     ),
                   ),
                   centerTitle: true,
