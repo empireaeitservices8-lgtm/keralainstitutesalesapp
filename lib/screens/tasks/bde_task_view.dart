@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import '../../constants/colors.dart';
 import '../../models/task_model.dart';
 import '../../providers/operations_provider.dart';
@@ -8,15 +7,11 @@ import 'components/create_lead_sheet.dart';
 import 'components/follow_up_sheet.dart';
 import 'components/task_card.dart';
 import 'components/task_details_sheet.dart';
-import 'components/close_lead_sheet.dart';
 
 class BdeTaskView extends StatefulWidget {
   final dynamic user;
 
-  const BdeTaskView({
-    super.key,
-    required this.user,
-  });
+  const BdeTaskView({super.key, required this.user});
 
   @override
   State<BdeTaskView> createState() => _BdeTaskViewState();
@@ -213,15 +208,16 @@ class _BdeTaskViewState extends State<BdeTaskView>
                 context,
                 task,
                 widget.user,
-                onSubmitVisitReport: ({required remarks, required leadStatus}) async {
-                  await _submitVisitReport(
-                    task: task,
-                    leadStatus: leadStatus,
-                    remarks: remarks,
-                    proofPath: 'N/A',
-                    followUpDate: null,
-                  );
-                },
+                onSubmitVisitReport:
+                    ({required remarks, required leadStatus}) async {
+                      await _submitVisitReport(
+                        task: task,
+                        leadStatus: leadStatus,
+                        remarks: remarks,
+                        proofPath: 'N/A',
+                        followUpDate: null,
+                      );
+                    },
               );
             },
           );
@@ -348,7 +344,8 @@ class _BdeTaskViewState extends State<BdeTaskView>
               return Column(
                 children: [
                   _buildSearchContainer(provider),
-                  if (provider.isLoadingLeads || provider.isLoadingCompletedLeads)
+                  if (provider.isLoadingLeads ||
+                      provider.isLoadingCompletedLeads)
                     Container(
                       width: double.infinity,
                       padding: const EdgeInsets.symmetric(
@@ -404,22 +401,19 @@ class _BdeTaskViewState extends State<BdeTaskView>
       ),
       floatingActionButton: FloatingActionButton.extended(
         backgroundColor: AppColors.accentTeal,
-        icon: const Icon(
-          Icons.add_circle_outline_rounded,
-          color: Colors.white,
-        ),
+        icon: const Icon(Icons.add_circle_outline_rounded, color: Colors.white),
         label: const Text(
           'Create Lead',
-          style: TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-          ),
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
         onPressed: () {
           showCreateLeadBottomSheet(
             context,
             onCreated: () {
-              OperationsProvider.instance.fetchLeads(status: 1, isRefresh: true);
+              OperationsProvider.instance.fetchLeads(
+                status: 1,
+                isRefresh: true,
+              );
             },
           );
         },

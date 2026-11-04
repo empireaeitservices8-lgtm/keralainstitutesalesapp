@@ -1595,49 +1595,49 @@ class ManagementDashboardView extends StatelessWidget {
                     const SizedBox(height: 8),
 
                     // Quick suggestion chips helper for quick entry
-                    Wrap(
-                      spacing: 6,
-                      runSpacing: 6,
-                      children:
-                          [
-                                'Daily Lead Generation Campaign',
-                                'Campus Awareness & Seminar',
-                                'High School Outreach Drive',
-                                'Spot Admission Campaign',
-                                'Cold Calling Sprint',
-                              ]
-                              .map(
-                                (s) => InkWell(
-                                  onTap: () {
-                                    taskTemplateController.text = s;
-                                    setModalState(() {});
-                                  },
-                                  borderRadius: BorderRadius.circular(6),
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 8,
-                                      vertical: 3.5,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFFF1F5F9),
-                                      borderRadius: BorderRadius.circular(6),
-                                      border: Border.all(
-                                        color: const Color(0xFFE2E8F0),
-                                      ),
-                                    ),
-                                    child: Text(
-                                      '+ $s',
-                                      style: const TextStyle(
-                                        fontSize: 10.5,
-                                        fontWeight: FontWeight.w600,
-                                        color: Color(0xFF475569),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              )
-                              .toList(),
-                    ),
+                    // Wrap(
+                    //   spacing: 6,
+                    //   runSpacing: 6,
+                    //   children:
+                    //       [
+                    //             'Daily Lead Generation Campaign',
+                    //             'Campus Awareness & Seminar',
+                    //             'High School Outreach Drive',
+                    //             'Spot Admission Campaign',
+                    //             'Cold Calling Sprint',
+                    //           ]
+                    //           .map(
+                    //             (s) => InkWell(
+                    //               onTap: () {
+                    //                 taskTemplateController.text = s;
+                    //                 setModalState(() {});
+                    //               },
+                    //               borderRadius: BorderRadius.circular(6),
+                    //               child: Container(
+                    //                 padding: const EdgeInsets.symmetric(
+                    //                   horizontal: 8,
+                    //                   vertical: 3.5,
+                    //                 ),
+                    //                 decoration: BoxDecoration(
+                    //                   color: const Color(0xFFF1F5F9),
+                    //                   borderRadius: BorderRadius.circular(6),
+                    //                   border: Border.all(
+                    //                     color: const Color(0xFFE2E8F0),
+                    //                   ),
+                    //                 ),
+                    //                 child: Text(
+                    //                   '+ $s',
+                    //                   style: const TextStyle(
+                    //                     fontSize: 10.5,
+                    //                     fontWeight: FontWeight.w600,
+                    //                     color: Color(0xFF475569),
+                    //                   ),
+                    //                 ),
+                    //               ),
+                    //             ),
+                    //           )
+                    //           .toList(),
+                    // ),
                     const SizedBox(height: 16),
 
                     // 3. TARGET QUANTITY & METRIC ROW
@@ -1806,7 +1806,7 @@ class ManagementDashboardView extends StatelessWidget {
                     ),
                     const SizedBox(height: 6),
                     Row(
-                      children: ['Daily', 'Weekly', 'Monthly'].map((freq) {
+                      children: ['Daily', 'Monthly'].map((freq) {
                         final isSelected = selectedFrequency == freq;
                         return Expanded(
                           child: Padding(
@@ -6415,8 +6415,8 @@ class ManagementDashboardView extends StatelessWidget {
         .length;
     final int pendingApprovals = provider.walletApprovalRequests.isNotEmpty
         ? provider.walletApprovalRequests
-            .where((r) => r.isPending && !r.isForwardedToSm)
-            .length
+              .where((r) => r.isPending && !r.isForwardedToSm)
+              .length
         : pendingBdeRequests;
 
     return SingleChildScrollView(
@@ -6458,7 +6458,11 @@ class ManagementDashboardView extends StatelessWidget {
           const SizedBox(height: 24),
 
           // 4. Requests & Approvals Section (Same design & API as SM Dashboard)
-          _buildAsmRequestsAndApprovalsSection(context, provider, pendingApprovals),
+          _buildAsmRequestsAndApprovalsSection(
+            context,
+            provider,
+            pendingApprovals,
+          ),
           const SizedBox(height: 24),
 
           // 5. Territory / District Target Breakdown
