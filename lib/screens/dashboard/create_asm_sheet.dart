@@ -35,7 +35,8 @@ void showCreateAsmSheet(BuildContext context) {
     'North Zone': 'CLT',
   };
 
-  final List<String> allDistricts = OperationsProvider.instance.allDistrictNames;
+  final List<String> allDistricts =
+      OperationsProvider.instance.allDistrictNames;
   final List<String> availableZones = OperationsProvider.instance.zoneNames;
 
   showModalBottomSheet(
@@ -87,7 +88,9 @@ void showCreateAsmSheet(BuildContext context) {
                               Container(
                                 padding: const EdgeInsets.all(9),
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFF0F766E).withOpacity(0.12),
+                                  color: const Color(
+                                    0xFF0F766E,
+                                  ).withOpacity(0.12),
                                   shape: BoxShape.circle,
                                 ),
                                 child: const Icon(
@@ -113,7 +116,10 @@ void showCreateAsmSheet(BuildContext context) {
                                       'Add Regional Area Sales Manager to Kerala Team',
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
-                                      style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: AppColors.textSecondary,
+                                      ),
                                     ),
                                   ],
                                 ),
@@ -123,7 +129,10 @@ void showCreateAsmSheet(BuildContext context) {
                         ),
                         IconButton(
                           onPressed: () => Navigator.pop(ctx),
-                          icon: const Icon(Icons.close_rounded, color: AppColors.textSecondary),
+                          icon: const Icon(
+                            Icons.close_rounded,
+                            color: AppColors.textSecondary,
+                          ),
                         ),
                       ],
                     ),
@@ -142,14 +151,40 @@ void showCreateAsmSheet(BuildContext context) {
                       decoration: InputDecoration(
                         labelText: 'Full Name *',
                         hintText: 'Enter full name (e.g. Bipin Joseph)',
-                        hintStyle: const TextStyle(fontSize: 13, color: Color(0xFF94A3B8)),
-                        prefixIcon: const Icon(Icons.person_outline_rounded, size: 20, color: Color(0xFF0F766E)),
+                        hintStyle: const TextStyle(
+                          fontSize: 13,
+                          color: Color(0xFF94A3B8),
+                        ),
+                        prefixIcon: const Icon(
+                          Icons.person_outline_rounded,
+                          size: 20,
+                          color: Color(0xFF0F766E),
+                        ),
                         filled: true,
                         fillColor: const Color(0xFFF8FAFC),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFCBD5E1))),
-                        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
-                        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF0F766E), width: 1.5)),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 14,
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(
+                            color: Color(0xFFCBD5E1),
+                          ),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(
+                            color: Color(0xFFE2E8F0),
+                          ),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(
+                            color: Color(0xFF0F766E),
+                            width: 1.5,
+                          ),
+                        ),
                       ),
                       validator: (val) {
                         if (val == null || val.trim().isEmpty) {
@@ -172,20 +207,48 @@ void showCreateAsmSheet(BuildContext context) {
                       decoration: InputDecoration(
                         labelText: 'Official Email *',
                         hintText: 'e.g. bipin.tvm@kide.com',
-                        hintStyle: const TextStyle(fontSize: 13, color: Color(0xFF94A3B8)),
-                        prefixIcon: const Icon(Icons.email_outlined, size: 20, color: Color(0xFF0F766E)),
+                        hintStyle: const TextStyle(
+                          fontSize: 13,
+                          color: Color(0xFF94A3B8),
+                        ),
+                        prefixIcon: const Icon(
+                          Icons.email_outlined,
+                          size: 20,
+                          color: Color(0xFF0F766E),
+                        ),
                         filled: true,
                         fillColor: const Color(0xFFF8FAFC),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFCBD5E1))),
-                        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
-                        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF0F766E), width: 1.5)),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 14,
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(
+                            color: Color(0xFFCBD5E1),
+                          ),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(
+                            color: Color(0xFFE2E8F0),
+                          ),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(
+                            color: Color(0xFF0F766E),
+                            width: 1.5,
+                          ),
+                        ),
                       ),
                       validator: (val) {
                         if (val == null || val.trim().isEmpty) {
                           return 'Please enter official email';
                         }
-                        final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+                        final emailRegex = RegExp(
+                          r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
+                        );
                         if (!emailRegex.hasMatch(val.trim())) {
                           return 'Please enter a valid email address';
                         }
@@ -203,14 +266,40 @@ void showCreateAsmSheet(BuildContext context) {
                       decoration: InputDecoration(
                         labelText: 'Contact Number *',
                         hintText: 'e.g. +91 90000 00001 or 9000000001',
-                        hintStyle: const TextStyle(fontSize: 13, color: Color(0xFF94A3B8)),
-                        prefixIcon: const Icon(Icons.phone_outlined, size: 20, color: Color(0xFF0F766E)),
+                        hintStyle: const TextStyle(
+                          fontSize: 13,
+                          color: Color(0xFF94A3B8),
+                        ),
+                        prefixIcon: const Icon(
+                          Icons.phone_outlined,
+                          size: 20,
+                          color: Color(0xFF0F766E),
+                        ),
                         filled: true,
                         fillColor: const Color(0xFFF8FAFC),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFCBD5E1))),
-                        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
-                        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF0F766E), width: 1.5)),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 14,
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(
+                            color: Color(0xFFCBD5E1),
+                          ),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(
+                            color: Color(0xFFE2E8F0),
+                          ),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(
+                            color: Color(0xFF0F766E),
+                            width: 1.5,
+                          ),
+                        ),
                       ),
                       validator: (val) {
                         if (val == null || val.trim().isEmpty) {
@@ -238,11 +327,20 @@ void showCreateAsmSheet(BuildContext context) {
                       decoration: InputDecoration(
                         labelText: 'Initial Password *',
                         hintText: 'Enter password (min 6 characters)',
-                        hintStyle: const TextStyle(fontSize: 13, color: Color(0xFF94A3B8)),
-                        prefixIcon: const Icon(Icons.lock_outline_rounded, size: 20, color: Color(0xFF0F766E)),
+                        hintStyle: const TextStyle(
+                          fontSize: 13,
+                          color: Color(0xFF94A3B8),
+                        ),
+                        prefixIcon: const Icon(
+                          Icons.lock_outline_rounded,
+                          size: 20,
+                          color: Color(0xFF0F766E),
+                        ),
                         suffixIcon: IconButton(
                           icon: Icon(
-                            isPasswordVisible ? Icons.visibility_rounded : Icons.visibility_off_rounded,
+                            isPasswordVisible
+                                ? Icons.visibility_rounded
+                                : Icons.visibility_off_rounded,
                             color: const Color(0xFF64748B),
                             size: 20,
                           ),
@@ -254,10 +352,29 @@ void showCreateAsmSheet(BuildContext context) {
                         ),
                         filled: true,
                         fillColor: const Color(0xFFF8FAFC),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFCBD5E1))),
-                        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
-                        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF0F766E), width: 1.5)),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 14,
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(
+                            color: Color(0xFFCBD5E1),
+                          ),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(
+                            color: Color(0xFFE2E8F0),
+                          ),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(
+                            color: Color(0xFF0F766E),
+                            width: 1.5,
+                          ),
+                        ),
                       ),
                       validator: (val) {
                         if (val == null || val.trim().isEmpty) {
@@ -278,15 +395,44 @@ void showCreateAsmSheet(BuildContext context) {
                       decoration: InputDecoration(
                         labelText: 'Team Code *',
                         hintText: 'Select Team Code',
-                        hintStyle: const TextStyle(fontSize: 13, color: Color(0xFF94A3B8)),
-                        prefixIcon: const Icon(Icons.groups_outlined, size: 20, color: Color(0xFF0F766E)),
-                        prefixIconConstraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+                        hintStyle: const TextStyle(
+                          fontSize: 13,
+                          color: Color(0xFF94A3B8),
+                        ),
+                        prefixIcon: const Icon(
+                          Icons.groups_outlined,
+                          size: 20,
+                          color: Color(0xFF0F766E),
+                        ),
+                        prefixIconConstraints: const BoxConstraints(
+                          minWidth: 40,
+                          minHeight: 40,
+                        ),
                         filled: true,
                         fillColor: const Color(0xFFF8FAFC),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFCBD5E1))),
-                        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
-                        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF0F766E), width: 1.5)),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 14,
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(
+                            color: Color(0xFFCBD5E1),
+                          ),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(
+                            color: Color(0xFFE2E8F0),
+                          ),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(
+                            color: Color(0xFF0F766E),
+                            width: 1.5,
+                          ),
+                        ),
                       ),
                       items: const [
                         DropdownMenuItem(
@@ -374,7 +520,14 @@ void showCreateAsmSheet(BuildContext context) {
                           'OFFICE': 'OFFICE Team (Central Operations)',
                         };
                         return [
-                          'TVM', 'PTM', 'KTM', 'EKM', 'PKD', 'CLT', 'KZD', 'OFFICE'
+                          'TVM',
+                          'PTM',
+                          'KTM',
+                          'EKM',
+                          'PKD',
+                          'CLT',
+                          'KZD',
+                          'OFFICE',
                         ].map((code) {
                           return Align(
                             alignment: Alignment.centerLeft,
@@ -382,7 +535,10 @@ void showCreateAsmSheet(BuildContext context) {
                               labelMap[code] ?? code,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(fontSize: 13, color: Color(0xFF0F172A)),
+                              style: const TextStyle(
+                                fontSize: 13,
+                                color: Color(0xFF0F172A),
+                              ),
                             ),
                           );
                         }).toList();
@@ -410,15 +566,44 @@ void showCreateAsmSheet(BuildContext context) {
                       decoration: InputDecoration(
                         labelText: 'Assigned Zone *',
                         hintText: 'Select Operational Zone',
-                        hintStyle: const TextStyle(fontSize: 13, color: Color(0xFF94A3B8)),
-                        prefixIcon: const Icon(Icons.map_outlined, size: 20, color: Color(0xFF0F766E)),
-                        prefixIconConstraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+                        hintStyle: const TextStyle(
+                          fontSize: 13,
+                          color: Color(0xFF94A3B8),
+                        ),
+                        prefixIcon: const Icon(
+                          Icons.map_outlined,
+                          size: 20,
+                          color: Color(0xFF0F766E),
+                        ),
+                        prefixIconConstraints: const BoxConstraints(
+                          minWidth: 40,
+                          minHeight: 40,
+                        ),
                         filled: true,
                         fillColor: const Color(0xFFF8FAFC),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFCBD5E1))),
-                        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
-                        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF0F766E), width: 1.5)),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 14,
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(
+                            color: Color(0xFFCBD5E1),
+                          ),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(
+                            color: Color(0xFFE2E8F0),
+                          ),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(
+                            color: Color(0xFF0F766E),
+                            width: 1.5,
+                          ),
+                        ),
                       ),
                       items: availableZones.map((zoneName) {
                         final desc = OperationsProvider.instance.zones
@@ -449,7 +634,10 @@ void showCreateAsmSheet(BuildContext context) {
                             alignment: Alignment.centerLeft,
                             child: Text(
                               desc.isNotEmpty ? '$zoneName ($desc)' : zoneName,
-                              style: const TextStyle(fontSize: 13, color: Color(0xFF0F172A)),
+                              style: const TextStyle(
+                                fontSize: 13,
+                                color: Color(0xFF0F172A),
+                              ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
@@ -466,12 +654,16 @@ void showCreateAsmSheet(BuildContext context) {
                         if (val != null) {
                           setModalState(() {
                             selectedZone = val;
-                            if (selectedTeamCode == null || selectedTeamCode!.isEmpty) {
+                            if (selectedTeamCode == null ||
+                                selectedTeamCode!.isEmpty) {
                               selectedTeamCode = defaultZoneTeamCode[val];
                             }
                             // Auto-populate default districts for this zone from API mapping
                             selectedDistricts.clear();
-                            selectedDistricts.addAll(OperationsProvider.instance.getDistrictNamesByZone(val));
+                            selectedDistricts.addAll(
+                              OperationsProvider.instance
+                                  .getDistrictNamesByZone(val),
+                            );
                             districtValidationError = null;
                           });
                         }
@@ -485,7 +677,11 @@ void showCreateAsmSheet(BuildContext context) {
                       children: [
                         const Text(
                           'ASSIGNED DISTRICTS *',
-                          style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.textSecondary),
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.textSecondary,
+                          ),
                         ),
                         Wrap(
                           spacing: 8,
@@ -495,13 +691,20 @@ void showCreateAsmSheet(BuildContext context) {
                               GestureDetector(
                                 onTap: () {
                                   setModalState(() {
-                                    selectedDistricts.addAll(OperationsProvider.instance.getDistrictNamesByZone(selectedZone));
+                                    selectedDistricts.addAll(
+                                      OperationsProvider.instance
+                                          .getDistrictNamesByZone(selectedZone),
+                                    );
                                     districtValidationError = null;
                                   });
                                 },
                                 child: Text(
                                   'Select All $selectedZone',
-                                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF0F766E)),
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                    color: Color(0xFF0F766E),
+                                  ),
                                 ),
                               ),
                             if (selectedDistricts.isNotEmpty)
@@ -513,7 +716,11 @@ void showCreateAsmSheet(BuildContext context) {
                                 },
                                 child: const Text(
                                   'Clear All',
-                                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFFEF4444)),
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                    color: Color(0xFFEF4444),
+                                  ),
                                 ),
                               ),
                           ],
@@ -527,29 +734,45 @@ void showCreateAsmSheet(BuildContext context) {
                       runSpacing: 6,
                       children: allDistricts.map((dist) {
                         final isSel = selectedDistricts.contains(dist);
-                        final isZoneMatch = selectedZone != null &&
-                            OperationsProvider.instance.getDistrictNamesByZone(selectedZone).contains(dist);
+                        final isZoneMatch =
+                            selectedZone != null &&
+                            OperationsProvider.instance
+                                .getDistrictNamesByZone(selectedZone)
+                                .contains(dist);
 
                         return FilterChip(
                           label: Text(
                             dist,
                             style: TextStyle(
                               fontSize: 11.5,
-                              color: isSel ? Colors.white : (isZoneMatch ? const Color(0xFF0F766E) : const Color(0xFF334155)),
-                              fontWeight: isSel ? FontWeight.bold : FontWeight.w500,
+                              color: isSel
+                                  ? Colors.white
+                                  : (isZoneMatch
+                                        ? const Color(0xFF0F766E)
+                                        : const Color(0xFF334155)),
+                              fontWeight: isSel
+                                  ? FontWeight.bold
+                                  : FontWeight.w500,
                             ),
                           ),
                           selected: isSel,
                           selectedColor: const Color(0xFF0F766E),
-                          backgroundColor: isZoneMatch ? const Color(0xFFF0FDFA) : const Color(0xFFF1F5F9),
+                          backgroundColor: isZoneMatch
+                              ? const Color(0xFFF0FDFA)
+                              : const Color(0xFFF1F5F9),
                           checkmarkColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 3,
+                          ),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(20),
                             side: BorderSide(
                               color: isSel
                                   ? const Color(0xFF0F766E)
-                                  : (isZoneMatch ? const Color(0xFF99F6E4) : const Color(0xFFCBD5E1)),
+                                  : (isZoneMatch
+                                        ? const Color(0xFF99F6E4)
+                                        : const Color(0xFFCBD5E1)),
                             ),
                           ),
                           onSelected: (selected) {
@@ -569,7 +792,11 @@ void showCreateAsmSheet(BuildContext context) {
                       const SizedBox(height: 6),
                       Text(
                         districtValidationError!,
-                        style: const TextStyle(color: Color(0xFFDC2626), fontSize: 11, fontWeight: FontWeight.w600),
+                        style: const TextStyle(
+                          color: Color(0xFFDC2626),
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ],
                     const SizedBox(height: 18),
@@ -603,18 +830,48 @@ void showCreateAsmSheet(BuildContext context) {
                                 controller: monthlyTargetController,
                                 textInputAction: TextInputAction.next,
                                 keyboardType: TextInputType.number,
-                                autovalidateMode: AutovalidateMode.onUserInteraction,
+                                autovalidateMode:
+                                    AutovalidateMode.onUserInteraction,
                                 decoration: InputDecoration(
                                   hintText: 'e.g. 45',
-                                  hintStyle: const TextStyle(fontSize: 13, color: Color(0xFF94A3B8)),
-                                  prefixIcon: const Icon(Icons.flag_outlined, size: 18, color: Color(0xFF0F766E)),
-                                  prefixIconConstraints: const BoxConstraints(minWidth: 38, minHeight: 38),
+                                  hintStyle: const TextStyle(
+                                    fontSize: 13,
+                                    color: Color(0xFF94A3B8),
+                                  ),
+                                  prefixIcon: const Icon(
+                                    Icons.flag_outlined,
+                                    size: 18,
+                                    color: Color(0xFF0F766E),
+                                  ),
+                                  prefixIconConstraints: const BoxConstraints(
+                                    minWidth: 38,
+                                    minHeight: 38,
+                                  ),
                                   filled: true,
                                   fillColor: const Color(0xFFF8FAFC),
-                                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFCBD5E1))),
-                                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
-                                  focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF0F766E), width: 1.5)),
+                                  contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 12,
+                                  ),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    borderSide: const BorderSide(
+                                      color: Color(0xFFCBD5E1),
+                                    ),
+                                  ),
+                                  enabledBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    borderSide: const BorderSide(
+                                      color: Color(0xFFE2E8F0),
+                                    ),
+                                  ),
+                                  focusedBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    borderSide: const BorderSide(
+                                      color: Color(0xFF0F766E),
+                                      width: 1.5,
+                                    ),
+                                  ),
                                 ),
                                 validator: (val) {
                                   if (val == null || val.trim().isEmpty) {
@@ -652,18 +909,48 @@ void showCreateAsmSheet(BuildContext context) {
                                 controller: dailyTargetController,
                                 textInputAction: TextInputAction.done,
                                 keyboardType: TextInputType.number,
-                                autovalidateMode: AutovalidateMode.onUserInteraction,
+                                autovalidateMode:
+                                    AutovalidateMode.onUserInteraction,
                                 decoration: InputDecoration(
                                   hintText: 'e.g. 12',
-                                  hintStyle: const TextStyle(fontSize: 13, color: Color(0xFF94A3B8)),
-                                  prefixIcon: const Icon(Icons.today_outlined, size: 18, color: Color(0xFF0F766E)),
-                                  prefixIconConstraints: const BoxConstraints(minWidth: 38, minHeight: 38),
+                                  hintStyle: const TextStyle(
+                                    fontSize: 13,
+                                    color: Color(0xFF94A3B8),
+                                  ),
+                                  prefixIcon: const Icon(
+                                    Icons.today_outlined,
+                                    size: 18,
+                                    color: Color(0xFF0F766E),
+                                  ),
+                                  prefixIconConstraints: const BoxConstraints(
+                                    minWidth: 38,
+                                    minHeight: 38,
+                                  ),
                                   filled: true,
                                   fillColor: const Color(0xFFF8FAFC),
-                                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFCBD5E1))),
-                                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
-                                  focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF0F766E), width: 1.5)),
+                                  contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 12,
+                                  ),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    borderSide: const BorderSide(
+                                      color: Color(0xFFCBD5E1),
+                                    ),
+                                  ),
+                                  enabledBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    borderSide: const BorderSide(
+                                      color: Color(0xFFE2E8F0),
+                                    ),
+                                  ),
+                                  focusedBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    borderSide: const BorderSide(
+                                      color: Color(0xFF0F766E),
+                                      width: 1.5,
+                                    ),
+                                  ),
                                 ),
                                 validator: (val) {
                                   if (val == null || val.trim().isEmpty) {
@@ -726,18 +1013,22 @@ void showCreateAsmSheet(BuildContext context) {
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.transparent,
                             shadowColor: Colors.transparent,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
                           ),
                           onPressed: isSubmitting
                               ? null
                               : () async {
                                   // Validate Form fields
-                                  final isValid = formKey.currentState?.validate() ?? false;
+                                  final isValid =
+                                      formKey.currentState?.validate() ?? false;
 
                                   // Validate District selection
                                   if (selectedDistricts.isEmpty) {
                                     setModalState(() {
-                                      districtValidationError = 'Please select at least one assigned district.';
+                                      districtValidationError =
+                                          'Please select at least one assigned district.';
                                     });
                                   } else {
                                     setModalState(() {
@@ -757,23 +1048,30 @@ void showCreateAsmSheet(BuildContext context) {
                                   final name = nameController.text.trim();
                                   final email = emailController.text.trim();
                                   final phone = phoneController.text.trim();
-                                  final password = passwordController.text.trim();
-                                  final mTarget = int.parse(monthlyTargetController.text.trim());
-                                  final dTarget = int.parse(dailyTargetController.text.trim());
+                                  final password = passwordController.text
+                                      .trim();
+                                  final mTarget = int.parse(
+                                    monthlyTargetController.text.trim(),
+                                  );
+                                  final dTarget = int.parse(
+                                    dailyTargetController.text.trim(),
+                                  );
 
                                   setModalState(() => isSubmitting = true);
 
-                                  final success = await OperationsProvider.instance.createAsm(
-                                    name: name,
-                                    email: email,
-                                    phone: phone,
-                                    teamCode: selectedTeamCode!,
-                                    password: password,
-                                    zone: selectedZone!,
-                                    districts: selectedDistricts.toList(),
-                                    monthlyTarget: mTarget,
-                                    dailyTarget: dTarget,
-                                  );
+                                  final success = await OperationsProvider
+                                      .instance
+                                      .createAsm(
+                                        name: name,
+                                        email: email,
+                                        phone: phone,
+                                        teamCode: selectedTeamCode!,
+                                        password: password,
+                                        zone: selectedZone!,
+                                        districts: selectedDistricts.toList(),
+                                        monthlyTarget: mTarget,
+                                        dailyTarget: dTarget,
+                                      );
 
                                   if (ctx.mounted) {
                                     if (success) {
@@ -797,19 +1095,30 @@ void showCreateAsmSheet(BuildContext context) {
                               ? const SizedBox(
                                   width: 22,
                                   height: 22,
-                                  child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                                  child: CircularProgressIndicator(
+                                    color: Colors.white,
+                                    strokeWidth: 2,
+                                  ),
                                 )
                               : const Row(
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
-                                    Icon(Icons.check_circle_outline_rounded, color: Colors.white, size: 20),
+                                    Icon(
+                                      Icons.check_circle_outline_rounded,
+                                      color: Colors.white,
+                                      size: 20,
+                                    ),
                                     SizedBox(width: 8),
                                     Flexible(
                                       child: FittedBox(
                                         fit: BoxFit.scaleDown,
                                         child: Text(
                                           'Create Area Sales Manager',
-                                          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 14,
+                                          ),
                                         ),
                                       ),
                                     ),

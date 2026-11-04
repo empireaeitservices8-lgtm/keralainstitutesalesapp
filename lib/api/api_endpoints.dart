@@ -50,8 +50,8 @@ class ApiEndpoints {
   static String asmBdeById(String id) => '/asm/bdes/$id';
 
   /// Returns the close endpoint for a specific lead: POST /leads/{id}/close
-  static String closeLead(int id) => '/leads/$id/close';
+  static String closeLead(dynamic id) => '/leads/$id/close';
 
   /// Returns the follow-up endpoint for a specific lead: POST /leads/{id}/followup
-  static String followUpLead(int id) => '/leads/$id/followup';
+  static String followUpLead(dynamic id) => '/leads/$id/followup';
 }
