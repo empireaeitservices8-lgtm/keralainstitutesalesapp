@@ -973,6 +973,7 @@ void showFollowUpBottomSheet(
                                   try {
                                     await OperationsProvider.instance.saveFollowUp(
                                       leadId: currentTask.id,
+                                      actualLeadId: currentTask.leadId,
                                       leadSource: selectedLeadSource,
                                       studentInterest: selectedInterest,
                                       nextFollowupDate: formattedDate,

@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../constants/colors.dart';
 import '../models/home_dashboard_model.dart';
@@ -19,7 +19,8 @@ class EmployeeDashboardScreen extends StatefulWidget {
   });
 
   @override
-  State<EmployeeDashboardScreen> createState() => _EmployeeDashboardScreenState();
+  State<EmployeeDashboardScreen> createState() =>
+      _EmployeeDashboardScreenState();
 }
 
 class _EmployeeDashboardScreenState extends State<EmployeeDashboardScreen> {
@@ -57,7 +58,8 @@ class _EmployeeDashboardScreenState extends State<EmployeeDashboardScreen> {
         }
       }
       setState(() {
-        _errorMessage = response.data?['message'] ?? 'Failed to load dashboard data.';
+        _errorMessage =
+            response.data?['message'] ?? 'Failed to load dashboard data.';
         _isLoading = false;
       });
     } catch (e) {
@@ -76,7 +78,11 @@ class _EmployeeDashboardScreenState extends State<EmployeeDashboardScreen> {
         backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.textPrimary, size: 20),
+          icon: const Icon(
+            Icons.arrow_back_ios_new_rounded,
+            color: AppColors.textPrimary,
+            size: 20,
+          ),
           onPressed: () => Navigator.pop(context),
         ),
         title: Column(
@@ -114,9 +120,7 @@ class _EmployeeDashboardScreenState extends State<EmployeeDashboardScreen> {
             end: Alignment.bottomCenter,
           ),
         ),
-        child: SafeArea(
-          child: _buildBody(),
-        ),
+        child: SafeArea(child: _buildBody()),
       ),
     );
   }
@@ -135,21 +139,33 @@ class _EmployeeDashboardScreenState extends State<EmployeeDashboardScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.error_outline_rounded, size: 48, color: Colors.redAccent),
+              const Icon(
+                Icons.error_outline_rounded,
+                size: 48,
+                color: Colors.redAccent,
+              ),
               const SizedBox(height: 16),
               Text(
                 _errorMessage!,
                 textAlign: TextAlign.center,
-                style: const TextStyle(color: AppColors.textPrimary, fontSize: 13),
+                style: const TextStyle(
+                  color: AppColors.textPrimary,
+                  fontSize: 13,
+                ),
               ),
               const SizedBox(height: 20),
               ElevatedButton(
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.accentTeal,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
                 onPressed: _fetchEmployeeDashboard,
-                child: const Text('Retry', style: TextStyle(color: Colors.white)),
+                child: const Text(
+                  'Retry',
+                  style: TextStyle(color: Colors.white),
+                ),
               ),
             ],
           ),
@@ -158,9 +174,7 @@ class _EmployeeDashboardScreenState extends State<EmployeeDashboardScreen> {
     }
 
     if (_dashboardData == null) {
-      return const Center(
-        child: Text('No dashboard data available.'),
-      );
+      return const Center(child: Text('No dashboard data available.'));
     }
 
     final isManager = _dashboardData!.dashboardType == 'manager';
@@ -176,8 +190,9 @@ class _EmployeeDashboardScreenState extends State<EmployeeDashboardScreen> {
 
   Widget _buildManagerDashboard(HomeDashboardModel data) {
     final teamMetrics = data.teamMetrics;
-    final isAsm = data.designationName.toLowerCase().contains('area') ||
-                  data.designationName.toLowerCase().contains('asm');
+    final isAsm =
+        data.designationName.toLowerCase().contains('area') ||
+        data.designationName.toLowerCase().contains('asm');
     final bdeStatuses = isAsm
         ? (data.teamSubordinateStatus?['BDM'] ?? [])
         : (data.teamSubordinateStatus?['BDE'] ?? []);
@@ -205,10 +220,30 @@ class _EmployeeDashboardScreenState extends State<EmployeeDashboardScreen> {
             mainAxisSpacing: 12,
             childAspectRatio: 1.45,
             children: [
-              _buildStatCard('Team Leads', '${teamMetrics?.teamLeads ?? 0}', Icons.group_work_outlined, Colors.purple),
-              _buildStatCard('Team Admissions', '${teamMetrics?.teamAdmissions ?? 0}', Icons.offline_pin_outlined, Colors.green),
-              _buildStatCard('Team Conversion', teamMetrics?.teamConversion ?? '0%', Icons.assessment_outlined, Colors.teal),
-              _buildStatCard('Visits Pending', '${teamMetrics?.visitsPending ?? 0}', Icons.run_circle_outlined, Colors.orange),
+              _buildStatCard(
+                'Team Leads',
+                '${teamMetrics?.teamLeads ?? 0}',
+                Icons.group_work_outlined,
+                Colors.purple,
+              ),
+              _buildStatCard(
+                'Team Admissions',
+                '${teamMetrics?.teamAdmissions ?? 0}',
+                Icons.offline_pin_outlined,
+                Colors.green,
+              ),
+              _buildStatCard(
+                'Team Conversion',
+                teamMetrics?.teamConversion ?? '0%',
+                Icons.assessment_outlined,
+                Colors.teal,
+              ),
+              _buildStatCard(
+                'Visits Pending',
+                '${teamMetrics?.visitsPending ?? 0}',
+                Icons.run_circle_outlined,
+                Colors.orange,
+              ),
             ],
           ),
           const SizedBox(height: 24),
@@ -233,7 +268,9 @@ class _EmployeeDashboardScreenState extends State<EmployeeDashboardScreen> {
               ),
               child: Center(
                 child: Text(
-                  isAsm ? 'No active BDMs assigned to this team' : 'No active BDEs assigned to this team',
+                  isAsm
+                      ? 'No active BDMs assigned to this team'
+                      : 'No active BDEs assigned to this team',
                   style: const TextStyle(color: AppColors.textSecondary),
                 ),
               ),
@@ -253,9 +290,12 @@ class _EmployeeDashboardScreenState extends State<EmployeeDashboardScreen> {
                   children: [
                     CircleAvatar(
                       radius: 20,
-                      backgroundColor: (isOnline ? Colors.green : Colors.grey).withOpacity(0.08),
+                      backgroundColor: (isOnline ? Colors.green : Colors.grey)
+                          .withOpacity(0.08),
                       child: Icon(
-                        isOnline ? Icons.sensors_rounded : Icons.sensors_off_rounded,
+                        isOnline
+                            ? Icons.sensors_rounded
+                            : Icons.sensors_off_rounded,
                         color: isOnline ? Colors.green : Colors.grey,
                         size: 20,
                       ),
@@ -265,16 +305,42 @@ class _EmployeeDashboardScreenState extends State<EmployeeDashboardScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(bde.name, style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.textPrimary, fontSize: 13)),
-                          Text(bde.designation, style: const TextStyle(color: AppColors.textSecondary, fontSize: 10)),
+                          Text(
+                            bde.name,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.textPrimary,
+                              fontSize: 13,
+                            ),
+                          ),
+                          Text(
+                            bde.designation,
+                            style: const TextStyle(
+                              color: AppColors.textSecondary,
+                              fontSize: 10,
+                            ),
+                          ),
                         ],
                       ),
                     ),
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
-                        Text(bde.conversionPercentage, style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.accentTeal, fontSize: 11)),
-                        Text(bde.leadsAssigned, style: const TextStyle(color: AppColors.textSecondary, fontSize: 10)),
+                        Text(
+                          bde.conversionPercentage,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.accentTeal,
+                            fontSize: 11,
+                          ),
+                        ),
+                        Text(
+                          bde.leadsAssigned,
+                          style: const TextStyle(
+                            color: AppColors.textSecondary,
+                            fontSize: 10,
+                          ),
+                        ),
                       ],
                     ),
                   ],
@@ -318,10 +384,30 @@ class _EmployeeDashboardScreenState extends State<EmployeeDashboardScreen> {
             mainAxisSpacing: 12,
             childAspectRatio: 1.45,
             children: [
-              _buildStatCard('Assigned Leads', '$assignedLeads', Icons.assignment_outlined, Colors.purple),
-              _buildStatCard('Follow-Up Needed', '$followUpLeads', Icons.chat_bubble_outline_rounded, Colors.teal),
-              _buildStatCard('Admissions Registered', '$closedLeads', Icons.check_circle_outline_rounded, Colors.green),
-              _buildStatCard('Incentives Earned', '\u20B9${NumberFormat('#,##,###').format(incentives)}', Icons.monetization_on_outlined, Colors.amber),
+              _buildStatCard(
+                'Assigned Leads',
+                '$assignedLeads',
+                Icons.assignment_outlined,
+                Colors.purple,
+              ),
+              _buildStatCard(
+                'Follow-Up Needed',
+                '$followUpLeads',
+                Icons.chat_bubble_outline_rounded,
+                Colors.teal,
+              ),
+              _buildStatCard(
+                'Admissions Registered',
+                '$closedLeads',
+                Icons.check_circle_outline_rounded,
+                Colors.green,
+              ),
+              _buildStatCard(
+                'Incentives Earned',
+                '\u20B9${NumberFormat('#,##,###').format(incentives)}',
+                Icons.monetization_on_outlined,
+                Colors.amber,
+              ),
             ],
           ),
           const SizedBox(height: 30),
@@ -331,18 +417,36 @@ class _EmployeeDashboardScreenState extends State<EmployeeDashboardScreen> {
             child: ElevatedButton.icon(
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.accentTeal,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
                 elevation: 0,
               ),
-              icon: const Icon(Icons.filter_alt_outlined, color: Colors.white, size: 18),
+              icon: const Icon(
+                Icons.filter_alt_outlined,
+                color: Colors.white,
+                size: 18,
+              ),
               label: Text(
                 'Filter and View Leads for ${widget.employeeName}',
-                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 13,
+                ),
               ),
               onPressed: () {
-                OperationsProvider.instance.setSelectedBde(widget.employeeName, widget.employeeId);
-                OperationsProvider.instance.fetchLeads(status: 1, employeeId: widget.employeeId);
-                OperationsProvider.instance.fetchCompletedLeads(employeeId: widget.employeeId);
+                OperationsProvider.instance.setSelectedBde(
+                  widget.employeeName,
+                  widget.employeeId,
+                );
+                OperationsProvider.instance.fetchLeads(
+                  status: 1,
+                  employeeId: widget.employeeId,
+                );
+                OperationsProvider.instance.fetchCompletedLeads(
+                  employeeId: widget.employeeId,
+                );
                 HomeProvider.instance.setCurrentIndex(1);
                 Navigator.pop(context); // Close employee dashboard detail view
               },
@@ -354,7 +458,8 @@ class _EmployeeDashboardScreenState extends State<EmployeeDashboardScreen> {
   }
 
   String _formatTime12Hr(String timeStr) {
-    if (timeStr == '--:--' || timeStr.isEmpty || timeStr == 'null') return '--:--';
+    if (timeStr == '--:--' || timeStr.isEmpty || timeStr == 'null')
+      return '--:--';
     final trimmed = timeStr.trim();
     final upper = trimmed.toUpperCase();
     if (upper.contains('AM') || upper.contains('PM')) {
@@ -382,7 +487,10 @@ class _EmployeeDashboardScreenState extends State<EmployeeDashboardScreen> {
     if (apiAttendance == null) return const SizedBox.shrink();
 
     final bool checkedIn = apiAttendance.isCheckedIn;
-    final bool checkedOut = apiAttendance.isCheckedOut || apiAttendance.shiftStatus == 'COMPLETED' || apiAttendance.shiftStatus == 'CHECKED_OUT';
+    final bool checkedOut =
+        apiAttendance.isCheckedOut ||
+        apiAttendance.shiftStatus == 'COMPLETED' ||
+        apiAttendance.shiftStatus == 'CHECKED_OUT';
 
     return Container(
       width: double.infinity,
@@ -402,27 +510,46 @@ class _EmployeeDashboardScreenState extends State<EmployeeDashboardScreen> {
                 children: [
                   Container(
                     padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(color: (checkedIn ? Colors.green : Colors.orange).withOpacity(0.08), shape: BoxShape.circle),
+                    decoration: BoxDecoration(
+                      color: (checkedIn ? Colors.green : Colors.orange)
+                          .withOpacity(0.08),
+                      shape: BoxShape.circle,
+                    ),
                     child: Icon(
-                      checkedIn ? Icons.check_circle_outline_rounded : Icons.pending_actions_rounded,
+                      checkedIn
+                          ? Icons.check_circle_outline_rounded
+                          : Icons.pending_actions_rounded,
                       color: checkedIn ? Colors.green : Colors.orange,
                       size: 18,
                     ),
                   ),
                   const SizedBox(width: 10),
-                  const Text('Attendance Status', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.textPrimary, fontSize: 13)),
+                  const Text(
+                    'Attendance Status',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.textPrimary,
+                      fontSize: 13,
+                    ),
+                  ),
                 ],
               ),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: (checkedOut ? Colors.grey : (checkedIn ? Colors.green : Colors.orange)).withOpacity(0.08),
+                  color:
+                      (checkedOut
+                              ? Colors.grey
+                              : (checkedIn ? Colors.green : Colors.orange))
+                          .withOpacity(0.08),
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
                   apiAttendance.shiftStatus,
                   style: TextStyle(
-                    color: checkedOut ? Colors.grey : (checkedIn ? Colors.green : Colors.orange),
+                    color: checkedOut
+                        ? Colors.grey
+                        : (checkedIn ? Colors.green : Colors.orange),
                     fontSize: 9,
                     fontWeight: FontWeight.bold,
                   ),
@@ -437,27 +564,64 @@ class _EmployeeDashboardScreenState extends State<EmployeeDashboardScreen> {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('CHECK IN', style: TextStyle(color: AppColors.textSecondary, fontSize: 10, fontWeight: FontWeight.w600)),
+                  const Text(
+                    'CHECK IN',
+                    style: TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                   const SizedBox(height: 4),
-                  Text(checkedIn && apiAttendance.checkInTime.isNotEmpty ? _formatTime12Hr(apiAttendance.checkInTime) : '--:--', style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.textPrimary, fontSize: 13)),
+                  Text(
+                    checkedIn && apiAttendance.checkInTime.isNotEmpty
+                        ? _formatTime12Hr(apiAttendance.checkInTime)
+                        : '--:--',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.textPrimary,
+                      fontSize: 13,
+                    ),
+                  ),
                 ],
-               ),
-               Column(
+              ),
+              Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  const Text('CHECK OUT', style: TextStyle(color: AppColors.textSecondary, fontSize: 10, fontWeight: FontWeight.w600)),
+                  const Text(
+                    'CHECK OUT',
+                    style: TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                   const SizedBox(height: 4),
-                  Text(checkedOut && apiAttendance.checkOutTime.isNotEmpty ? _formatTime12Hr(apiAttendance.checkOutTime) : '--:--', style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.textPrimary, fontSize: 13)),
+                  Text(
+                    checkedOut && apiAttendance.checkOutTime.isNotEmpty
+                        ? _formatTime12Hr(apiAttendance.checkOutTime)
+                        : '--:--',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.textPrimary,
+                      fontSize: 13,
+                    ),
+                  ),
                 ],
-               ),
-             ],
-           ),
+              ),
+            ],
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildStatCard(String label, String value, IconData icon, Color color) {
+  Widget _buildStatCard(
+    String label,
+    String value,
+    IconData icon,
+    Color color,
+  ) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -481,7 +645,10 @@ class _EmployeeDashboardScreenState extends State<EmployeeDashboardScreen> {
             children: [
               Container(
                 padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(color: color.withOpacity(0.08), shape: BoxShape.circle),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.08),
+                  shape: BoxShape.circle,
+                ),
                 child: Icon(icon, color: color, size: 16),
               ),
             ],
@@ -491,12 +658,21 @@ class _EmployeeDashboardScreenState extends State<EmployeeDashboardScreen> {
             children: [
               Text(
                 value,
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary, height: 1.1),
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.textPrimary,
+                  height: 1.1,
+                ),
               ),
               const SizedBox(height: 4),
               Text(
                 label,
-                style: const TextStyle(fontSize: 10, color: AppColors.textSecondary, fontWeight: FontWeight.w600),
+                style: const TextStyle(
+                  fontSize: 10,
+                  color: AppColors.textSecondary,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ],
           ),

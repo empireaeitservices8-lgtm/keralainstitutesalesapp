@@ -23,7 +23,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
     super.initState();
     // Preload data
     OperationsProvider.instance.loadOperationsData();
-    OperationsProvider.instance.fetchSmAsms();
+    if (AuthProvider.instance.isSm) {
+      OperationsProvider.instance.fetchSmAsms();
+    }
     OperationsProvider.instance.fetchOfficeTelecallers();
     OperationsProvider.instance.fetchSmPayoutRequests();
     OperationsProvider.instance.fetchAsmBdes();

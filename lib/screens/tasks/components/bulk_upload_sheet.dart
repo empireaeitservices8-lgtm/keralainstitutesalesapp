@@ -1,7 +1,9 @@
 import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+
 import '../../../constants/colors.dart';
+import '../../../models/lead_import_response.dart';
 import '../../../providers/operations_provider.dart';
 import '../../../utils/helpers.dart';
 
@@ -164,7 +166,9 @@ void showBulkUploadBottomSheet(
                                 Container(
                                   padding: const EdgeInsets.all(10),
                                   decoration: BoxDecoration(
-                                    color: AppColors.accentTeal.withOpacity(0.1),
+                                    color: AppColors.accentTeal.withOpacity(
+                                      0.1,
+                                    ),
                                     borderRadius: BorderRadius.circular(10),
                                   ),
                                   child: const Icon(
@@ -176,7 +180,8 @@ void showBulkUploadBottomSheet(
                                 const SizedBox(width: 16),
                                 Expanded(
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Text(
                                         selectedFile!.path
@@ -264,7 +269,8 @@ void showBulkUploadBottomSheet(
                                 );
 
                                 try {
-                                  final result = await OperationsProvider.instance
+                                  final result = await OperationsProvider
+                                      .instance
                                       .importLeads(selectedFile!);
 
                                   if (context.mounted) {
@@ -287,7 +293,8 @@ void showBulkUploadBottomSheet(
                                     if (context.mounted) {
                                       UiHelpers.showSnackBar(
                                         context,
-                                        result?.message ?? 'Failed to import leads.',
+                                        result?.message ??
+                                            'Failed to import leads.',
                                         Colors.redAccent,
                                       );
                                     }

@@ -3,9 +3,9 @@ import '../models/user_session.dart';
 import '../services/auth_service.dart';
 import '../api/api_response.dart';
 import 'home_provider.dart';
+import 'operations_provider.dart';
 import 'user_profile_provider.dart';
 import 'wallet_provider.dart';
-import 'operations_provider.dart';
 import 'attendance_provider.dart';
 
 class AuthProvider extends ChangeNotifier {
@@ -31,6 +31,35 @@ class AuthProvider extends ChangeNotifier {
   bool get isLoggingOut => _isLoggingOut;
   bool get obscureConfirmPassword => _obscureConfirmPassword;
 
+  bool get isAsm {
+    final userRole = _session.role.trim().toUpperCase();
+    final homeData = HomeProvider.instance.state.data;
+    final desigLower = homeData?.designationName.toLowerCase() ?? '';
+    final dashboardType = homeData?.dashboardType?.trim().toUpperCase() ?? '';
+
+    return userRole == 'ASM' ||
+        dashboardType == 'ASM' ||
+        homeData?.designationName.toUpperCase() == 'ASM' ||
+        desigLower.contains('area sales') ||
+        desigLower.contains('area manager') ||
+        desigLower == 'asm' ||
+        desigLower.contains('asm');
+  }
+
+  bool get isSm {
+    if (isAsm) return false;
+    final userRole = _session.role.trim().toUpperCase();
+    final homeData = HomeProvider.instance.state.data;
+    final desigLower = homeData?.designationName.toLowerCase() ?? '';
+    final dashboardType = homeData?.dashboardType?.trim().toUpperCase() ?? '';
+
+    return userRole == 'SM' ||
+        dashboardType == 'SM' ||
+        homeData?.designationName.toUpperCase() == 'SM' ||
+        desigLower.contains('state manager') ||
+        desigLower.contains('sales manager');
+  }
+
   void toggleObscurePassword() {
     _obscurePassword = !_obscurePassword;
     notifyListeners();
@@ -44,26 +73,36 @@ class AuthProvider extends ChangeNotifier {
   Future<void> loadSession() async {
     _isLoading = true;
     notifyListeners();
-    
+
     final details = await AuthService.instance.getSessionDetails();
     _session = UserSession.fromMap(details);
-    _requirePasswordChange = await AuthService.instance.hasPendingPasswordChange();
-    
+    _requirePasswordChange = await AuthService.instance
+        .hasPendingPasswordChange();
+
     _isLoading = false;
     notifyListeners();
   }
 
-  Future<bool> loginWithEmail(String email, String password, bool rememberMe) async {
+  Future<bool> loginWithEmail(
+    String email,
+    String password,
+    bool rememberMe,
+  ) async {
     _isLoading = true;
     notifyListeners();
-    
-    final success = await AuthService.instance.loginWithEmail(email, password, rememberMe);
+
+    final success = await AuthService.instance.loginWithEmail(
+      email,
+      password,
+      rememberMe,
+    );
     if (success) {
       final details = await AuthService.instance.getSessionDetails();
       _session = UserSession.fromMap(details);
-      _requirePasswordChange = await AuthService.instance.hasPendingPasswordChange();
+      _requirePasswordChange = await AuthService.instance
+          .hasPendingPasswordChange();
     }
-    
+
     _isLoading = false;
     notifyListeners();
     return success;
@@ -72,14 +111,15 @@ class AuthProvider extends ChangeNotifier {
   Future<bool> authenticateWithDevice() async {
     _isBiometricLoading = true;
     notifyListeners();
-    
+
     final success = await AuthService.instance.authenticateWithDevice();
     if (success) {
       final details = await AuthService.instance.getSessionDetails();
       _session = UserSession.fromMap(details);
-      _requirePasswordChange = await AuthService.instance.hasPendingPasswordChange();
+      _requirePasswordChange = await AuthService.instance
+          .hasPendingPasswordChange();
     }
-    
+
     _isBiometricLoading = false;
     notifyListeners();
     return success;
@@ -127,7 +167,7 @@ class AuthProvider extends ChangeNotifier {
       await AuthService.instance.logout(callApi: callApi);
       _session = UserSession.empty();
       _requirePasswordChange = false;
-      
+
       // Reset all providers and current screen index on logout
       HomeProvider.instance.setCurrentIndex(0);
       HomeProvider.instance.setState(ApiResponse.empty());
