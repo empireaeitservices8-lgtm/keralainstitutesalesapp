@@ -100,7 +100,7 @@ class HomeScreen extends StatelessWidget {
             await Future.wait([
               HomeProvider.instance.fetchHomeData(isRefresh: true),
               OperationsProvider.instance.loadOperationsData(),
-              if (isSm) OperationsProvider.instance.fetchSmAsms(isRefresh: true),
+              OperationsProvider.instance.fetchSmAsms(isRefresh: true),
               OperationsProvider.instance.fetchOfficeTelecallers(isRefresh: true),
               OperationsProvider.instance.fetchSmPayoutRequests(isRefresh: true),
               OperationsProvider.instance.fetchAsmBdes(isRefresh: true),

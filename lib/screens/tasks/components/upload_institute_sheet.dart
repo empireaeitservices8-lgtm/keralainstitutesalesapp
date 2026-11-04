@@ -3,8 +3,8 @@ import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import '../../../providers/operations_provider.dart';
 import '../../../constants/colors.dart';
+import '../../../providers/operations_provider.dart';
 import '../../../utils/helpers.dart';
 
 void showUploadInstituteBottomSheet(
@@ -146,35 +146,12 @@ class _UploadInstituteSheetState extends State<_UploadInstituteSheet>
 
         // Header check
         final headerLine = lines.first.toLowerCase();
-        final headers = headerLine
-            .split(',')
-            .map((h) => h.trim().replaceAll('"', ''))
-            .toList();
+        final headers = headerLine.split(',').map((h) => h.trim().replaceAll('"', '')).toList();
 
-        int idxInst = headers.indexWhere(
-          (h) =>
-              h.contains('institute') ||
-              h.contains('school') ||
-              h.contains('college'),
-        );
-        int idxPerson = headers.indexWhere(
-          (h) =>
-              h.contains('person') ||
-              h.contains('name') ||
-              h.contains('contact'),
-        );
-        int idxPos = headers.indexWhere(
-          (h) =>
-              h.contains('position') ||
-              h.contains('role') ||
-              h.contains('designation'),
-        );
-        int idxPhone = headers.indexWhere(
-          (h) =>
-              h.contains('phone') ||
-              h.contains('mobile') ||
-              h.contains('number'),
-        );
+        int idxInst = headers.indexWhere((h) => h.contains('institute') || h.contains('school') || h.contains('college'));
+        int idxPerson = headers.indexWhere((h) => h.contains('person') || h.contains('name') || h.contains('contact'));
+        int idxPos = headers.indexWhere((h) => h.contains('position') || h.contains('role') || h.contains('designation'));
+        int idxPhone = headers.indexWhere((h) => h.contains('phone') || h.contains('mobile') || h.contains('number'));
 
         // Fallback to column index 0, 1, 2, 3 if headers not matched
         if (idxInst == -1 && headers.isNotEmpty) idxInst = 0;
@@ -186,31 +163,18 @@ class _UploadInstituteSheetState extends State<_UploadInstituteSheet>
         for (int i = 1; i < lines.length; i++) {
           final line = lines[i].trim();
           if (line.isEmpty) continue;
-          final cols = line
-              .split(',')
-              .map((c) => c.trim().replaceAll('"', ''))
-              .toList();
+          final cols = line.split(',').map((c) => c.trim().replaceAll('"', '')).toList();
           if (cols.length < 2) continue;
 
-          final instName = (idxInst >= 0 && idxInst < cols.length)
-              ? cols[idxInst]
-              : '';
-          final personName = (idxPerson >= 0 && idxPerson < cols.length)
-              ? cols[idxPerson]
-              : '';
-          final position = (idxPos >= 0 && idxPos < cols.length)
-              ? cols[idxPos]
-              : 'Principal';
-          final phone = (idxPhone >= 0 && idxPhone < cols.length)
-              ? cols[idxPhone]
-              : '';
+          final instName = (idxInst >= 0 && idxInst < cols.length) ? cols[idxInst] : '';
+          final personName = (idxPerson >= 0 && idxPerson < cols.length) ? cols[idxPerson] : '';
+          final position = (idxPos >= 0 && idxPos < cols.length) ? cols[idxPos] : 'Principal';
+          final phone = (idxPhone >= 0 && idxPhone < cols.length) ? cols[idxPhone] : '';
 
           if (instName.isNotEmpty || phone.isNotEmpty) {
             parsed.add({
               'institute_name': instName,
-              'person_name': personName.isNotEmpty
-                  ? personName
-                  : 'Administration',
+              'person_name': personName.isNotEmpty ? personName : 'Administration',
               'position': position.isNotEmpty ? position : 'Principal',
               'phone': phone,
             });
@@ -240,8 +204,7 @@ class _UploadInstituteSheetState extends State<_UploadInstituteSheet>
 
     setState(() {
       _isProcessingCsv = true;
-      _csvProgressText =
-          'Starting upload of ${_parsedInstitutes.length} institutions...';
+      _csvProgressText = 'Starting upload of ${_parsedInstitutes.length} institutions...';
     });
 
     int successCount = 0;
@@ -252,8 +215,7 @@ class _UploadInstituteSheetState extends State<_UploadInstituteSheet>
       if (!mounted) break;
 
       setState(() {
-        _csvProgressText =
-            'Uploading ${i + 1} of ${_parsedInstitutes.length} (${item['institute_name']})...';
+        _csvProgressText = 'Uploading ${i + 1} of ${_parsedInstitutes.length} (${item['institute_name']})...';
       });
 
       try {
@@ -366,11 +328,7 @@ class _UploadInstituteSheetState extends State<_UploadInstituteSheet>
                 ),
               ),
               IconButton(
-                icon: const Icon(
-                  Icons.close,
-                  size: 20,
-                  color: AppColors.textSecondary,
-                ),
+                icon: const Icon(Icons.close, size: 20, color: AppColors.textSecondary),
                 onPressed: () => Navigator.pop(context),
               ),
             ],
@@ -418,7 +376,10 @@ class _UploadInstituteSheetState extends State<_UploadInstituteSheet>
           Flexible(
             child: TabBarView(
               controller: _tabController,
-              children: [_buildSingleEntryView(), _buildBulkCsvView()],
+              children: [
+                _buildSingleEntryView(),
+                _buildBulkCsvView(),
+              ],
             ),
           ),
         ],
@@ -436,7 +397,10 @@ class _UploadInstituteSheetState extends State<_UploadInstituteSheet>
           children: [
             const Text(
               'Enter the institution or school details and contact person number.',
-              style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+              style: TextStyle(
+                fontSize: 12,
+                color: AppColors.textSecondary,
+              ),
             ),
             const SizedBox(height: 14),
 
@@ -539,11 +503,7 @@ class _UploadInstituteSheetState extends State<_UploadInstituteSheet>
                       : const Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(
-                              Icons.cloud_upload_rounded,
-                              color: Colors.white,
-                              size: 18,
-                            ),
+                            Icon(Icons.cloud_upload_rounded, color: Colors.white, size: 18),
                             SizedBox(width: 8),
                             Text(
                               'Upload Institution Details',
@@ -572,7 +532,10 @@ class _UploadInstituteSheetState extends State<_UploadInstituteSheet>
         children: [
           const Text(
             'Import multiple schools and institutions by uploading a CSV file.',
-            style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+            style: TextStyle(
+              fontSize: 12,
+              color: AppColors.textSecondary,
+            ),
           ),
           const SizedBox(height: 12),
 
@@ -583,10 +546,7 @@ class _UploadInstituteSheetState extends State<_UploadInstituteSheet>
             child: _selectedCsvFile == null
                 ? Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.symmetric(
-                      vertical: 28,
-                      horizontal: 16,
-                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 16),
                     decoration: BoxDecoration(
                       color: AppColors.bgInput,
                       borderRadius: BorderRadius.circular(16),
@@ -653,9 +613,7 @@ class _UploadInstituteSheetState extends State<_UploadInstituteSheet>
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                _selectedCsvFile!.path
-                                    .split(RegExp(r'[/\\]'))
-                                    .last,
+                                _selectedCsvFile!.path.split(RegExp(r'[/\\]')).last,
                                 style: const TextStyle(
                                   fontWeight: FontWeight.bold,
                                   fontSize: 13,
@@ -758,9 +716,7 @@ class _UploadInstituteSheetState extends State<_UploadInstituteSheet>
                     ? null
                     : _handleCsvBulkSubmit,
                 child: Text(
-                  _isProcessingCsv
-                      ? 'Processing...'
-                      : 'Upload $_parsedRowCount Institutions',
+                  _isProcessingCsv ? 'Processing...' : 'Upload $_parsedRowCount Institutions',
                   style: const TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.bold,
@@ -820,10 +776,7 @@ class _UploadInstituteSheetState extends State<_UploadInstituteSheet>
             prefixIcon: Icon(icon, size: 18, color: AppColors.accentTeal),
             filled: true,
             fillColor: AppColors.bgInput,
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 14,
-              vertical: 12,
-            ),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide: BorderSide.none,

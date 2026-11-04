@@ -34,11 +34,6 @@ void showCloseLeadSheet(
           ? task.remarks!.trim()
           : 'Admission confirmed, fee paid');
 
-  final initialLeadId = (task.leadId != null && task.leadId!.trim().isNotEmpty)
-      ? task.leadId!.trim()
-      : task.id.trim();
-
-  final leadIdController = TextEditingController(text: initialLeadId);
   final studentIdController = TextEditingController();
   final courseController = TextEditingController(text: defaultCourse);
   final paymentController = TextEditingController();
@@ -219,51 +214,6 @@ void showCloseLeadSheet(
                   ),
                   const SizedBox(height: 18),
 
-                  // Field 0: Lead ID
-                  _buildFieldLabel('LEAD ID *'),
-                  const SizedBox(height: 6),
-                  TextField(
-                    controller: leadIdController,
-                    keyboardType: TextInputType.text,
-                    style: const TextStyle(
-                      fontSize: 13,
-                      color: AppColors.textPrimary,
-                      fontWeight: FontWeight.w600,
-                    ),
-                    decoration: InputDecoration(
-                      prefixIcon: const Icon(
-                        Icons.tag_rounded,
-                        size: 20,
-                        color: AppColors.accentTeal,
-                      ),
-                      hintText: 'e.g. LD-1759',
-                      hintStyle: const TextStyle(
-                        fontSize: 12,
-                        color: AppColors.textSecondary,
-                      ),
-                      filled: true,
-                      fillColor: AppColors.bgInput,
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 12,
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(
-                          color: Colors.black.withValues(alpha: 0.06),
-                        ),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(
-                          color: AppColors.accentTeal,
-                          width: 1.5,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-
                   // Field 1: Student ID
                   _buildFieldLabel('STUDENT ID / ADMISSION NO *'),
                   const SizedBox(height: 6),
@@ -384,7 +334,7 @@ void showCloseLeadSheet(
                   const SizedBox(height: 6),
                   TextField(
                     controller: paymentController,
-                    keyboardType: TextInputType.text,
+                    keyboardType: TextInputType.number,
                     style: const TextStyle(
                       fontSize: 13,
                       color: AppColors.textPrimary,
@@ -576,16 +526,6 @@ void showCloseLeadSheet(
                         onPressed: isSubmitting
                             ? null
                             : () async {
-                                final leadIdStr = leadIdController.text.trim();
-                                if (leadIdStr.isEmpty) {
-                                  UiHelpers.showSnackBar(
-                                    sheetContext,
-                                    'Please provide a valid Lead ID!',
-                                    Colors.orange,
-                                  );
-                                  return;
-                                }
-
                                 final studentId = studentIdController.text.trim();
                                 final course = courseController.text.trim();
                                 final paymentStr = paymentController.text.trim();
@@ -635,7 +575,6 @@ void showCloseLeadSheet(
                                 try {
                                   await OperationsProvider.instance.closeLead(
                                     id: task.id,
-                                    leadId: leadIdStr,
                                     studentId: studentId,
                                     course: course,
                                     payment: payment,

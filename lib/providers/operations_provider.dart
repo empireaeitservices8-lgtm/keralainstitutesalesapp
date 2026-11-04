@@ -11,9 +11,8 @@ import '../models/course_model.dart';
 import 'package:dio/dio.dart';
 import 'package:http_parser/http_parser.dart';
 import 'package:flutter/material.dart';
-import '../api/api_response.dart';
-import '../models/user_profile_model.dart';
-export '../models/lead_import_response.dart';
+import 'package:keralainstitutesalesapp/api/api_response.dart';
+import 'package:keralainstitutesalesapp/models/user_profile_model.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
 import '../api/api_client.dart';
@@ -85,13 +84,6 @@ class OperationsProvider extends ChangeNotifier {
 
   // --- 3. SM (Sales Manager) APIs ---
   Future<void> fetchSmAsms({bool isRefresh = false}) async {
-    if (!AuthProvider.instance.isSm) {
-      debugPrint(
-        '[fetchSmAsms] Skipping /api/sm/asms because user role (${AuthProvider.instance.session.role}) is not SM',
-      );
-      return;
-    }
-
     if (!isRefresh && _smAsms.isNotEmpty) return;
     _isLoadingSmAsms = true;
     notifyListeners();
@@ -1843,8 +1835,6 @@ class OperationsProvider extends ChangeNotifier {
 
   Future<void> saveFollowUp({
     required String leadId,
-    String? actualLeadId,
-    int? numericLeadId,
     required String leadSource,
     required String studentInterest,
     required String nextFollowupDate,
@@ -1854,56 +1844,27 @@ class OperationsProvider extends ChangeNotifier {
     required String studentId,
     required String course,
   }) async {
-    String targetLeadId = (actualLeadId != null && actualLeadId.trim().isNotEmpty)
-        ? actualLeadId.trim()
-        : '';
-    if (targetLeadId.isEmpty && numericLeadId != null && numericLeadId > 0) {
-      targetLeadId = numericLeadId.toString();
-    }
-    if (targetLeadId.isEmpty) {
-      targetLeadId = leadId.trim();
-    }
+    final numericId = int.tryParse(leadId.replaceAll(RegExp(r'[^0-9]'), ''));
+    if (numericId != null) {
+      final payload = {
+        'lead_source': leadSource,
+        'student_interest': studentInterest,
+        'next_followup_date': nextFollowupDate,
+        'remarks': remarks,
+        'admission_status': admissionStatus,
+        'payment_verification': paymentVerification,
+        'student_id': studentId,
+        'course': course,
+      };
 
-    if (targetLeadId.isEmpty) {
-      throw Exception('Invalid lead ID for follow-up');
-    }
-
-    final payload = {
-      'lead_id': targetLeadId,
-      'lead_source': leadSource,
-      'student_interest': studentInterest,
-      'next_followup_date': nextFollowupDate,
-      'remarks': remarks,
-      'admission_status': admissionStatus,
-      'payment_verification': paymentVerification,
-      'student_id': studentId,
-      'course': course,
-    };
-
-    debugPrint('[saveFollowUp] Posting to /leads/$targetLeadId/followup: $payload');
-    try {
+      debugPrint('[saveFollowUp] Posting to /leads/$numericId/followup: $payload');
       await ApiClient.instance.post(
-        ApiEndpoints.followUpLead(targetLeadId),
+        ApiEndpoints.followUpLead(numericId),
         data: payload,
       );
-    } catch (e) {
-      final digitsOnly = targetLeadId.replaceAll(RegExp(r'[^0-9]'), '');
-      if (digitsOnly.isNotEmpty && digitsOnly != targetLeadId) {
-        debugPrint('[saveFollowUp] Attempt failed with $targetLeadId ($e), retrying with numeric lead id /leads/$digitsOnly/followup');
-        final fallbackPayload = Map<String, dynamic>.from(payload)..['lead_id'] = digitsOnly;
-        await ApiClient.instance.post(
-          ApiEndpoints.followUpLead(digitsOnly),
-          data: fallbackPayload,
-        );
-      } else {
-        rethrow;
-      }
-    }
 
-    // Update local state
-    final index = _tasks.indexWhere(
-      (t) => t.id == leadId || t.leadId == targetLeadId || t.id == targetLeadId,
-    );
+      // Update local state
+      final index = _tasks.indexWhere((t) => t.id == leadId);
       if (index != -1) {
         final currentTask = _tasks[index];
         final updatedFollowUps = List<FollowUpItem>.from(
@@ -2495,7 +2456,6 @@ class OperationsProvider extends ChangeNotifier {
   /// Closes a lead with student admission details via POST /api/leads/{id}/close
   Future<void> closeLead({
     required String id,
-    dynamic leadId,
     required String studentId,
     required String course,
     required num payment,
@@ -2505,19 +2465,12 @@ class OperationsProvider extends ChangeNotifier {
     _isSubmittingTask = true;
     notifyListeners();
     try {
-      String targetLeadId = '';
-      if (leadId != null && leadId.toString().trim().isNotEmpty) {
-        targetLeadId = leadId.toString().trim();
-      } else if (id.trim().isNotEmpty) {
-        targetLeadId = id.trim();
-      }
-
-      if (targetLeadId.isEmpty) {
-        throw Exception('Invalid lead ID: $id (leadId: $leadId)');
+      final numericId = int.tryParse(id.replaceAll(RegExp(r'[^0-9]'), ''));
+      if (numericId == null) {
+        throw Exception('Invalid lead ID: $id');
       }
 
       final payload = {
-        'lead_id': targetLeadId,
         'student_id': studentId,
         'course': course,
         'payment': payment,
@@ -2525,30 +2478,14 @@ class OperationsProvider extends ChangeNotifier {
         'remarks': remarks,
       };
 
-      debugPrint('[closeLead] Sending payload to /leads/$targetLeadId/close: $payload');
-      try {
-        await ApiClient.instance.post(
-          ApiEndpoints.closeLead(targetLeadId),
-          data: payload,
-        );
-      } catch (e) {
-        final digitsOnly = targetLeadId.replaceAll(RegExp(r'[^0-9]'), '');
-        if (digitsOnly.isNotEmpty && digitsOnly != targetLeadId) {
-          debugPrint('[closeLead] Attempt failed with $targetLeadId ($e), retrying with numeric lead id /leads/$digitsOnly/close');
-          final fallbackPayload = Map<String, dynamic>.from(payload)..['lead_id'] = digitsOnly;
-          await ApiClient.instance.post(
-            ApiEndpoints.closeLead(digitsOnly),
-            data: fallbackPayload,
-          );
-        } else {
-          rethrow;
-        }
-      }
+      debugPrint('[closeLead] Sending payload to /leads/$numericId/close: $payload');
+      await ApiClient.instance.post(
+        ApiEndpoints.closeLead(numericId),
+        data: payload,
+      );
 
       // Update local state to reflect the change immediately in the UI.
-      final index = _tasks.indexWhere(
-        (t) => t.id == id || t.leadId == targetLeadId || t.id == targetLeadId,
-      );
+      final index = _tasks.indexWhere((t) => t.id == id);
       if (index != -1) {
         final currentTask = _tasks[index];
         _tasks[index] = currentTask.copyWith(
@@ -2589,28 +2526,10 @@ class OperationsProvider extends ChangeNotifier {
     try {
       // If the BDE is closing the lead, hit the dedicated close endpoint.
       if (leadStatus == 'Closed') {
-        final taskItem = _tasks.firstWhere(
-          (t) => t.id == id || t.leadId == id,
-          orElse: () => TaskModel(
-            id: id,
-            studentName: '',
-            location: '',
-            course: '',
-            description: '',
-            assignedDate: DateTime.now(),
-            assignedBdeEmail: '',
-            team: '',
-            district: '',
-            zone: '',
-          ),
-        );
-        final targetLeadId = (taskItem.leadId != null && taskItem.leadId!.trim().isNotEmpty)
-            ? taskItem.leadId!.trim()
-            : id.trim();
-        if (targetLeadId.isNotEmpty) {
+        final numericId = int.tryParse(id.replaceAll(RegExp(r'[^0-9]'), ''));
+        if (numericId != null) {
           final payload = <String, dynamic>{
-            'lead_id': targetLeadId,
-            'student_id': studentId ?? 'STU-$targetLeadId',
+            'student_id': studentId ?? 'STU-$numericId',
             'course': (course != null && course.isNotEmpty) ? course : 'Full-Stack Web Development',
             'payment': payment ?? 0,
             'payment_verification': (paymentVerification != null && paymentVerification.isNotEmpty)
@@ -2618,27 +2537,15 @@ class OperationsProvider extends ChangeNotifier {
                 : 'Verified',
             'remarks': remarks,
           };
-          try {
-            await ApiClient.instance.post(
-              ApiEndpoints.closeLead(targetLeadId),
-              data: payload,
-            );
-          } catch (e) {
-            final digitsOnly = targetLeadId.replaceAll(RegExp(r'[^0-9]'), '');
-            if (digitsOnly.isNotEmpty && digitsOnly != targetLeadId) {
-              await ApiClient.instance.post(
-                ApiEndpoints.closeLead(digitsOnly),
-                data: Map<String, dynamic>.from(payload)..['lead_id'] = digitsOnly,
-              );
-            } else {
-              rethrow;
-            }
-          }
+          await ApiClient.instance.post(
+            ApiEndpoints.closeLead(numericId),
+            data: payload,
+          );
         }
       }
 
       // Update local state to reflect the change immediately in the UI.
-      final index = _tasks.indexWhere((t) => t.id == id || t.leadId == id);
+      final index = _tasks.indexWhere((t) => t.id == id);
       if (index != -1) {
         final currentTask = _tasks[index];
         List<FollowUpItem>? updatedFollowUps = currentTask.followUps;
@@ -3179,8 +3086,7 @@ class OperationsProvider extends ChangeNotifier {
     final zoneName = currentUser.zone ?? '';
     final teamName = currentUser.team ?? '';
 
-    final actualLeadId = lead.leadIdentifier;
-    final leadId = actualLeadId.isNotEmpty ? actualLeadId : (lead.id > 0 ? 'LD_${lead.id}' : '');
+    final leadId = 'LD_${lead.id}';
 
     // Map API follow-ups to FollowUpItem
     final apiFollowUps =
@@ -3199,7 +3105,6 @@ class OperationsProvider extends ChangeNotifier {
     // API already scopes results via Bearer token; use session values as fallback.
     return TaskModel(
       id: leadId,
-      leadId: actualLeadId,
       studentName: lead.name,
       location: lead.address,
       course: lead.interestedCourse?.isNotEmpty == true
@@ -3494,14 +3399,8 @@ class OperationsProvider extends ChangeNotifier {
         }
 
         // Add to local list to reflect in UI immediately
-        final rawLeadId = leadData['lead_id'] ?? leadData['id'];
-        final leadIdStr = rawLeadId?.toString().trim();
-        final displayId = (leadIdStr != null && leadIdStr.isNotEmpty)
-            ? leadIdStr
-            : 'LD_${DateTime.now().millisecondsSinceEpoch.toString().substring(9)}';
         final newLead = TaskModel(
-          id: displayId,
-          leadId: displayId,
+          id: 'LD_${leadData['id'] ?? DateTime.now().millisecondsSinceEpoch.toString().substring(9)}',
           studentName: name,
           location: address,
           course: courseName,
@@ -3773,11 +3672,6 @@ class OperationsProvider extends ChangeNotifier {
 
   /// Reset provider state on logout
   void clearData() {
-    _smAsms = [];
-    _officeTelecallers = [];
-    _smPayoutRequests = [];
-    _asmBdes = [];
-    _bdePendingRequests = [];
     _beatPlans = [];
     _tasks = [];
     _incentives = [];

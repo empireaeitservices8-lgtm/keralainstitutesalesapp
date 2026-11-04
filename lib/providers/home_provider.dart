@@ -306,19 +306,6 @@ class HomeProvider extends BaseProvider<HomeDashboardModel> {
           AuthProvider.instance.updateSessionRole('ASM');
         }
 
-        final bool isSm = !isAsm && (
-            model.dashboardType?.toUpperCase() == 'SM' ||
-            model.designationName.toUpperCase() == 'SM' ||
-            desigLower.contains('state manager') ||
-            desigLower.contains('sales manager') ||
-            desigLower == 'sm');
-        if (isSm && AuthProvider.instance.session.role != 'SM') {
-          AuthProvider.instance.updateSessionRole('SM');
-        }
-        if (isSm && OperationsProvider.instance.smAsms.isEmpty) {
-          OperationsProvider.instance.fetchSmAsms();
-        }
-
         // 4. Save fresh data to local cache
         await prefs.setString('cached_home_data', jsonEncode(model.toJson()));
 

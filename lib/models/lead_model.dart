@@ -96,8 +96,6 @@ class LeadModel {
   }
 
   final int id;
-  @JsonKey(name: 'lead_id')
-  final String? leadId;
   @JsonKey(fromJson: _parseString)
   final String name;
   @JsonKey(fromJson: _parseString)
@@ -158,7 +156,6 @@ class LeadModel {
 
   const LeadModel({
     required this.id,
-    this.leadId,
     required this.name,
     required this.phone,
     this.whatsappNumber,
@@ -190,19 +187,6 @@ class LeadModel {
   factory LeadModel.fromJson(Map<String, dynamic> json) =>
       _$LeadModelFromJson(json);
   Map<String, dynamic> toJson() => _$LeadModelToJson(this);
-
-  String get leadIdentifier {
-    if (leadId != null && leadId!.trim().isNotEmpty) {
-      return leadId!.trim();
-    }
-    return id > 0 ? id.toString() : '';
-  }
-
-  int get actualLeadId {
-    final parsed = int.tryParse((leadId ?? '').replaceAll(RegExp(r'[^0-9]'), ''));
-    if (parsed != null && parsed > 0) return parsed;
-    return id;
-  }
 
   /// Convenience: human-readable status string
   String get statusLabel {
