@@ -83,7 +83,7 @@ class _BdeTaskViewState extends State<BdeTaskView>
 
     try {
       await OperationsProvider.instance.updateTaskStatus(
-        task.id,
+        task.leadIdentifier,
         'Completed',
         leadStatus: leadStatus,
         remarks: remarks,

@@ -84,6 +84,12 @@ class OperationsProvider extends ChangeNotifier {
 
   // --- 3. SM (Sales Manager) APIs ---
   Future<void> fetchSmAsms({bool isRefresh = false}) async {
+    final cleanRole = AuthProvider.instance.session.role.trim().toUpperCase();
+    if (cleanRole != 'SM') {
+      debugPrint('[fetchSmAsms] Skipping /api/sm/asms because user role ($cleanRole) is not SM');
+      return;
+    }
+
     if (!isRefresh && _smAsms.isNotEmpty) return;
     _isLoadingSmAsms = true;
     notifyListeners();
@@ -1833,8 +1839,51 @@ class OperationsProvider extends ChangeNotifier {
     }
   }
 
+  /// Formats any lead ID into canonical backend alphanumeric format (e.g. "LD-1759").
+  static String formatLeadId(String rawId) {
+    String clean = rawId.trim();
+    if (clean.isEmpty) return clean;
+    if (clean.startsWith('LD-')) {
+      return clean;
+    }
+    if (clean.startsWith('LD_')) {
+      return 'LD-${clean.substring(3)}';
+    }
+    if (clean.toUpperCase().startsWith('LD') && clean.length > 2 && RegExp(r'^\d+$').hasMatch(clean.substring(2))) {
+      return 'LD-${clean.substring(2)}';
+    }
+    if (RegExp(r'^\d+$').hasMatch(clean)) {
+      return 'LD-$clean';
+    }
+    return clean;
+  }
+
+  /// Resolves the canonical alphanumeric lead ID (e.g. "LD-1759") from given leadId or fallback.
+  String resolveLeadId(String? leadId, String fallbackId) {
+    String candidate = (leadId != null && leadId.trim().isNotEmpty) ? leadId.trim() : fallbackId.trim();
+
+    final matchedTask = _tasks.where((t) =>
+        t.id == candidate ||
+        t.leadId == candidate ||
+        t.leadIdentifier == candidate ||
+        t.id == fallbackId ||
+        t.leadId == fallbackId
+    ).firstOrNull;
+
+    if (matchedTask != null) {
+      if (matchedTask.leadId != null && matchedTask.leadId!.trim().isNotEmpty) {
+        candidate = matchedTask.leadId!.trim();
+      } else if (matchedTask.leadIdentifier.isNotEmpty && !RegExp(r'^\d{7,}$').hasMatch(matchedTask.leadIdentifier)) {
+        candidate = matchedTask.leadIdentifier;
+      }
+    }
+
+    return formatLeadId(candidate);
+  }
+
   Future<void> saveFollowUp({
     required String leadId,
+    String? actualLeadId,
     required String leadSource,
     required String studentInterest,
     required String nextFollowupDate,
@@ -1844,9 +1893,11 @@ class OperationsProvider extends ChangeNotifier {
     required String studentId,
     required String course,
   }) async {
-    final numericId = int.tryParse(leadId.replaceAll(RegExp(r'[^0-9]'), ''));
-    if (numericId != null) {
+    final targetLeadId = resolveLeadId(actualLeadId, leadId);
+
+    if (targetLeadId.isNotEmpty) {
       final payload = {
+        'lead_id': targetLeadId,
         'lead_source': leadSource,
         'student_interest': studentInterest,
         'next_followup_date': nextFollowupDate,
@@ -1857,14 +1908,14 @@ class OperationsProvider extends ChangeNotifier {
         'course': course,
       };
 
-      debugPrint('[saveFollowUp] Posting to /leads/$numericId/followup: $payload');
+      debugPrint('[saveFollowUp] Posting to /leads/$targetLeadId/followup: $payload');
       await ApiClient.instance.post(
-        ApiEndpoints.followUpLead(numericId),
+        ApiEndpoints.followUpLead(targetLeadId),
         data: payload,
       );
 
       // Update local state
-      final index = _tasks.indexWhere((t) => t.id == leadId);
+      final index = _tasks.indexWhere((t) => t.id == leadId || t.leadId == targetLeadId || t.id == targetLeadId);
       if (index != -1) {
         final currentTask = _tasks[index];
         final updatedFollowUps = List<FollowUpItem>.from(
@@ -2456,6 +2507,7 @@ class OperationsProvider extends ChangeNotifier {
   /// Closes a lead with student admission details via POST /api/leads/{id}/close
   Future<void> closeLead({
     required String id,
+    String? leadId,
     required String studentId,
     required String course,
     required num payment,
@@ -2465,12 +2517,14 @@ class OperationsProvider extends ChangeNotifier {
     _isSubmittingTask = true;
     notifyListeners();
     try {
-      final numericId = int.tryParse(id.replaceAll(RegExp(r'[^0-9]'), ''));
-      if (numericId == null) {
+      final targetLeadId = resolveLeadId(leadId, id);
+
+      if (targetLeadId.isEmpty) {
         throw Exception('Invalid lead ID: $id');
       }
 
       final payload = {
+        'lead_id': targetLeadId,
         'student_id': studentId,
         'course': course,
         'payment': payment,
@@ -2478,14 +2532,14 @@ class OperationsProvider extends ChangeNotifier {
         'remarks': remarks,
       };
 
-      debugPrint('[closeLead] Sending payload to /leads/$numericId/close: $payload');
+      debugPrint('[closeLead] Sending payload to /leads/$targetLeadId/close: $payload');
       await ApiClient.instance.post(
-        ApiEndpoints.closeLead(numericId),
+        ApiEndpoints.closeLead(targetLeadId),
         data: payload,
       );
 
       // Update local state to reflect the change immediately in the UI.
-      final index = _tasks.indexWhere((t) => t.id == id);
+      final index = _tasks.indexWhere((t) => t.id == id || t.leadId == targetLeadId || t.id == targetLeadId);
       if (index != -1) {
         final currentTask = _tasks[index];
         _tasks[index] = currentTask.copyWith(
@@ -2526,10 +2580,26 @@ class OperationsProvider extends ChangeNotifier {
     try {
       // If the BDE is closing the lead, hit the dedicated close endpoint.
       if (leadStatus == 'Closed') {
-        final numericId = int.tryParse(id.replaceAll(RegExp(r'[^0-9]'), ''));
-        if (numericId != null) {
+        final taskItem = _tasks.firstWhere(
+          (t) => t.id == id || t.leadId == id,
+          orElse: () => TaskModel(
+            id: id,
+            studentName: '',
+            location: '',
+            course: '',
+            description: '',
+            assignedDate: DateTime.now(),
+            assignedBdeEmail: '',
+            team: '',
+            district: '',
+            zone: '',
+          ),
+        );
+        final targetLeadId = resolveLeadId(taskItem.leadId, id);
+        if (targetLeadId.isNotEmpty) {
           final payload = <String, dynamic>{
-            'student_id': studentId ?? 'STU-$numericId',
+            'lead_id': targetLeadId,
+            'student_id': studentId ?? 'STU-$targetLeadId',
             'course': (course != null && course.isNotEmpty) ? course : 'Full-Stack Web Development',
             'payment': payment ?? 0,
             'payment_verification': (paymentVerification != null && paymentVerification.isNotEmpty)
@@ -2537,15 +2607,16 @@ class OperationsProvider extends ChangeNotifier {
                 : 'Verified',
             'remarks': remarks,
           };
+          debugPrint('[updateTaskStatus] Sending payload to /leads/$targetLeadId/close: $payload');
           await ApiClient.instance.post(
-            ApiEndpoints.closeLead(numericId),
+            ApiEndpoints.closeLead(targetLeadId),
             data: payload,
           );
         }
       }
 
       // Update local state to reflect the change immediately in the UI.
-      final index = _tasks.indexWhere((t) => t.id == id);
+      final index = _tasks.indexWhere((t) => t.id == id || t.leadId == id);
       if (index != -1) {
         final currentTask = _tasks[index];
         List<FollowUpItem>? updatedFollowUps = currentTask.followUps;
@@ -3086,7 +3157,8 @@ class OperationsProvider extends ChangeNotifier {
     final zoneName = currentUser.zone ?? '';
     final teamName = currentUser.team ?? '';
 
-    final leadId = 'LD_${lead.id}';
+    final actualLeadId = lead.actualLeadId;
+    final leadId = actualLeadId.isNotEmpty ? actualLeadId : 'LD-${lead.id}';
 
     // Map API follow-ups to FollowUpItem
     final apiFollowUps =
@@ -3105,6 +3177,7 @@ class OperationsProvider extends ChangeNotifier {
     // API already scopes results via Bearer token; use session values as fallback.
     return TaskModel(
       id: leadId,
+      leadId: actualLeadId.isNotEmpty ? actualLeadId : leadId,
       studentName: lead.name,
       location: lead.address,
       course: lead.interestedCourse?.isNotEmpty == true
@@ -3398,9 +3471,15 @@ class OperationsProvider extends ChangeNotifier {
           leadData = Map<String, dynamic>.from(rawData);
         }
 
+        final rawLeadId = (leadData['lead_id'] ?? leadData['leadId'])?.toString().trim();
+        final actualId = (rawLeadId != null && rawLeadId.isNotEmpty)
+            ? (rawLeadId.startsWith('LD_') ? 'LD-${rawLeadId.substring(3)}' : rawLeadId)
+            : 'LD-${leadData['id'] ?? DateTime.now().millisecondsSinceEpoch.toString().substring(9)}';
+
         // Add to local list to reflect in UI immediately
         final newLead = TaskModel(
-          id: 'LD_${leadData['id'] ?? DateTime.now().millisecondsSinceEpoch.toString().substring(9)}',
+          id: actualId,
+          leadId: actualId,
           studentName: name,
           location: address,
           course: courseName,

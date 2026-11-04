@@ -5,6 +5,8 @@ part 'task_model.g.dart';
 @JsonSerializable()
 class TaskModel {
   final String id;
+  @JsonKey(name: 'lead_id')
+  final String? leadId;
   @JsonKey(name: 'student_name')
   final String studentName;
   final String location;
@@ -58,6 +60,7 @@ class TaskModel {
 
   TaskModel({
     required this.id,
+    this.leadId,
     required this.studentName,
     required this.location,
     required this.course,
@@ -92,7 +95,19 @@ class TaskModel {
   factory TaskModel.fromJson(Map<String, dynamic> json) => _$TaskModelFromJson(json);
   Map<String, dynamic> toJson() => _$TaskModelToJson(this);
 
+  String get leadIdentifier {
+    final val = (leadId != null && leadId!.trim().isNotEmpty) ? leadId!.trim() : id.trim();
+    if (val.startsWith('LD-')) return val;
+    if (val.startsWith('LD_')) return 'LD-${val.substring(3)}';
+    if (val.toUpperCase().startsWith('LD') && val.length > 2 && RegExp(r'^\d+$').hasMatch(val.substring(2))) {
+      return 'LD-${val.substring(2)}';
+    }
+    if (RegExp(r'^\d+$').hasMatch(val)) return 'LD-$val';
+    return val;
+  }
+
   TaskModel copyWith({
+    String? leadId,
     String? status,
     String? leadStatus,
     DateTime? completedDate,
@@ -120,6 +135,7 @@ class TaskModel {
   }) {
     return TaskModel(
       id: id,
+      leadId: leadId ?? this.leadId,
       studentName: studentName,
       location: location,
       course: course,

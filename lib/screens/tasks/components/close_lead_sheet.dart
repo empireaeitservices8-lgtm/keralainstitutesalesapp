@@ -115,7 +115,7 @@ void showCloseLeadSheet(
                                 ),
                                 const SizedBox(width: 6),
                                 Text(
-                                  'CLOSE LEAD • ${task.id}',
+                                  'CLOSE LEAD • ${task.leadIdentifier}',
                                   style: const TextStyle(
                                     color: AppColors.accentTeal,
                                     fontSize: 11,
@@ -574,7 +574,8 @@ void showCloseLeadSheet(
 
                                 try {
                                   await OperationsProvider.instance.closeLead(
-                                    id: task.id,
+                                    id: task.leadIdentifier,
+                                    leadId: task.leadId ?? task.leadIdentifier,
                                     studentId: studentId,
                                     course: course,
                                     payment: payment,
@@ -583,7 +584,11 @@ void showCloseLeadSheet(
                                   );
 
                                   if (sheetContext.mounted) {
-                                    Navigator.pop(sheetContext); // Close sheet
+                                    Navigator.of(sheetContext).pop(); // Close sheet
+                                  } else if (context.mounted && Navigator.of(context).canPop()) {
+                                    Navigator.of(context).pop();
+                                  }
+                                  if (sheetContext.mounted || context.mounted) {
                                     UiHelpers.showSnackBar(
                                       context,
                                       'Admission confirmed & lead closed successfully for ${task.studentName}!',

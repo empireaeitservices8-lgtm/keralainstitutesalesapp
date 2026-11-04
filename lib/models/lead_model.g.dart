@@ -53,11 +53,17 @@ Map<String, dynamic> _$LeadFollowUpToJson(LeadFollowUp instance) =>
       'notes': instance.notes,
     };
 
-LeadModel _$LeadModelFromJson(Map<String, dynamic> json) => LeadModel(
-  id: json['id'] is num
+LeadModel _$LeadModelFromJson(Map<String, dynamic> json) {
+  final rawLeadId = json['lead_id'] ?? json['leadId'];
+  final parsedLeadId = rawLeadId?.toString().trim();
+  final parsedId = json['id'] is num
       ? (json['id'] as num).toInt()
-      : (int.tryParse(json['id']?.toString() ?? '') ?? 0),
-  name: LeadModel._parseString(json['name']),
+      : (int.tryParse(json['id']?.toString() ?? '') ?? 0);
+
+  return LeadModel(
+    id: parsedId,
+    leadId: (parsedLeadId != null && parsedLeadId.isNotEmpty) ? parsedLeadId : null,
+    name: LeadModel._parseString(json['name']),
   phone: LeadModel._parseString(json['phone']),
   whatsappNumber: LeadModel._parseStringNullable(json['whatsapp_number']),
   email: LeadModel._parseString(json['email']),
@@ -98,10 +104,12 @@ LeadModel _$LeadModelFromJson(Map<String, dynamic> json) => LeadModel(
       ?.whereType<Map>()
       .map((e) => LeadFollowUp.fromJson(Map<String, dynamic>.from(e)))
       .toList(),
-);
+  );
+}
 
 Map<String, dynamic> _$LeadModelToJson(LeadModel instance) => <String, dynamic>{
   'id': instance.id,
+  'lead_id': instance.leadId,
   'name': instance.name,
   'phone': instance.phone,
   'whatsapp_number': instance.whatsappNumber,

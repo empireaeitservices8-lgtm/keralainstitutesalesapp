@@ -124,9 +124,9 @@ void showFollowUpBottomSheet(
     context: context,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
-    builder: (context) {
+    builder: (sheetContext) {
       return StatefulBuilder(
-        builder: (context, setSheetState) {
+        builder: (sheetContext, setSheetState) {
           final hasFollowUp =
               currentTask.followUps != null &&
               currentTask.followUps!.isNotEmpty;
@@ -166,7 +166,7 @@ void showFollowUpBottomSheet(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        'LEAD FOLLOW-UP • ${currentTask.id}',
+                        'LEAD FOLLOW-UP • ${currentTask.leadIdentifier}',
                         style: const TextStyle(
                           color: AppColors.accentTeal,
                           fontSize: 11,
@@ -972,7 +972,8 @@ void showFollowUpBottomSheet(
 
                                   try {
                                     await OperationsProvider.instance.saveFollowUp(
-                                      leadId: currentTask.id,
+                                      leadId: currentTask.leadIdentifier,
+                                      actualLeadId: currentTask.leadId,
                                       leadSource: selectedLeadSource,
                                       studentInterest: selectedInterest,
                                       nextFollowupDate: formattedDate,
@@ -983,8 +984,10 @@ void showFollowUpBottomSheet(
                                       course: course,
                                     );
 
+                                    if (sheetContext.mounted) {
+                                      Navigator.of(sheetContext).pop(); // Close sheet
+                                    }
                                     if (context.mounted) {
-                                      Navigator.pop(context); // Close sheet
                                       UiHelpers.showSnackBar(
                                         context,
                                         'Follow-up recorded successfully for ${currentTask.studentName}!',
