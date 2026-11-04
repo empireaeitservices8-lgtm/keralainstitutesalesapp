@@ -286,39 +286,94 @@ class BdeDashboardView extends StatelessWidget {
   }
 
   Widget _buildAttendanceSection(BuildContext context, [HomeAttendance? apiAttendance]) {
-    final effectiveAtt = apiAttendance ?? data.attendance;
-    final bool checkedIn = data.isUserCheckedIn || (effectiveAtt?.isCheckedIn ?? false);
-    final bool checkedOut = data.isUserCheckedOut ||
-        (effectiveAtt != null &&
-            (effectiveAtt.isCheckedOut ||
-                effectiveAtt.shiftStatus == 'COMPLETED' ||
-                effectiveAtt.shiftStatus == 'CHECKED_OUT'));
+    return AnimatedBuilder(
+      animation: AttendanceProvider.instance,
+      builder: (context, _) {
+        final currentAtt = AttendanceProvider.instance.currentAttendance;
+        final providerHomeAtt = AttendanceProvider.instance.todayHomeAttendance;
+        final effectiveAtt = providerHomeAtt ?? apiAttendance ?? data.attendance;
 
-    final String checkInTime = checkedIn && effectiveAtt != null && effectiveAtt.checkInTime.isNotEmpty && effectiveAtt.checkInTime != 'null'
-        ? _formatTime12Hr(effectiveAtt.checkInTime)
-        : (checkedIn ? 'Logged In' : '--:--');
+        final bool hasProviderCheckIn = currentAtt.status != 'Absent';
+        final bool hasProviderCheckOut = currentAtt.checkOutTime != null;
 
-    final String checkOutTime = checkedOut && effectiveAtt != null && effectiveAtt.checkOutTime.isNotEmpty && effectiveAtt.checkOutTime != 'null'
-        ? _formatTime12Hr(effectiveAtt.checkOutTime)
-        : (checkedOut ? 'Logged Out' : '--:--');
+        final bool checkedIn = (effectiveAtt?.isCheckedIn ?? false) ||
+            data.isUserCheckedIn ||
+            currentAtt.status == 'Present';
 
-    final String shiftStatus = effectiveAtt?.shiftStatus ??
-        (checkedOut ? 'LOGGED OUT' : (checkedIn ? 'LOGGED IN' : 'NOT LOGGED IN'));
+        final bool checkedOut = (effectiveAtt != null &&
+                (effectiveAtt.isCheckedOut ||
+                    effectiveAtt.shiftStatus.toUpperCase() == 'COMPLETED' ||
+                    effectiveAtt.shiftStatus.toUpperCase() == 'CHECKED_OUT')) ||
+            data.isUserCheckedOut ||
+            currentAtt.status == 'Completed';
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _buildAttendanceCard(
-          context: context,
-          checkedIn: checkedIn,
-          checkedOut: checkedOut,
-          checkInTime: checkInTime,
-          checkOutTime: checkOutTime,
-          shiftStatus: shiftStatus,
-          date: effectiveAtt?.date,
-        ),
-        const SizedBox(height: 20),
-      ],
+        // 1. Resolve Check-In Time: Prioritize authoritative recorded time
+        String rawCheckIn = '';
+        if (providerHomeAtt != null &&
+            providerHomeAtt.checkInTime.isNotEmpty &&
+            providerHomeAtt.checkInTime != '--:--' &&
+            providerHomeAtt.checkInTime != 'null') {
+          rawCheckIn = providerHomeAtt.checkInTime;
+        } else if (effectiveAtt != null &&
+            effectiveAtt.checkInTime.isNotEmpty &&
+            effectiveAtt.checkInTime != '--:--' &&
+            effectiveAtt.checkInTime != 'null') {
+          rawCheckIn = effectiveAtt.checkInTime;
+        } else if (hasProviderCheckIn) {
+          rawCheckIn = DateFormat('hh:mm a').format(currentAtt.checkInTime);
+        }
+
+        final String checkInTime = rawCheckIn.isNotEmpty
+            ? _formatTime12Hr(rawCheckIn)
+            : (checkedIn ? 'Logged In' : '--:--');
+
+        // 2. Resolve Check-Out Time
+        String rawCheckOut = '';
+        if (providerHomeAtt != null &&
+            providerHomeAtt.checkOutTime.isNotEmpty &&
+            providerHomeAtt.checkOutTime != '--:--' &&
+            providerHomeAtt.checkOutTime != 'null') {
+          rawCheckOut = providerHomeAtt.checkOutTime;
+        } else if (effectiveAtt != null &&
+            effectiveAtt.checkOutTime.isNotEmpty &&
+            effectiveAtt.checkOutTime != '--:--' &&
+            effectiveAtt.checkOutTime != 'null') {
+          rawCheckOut = effectiveAtt.checkOutTime;
+        } else if (hasProviderCheckOut) {
+          rawCheckOut = DateFormat('hh:mm a').format(currentAtt.checkOutTime!);
+        }
+
+        final String checkOutTime = rawCheckOut.isNotEmpty
+            ? _formatTime12Hr(rawCheckOut)
+            : (checkedOut ? 'Logged Out' : '--:--');
+
+        final String shiftStatus = effectiveAtt?.shiftStatus ??
+            (currentAtt.statusText?.isNotEmpty == true
+                ? currentAtt.statusText!
+                : (checkedOut
+                    ? 'LOGGED OUT'
+                    : (checkedIn ? 'LOGGED IN' : 'NOT LOGGED IN')));
+
+        final String? effectiveDate = (providerHomeAtt?.date.isNotEmpty == true)
+            ? providerHomeAtt!.date
+            : ((effectiveAtt?.date.isNotEmpty == true) ? effectiveAtt!.date : null);
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildAttendanceCard(
+              context: context,
+              checkedIn: checkedIn,
+              checkedOut: checkedOut,
+              checkInTime: checkInTime,
+              checkOutTime: checkOutTime,
+              shiftStatus: shiftStatus,
+              date: effectiveDate,
+            ),
+            const SizedBox(height: 20),
+          ],
+        );
+      },
     );
   }
 
@@ -613,9 +668,239 @@ class BdeDashboardView extends StatelessWidget {
     );
   }
 
+  Widget _buildTargetsCard(HomeTargetData target) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 14),
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.02),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF0F766E).withOpacity(0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.track_changes_rounded,
+                      size: 18,
+                      color: Color(0xFF0F766E),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  const Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Target & Goals',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      Text(
+                        'Daily & monthly lead targets',
+                        style: TextStyle(
+                          fontSize: 10.5,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              if (target.period.isNotEmpty)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF0F766E).withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    target.period,
+                    style: const TextStyle(
+                      color: Color(0xFF0F766E),
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          const Divider(height: 24, color: Color(0xFFF1F5F9)),
+
+          // 1. Daily Target
+          if (target.dailyTarget > 0) ...[
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 8,
+                      height: 8,
+                      decoration: const BoxDecoration(
+                        color: Colors.teal,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    const Text(
+                      'Daily Target',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                  ],
+                ),
+                Text(
+                  '${target.dailyAchieved} / ${target.dailyTarget} Leads',
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(6),
+              child: LinearProgressIndicator(
+                value: target.dailyTarget > 0
+                    ? (target.dailyAchieved / target.dailyTarget).clamp(0.0, 1.0)
+                    : 0.0,
+                minHeight: 8,
+                backgroundColor: const Color(0xFFF1F5F9),
+                valueColor: const AlwaysStoppedAnimation<Color>(Colors.teal),
+              ),
+            ),
+            const SizedBox(height: 6),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  '${target.dailyRemaining} leads remaining today',
+                  style: const TextStyle(
+                    fontSize: 10.5,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+                Text(
+                  '${target.dailyPercentage.toInt()}%',
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.teal,
+                  ),
+                ),
+              ],
+            ),
+          ],
+
+          if (target.dailyTarget > 0 && target.monthlyTarget > 0)
+            const Divider(height: 24, color: Color(0xFFF1F5F9)),
+
+          // 2. Monthly Target
+          if (target.monthlyTarget > 0) ...[
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 8,
+                      height: 8,
+                      decoration: const BoxDecoration(
+                        color: Color(0xFF6366F1),
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    const Text(
+                      'Monthly Target',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                  ],
+                ),
+                Text(
+                  '${target.monthlyAchieved} / ${target.monthlyTarget} Leads',
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(6),
+              child: LinearProgressIndicator(
+                value: target.monthlyTarget > 0
+                    ? (target.monthlyAchieved / target.monthlyTarget).clamp(0.0, 1.0)
+                    : 0.0,
+                minHeight: 8,
+                backgroundColor: const Color(0xFFF1F5F9),
+                valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF6366F1)),
+              ),
+            ),
+            const SizedBox(height: 6),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  '${target.monthlyRemaining} leads remaining this month',
+                  style: const TextStyle(
+                    fontSize: 10.5,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+                Text(
+                  '${target.monthlyPercentage.toInt()}%',
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF6366F1),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
   Widget _buildPerformanceSection() {
     final tasks = HomeProvider.instance.performanceTasks;
     final summary = HomeProvider.instance.tasksSummary;
+    final target = data.target;
+    final bool hasTargets = target != null && target.hasTargets;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -647,7 +932,7 @@ class BdeDashboardView extends StatelessWidget {
                 ),
               ],
             ),
-            if (summary != null)
+            if (summary != null && summary.total > 0)
               Row(
                 children: [
                   _buildSummaryBadge(
@@ -662,11 +947,18 @@ class BdeDashboardView extends StatelessWidget {
                     Colors.green.shade50,
                   ),
                 ],
+              )
+            else if (hasTargets)
+              _buildSummaryBadge(
+                '${target.dailyRemaining > 0 ? target.dailyRemaining : target.monthlyRemaining} Pending',
+                Colors.teal.shade800,
+                Colors.teal.shade50,
               ),
           ],
         ),
         const SizedBox(height: 14),
-        if (tasks.isEmpty)
+        if (hasTargets) _buildTargetsCard(target),
+        if (tasks.isEmpty && !hasTargets)
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
             decoration: BoxDecoration(

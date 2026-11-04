@@ -97,13 +97,20 @@ class HomeScreen extends StatelessWidget {
         return RefreshIndicator(
           color: AppColors.accentTeal,
           onRefresh: () async {
+            final role = user.role.trim().toUpperCase();
+            final bool isBde = role == 'BDE';
+
             await Future.wait([
               HomeProvider.instance.fetchHomeData(isRefresh: true),
               OperationsProvider.instance.loadOperationsData(),
-              OperationsProvider.instance.fetchSmAsms(isRefresh: true),
-              OperationsProvider.instance.fetchOfficeTelecallers(isRefresh: true),
-              OperationsProvider.instance.fetchSmPayoutRequests(isRefresh: true),
-              OperationsProvider.instance.fetchAsmBdes(isRefresh: true),
+              if (role == 'SM')
+                OperationsProvider.instance.fetchSmAsms(isRefresh: true),
+              if (!isBde && ['ASM', 'BDM', 'SM', 'ADMIN', 'MD'].contains(role))
+                OperationsProvider.instance.fetchOfficeTelecallers(isRefresh: true),
+              if (role == 'SM')
+                OperationsProvider.instance.fetchSmPayoutRequests(isRefresh: true),
+              if (!isBde && ['ASM', 'BDM', 'SM', 'ADMIN', 'MD'].contains(role))
+                OperationsProvider.instance.fetchAsmBdes(isRefresh: true),
               OperationsProvider.instance.fetchBdePendingRequests(isRefresh: true),
               OperationsProvider.instance.fetchWalletApprovalRequests(isRefresh: true),
               AttendanceProvider.instance.loadTodayAttendance(isRefresh: true),

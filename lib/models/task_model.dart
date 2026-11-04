@@ -7,6 +7,8 @@ class TaskModel {
   final String id;
   @JsonKey(name: 'lead_id')
   final String? leadId;
+  @JsonKey(name: 'student_id')
+  final String? studentId;
   @JsonKey(name: 'student_name')
   final String studentName;
   final String location;
@@ -61,6 +63,7 @@ class TaskModel {
   TaskModel({
     required this.id,
     this.leadId,
+    this.studentId,
     required this.studentName,
     required this.location,
     required this.course,
@@ -108,6 +111,7 @@ class TaskModel {
 
   TaskModel copyWith({
     String? leadId,
+    String? studentId,
     String? status,
     String? leadStatus,
     DateTime? completedDate,
@@ -136,6 +140,7 @@ class TaskModel {
     return TaskModel(
       id: id,
       leadId: leadId ?? this.leadId,
+      studentId: studentId ?? this.studentId,
       studentName: studentName,
       location: location,
       course: course,

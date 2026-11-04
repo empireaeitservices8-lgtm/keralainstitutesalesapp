@@ -9,6 +9,7 @@ part of 'task_model.dart';
 TaskModel _$TaskModelFromJson(Map<String, dynamic> json) => TaskModel(
   id: json['id'] as String,
   leadId: json['lead_id']?.toString(),
+  studentId: json['student_id']?.toString() ?? json['studentId']?.toString(),
   studentName: json['student_name'] as String,
   location: json['location'] as String,
   course: json['course'] as String,
@@ -49,6 +50,7 @@ TaskModel _$TaskModelFromJson(Map<String, dynamic> json) => TaskModel(
 Map<String, dynamic> _$TaskModelToJson(TaskModel instance) => <String, dynamic>{
   'id': instance.id,
   'lead_id': instance.leadId,
+  'student_id': instance.studentId,
   'student_name': instance.studentName,
   'location': instance.location,
   'course': instance.course,

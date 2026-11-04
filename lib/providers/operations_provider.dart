@@ -261,6 +261,15 @@ class OperationsProvider extends ChangeNotifier {
 
   // --- Office Team Telecallers APIs ---
   Future<void> fetchOfficeTelecallers({bool isRefresh = false}) async {
+    final cleanRole = AuthProvider.instance.session.role.trim().toUpperCase();
+    if (cleanRole == 'BDE' || !['ASM', 'BDM', 'SM', 'ADMIN', 'MD'].contains(cleanRole)) {
+      debugPrint('[fetchOfficeTelecallers] Skipping /api/office/telecallers for role ($cleanRole) - requires ASM, BDM, SM, ADMIN, MD');
+      if (_officeTelecallers.isEmpty) {
+        _officeTelecallers = _getDefaultTelecallers();
+      }
+      return;
+    }
+
     if (!isRefresh && _officeTelecallers.isNotEmpty) return;
     _isLoadingTelecallers = true;
     notifyListeners();
@@ -484,6 +493,12 @@ class OperationsProvider extends ChangeNotifier {
 
   // --- SM Payout & Workflow Requests APIs ---
   Future<void> fetchSmPayoutRequests({bool isRefresh = false}) async {
+    final cleanRole = AuthProvider.instance.session.role.trim().toUpperCase();
+    if (cleanRole != 'SM') {
+      debugPrint('[fetchSmPayoutRequests] Skipping /api/salary/requests because user role ($cleanRole) is not SM');
+      return;
+    }
+
     if (!isRefresh && _smPayoutRequests.isNotEmpty) return;
     _isLoadingSmRequests = true;
     notifyListeners();
@@ -880,6 +895,12 @@ class OperationsProvider extends ChangeNotifier {
 
   // --- 4. ASM (Area Sales Manager) APIs ---
   Future<void> fetchAsmBdes({bool isRefresh = false}) async {
+    final cleanRole = AuthProvider.instance.session.role.trim().toUpperCase();
+    if (cleanRole == 'BDE' || !['ASM', 'BDM', 'SM', 'ADMIN', 'MD'].contains(cleanRole)) {
+      debugPrint('[fetchAsmBdes] Skipping /api/asm/bdes because user role ($cleanRole) is not allowed');
+      return;
+    }
+
     if (!isRefresh && _asmBdes.isNotEmpty) return;
     _isLoadingAsmBdes = true;
     notifyListeners();
@@ -1926,6 +1947,7 @@ class OperationsProvider extends ChangeNotifier {
           ));
 
         _tasks[index] = currentTask.copyWith(
+          studentId: studentId.isNotEmpty ? studentId : currentTask.studentId,
           followUps: updatedFollowUps,
           remarks: remarks,
           leadStatus: admissionStatus,
@@ -2543,6 +2565,7 @@ class OperationsProvider extends ChangeNotifier {
       if (index != -1) {
         final currentTask = _tasks[index];
         _tasks[index] = currentTask.copyWith(
+          studentId: (studentId != null && studentId.isNotEmpty) ? studentId : currentTask.studentId,
           status: 'Completed',
           leadStatus: 'Closed',
           completedDate: DateTime.now(),
@@ -3166,7 +3189,7 @@ class OperationsProvider extends ChangeNotifier {
           String formattedDate = f.followupDate;
           try {
             final parsed = DateTime.parse(f.followupDate);
-            formattedDate = DateFormat('dd MMM yyyy, hh:mm a').format(parsed);
+            formattedDate = DateFormat('dd MMM yyyy').format(parsed);
           } catch (_) {
             // Fallback to original
           }
@@ -3175,9 +3198,14 @@ class OperationsProvider extends ChangeNotifier {
         [];
 
     // API already scopes results via Bearer token; use session values as fallback.
+    final effectiveStudentId = (lead.studentId != null && lead.studentId!.trim().isNotEmpty)
+        ? lead.studentId!.trim()
+        : 'STU-${actualLeadId.isNotEmpty ? actualLeadId.replaceAll("LD-", "").replaceAll("LD_", "") : lead.id}';
+
     return TaskModel(
       id: leadId,
       leadId: actualLeadId.isNotEmpty ? actualLeadId : leadId,
+      studentId: effectiveStudentId,
       studentName: lead.name,
       location: lead.address,
       course: lead.interestedCourse?.isNotEmpty == true
@@ -3480,6 +3508,7 @@ class OperationsProvider extends ChangeNotifier {
         final newLead = TaskModel(
           id: actualId,
           leadId: actualId,
+          studentId: leadData['student_id']?.toString() ?? 'STU-${actualId.replaceAll("LD-", "").replaceAll("LD_", "")}',
           studentName: name,
           location: address,
           course: courseName,

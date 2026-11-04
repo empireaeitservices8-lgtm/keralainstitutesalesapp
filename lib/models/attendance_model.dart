@@ -54,9 +54,26 @@ class AttendanceModel {
 
   static String _normalizeUtcString(String str) {
     if (str.isEmpty) return str;
+    final upper = str.toUpperCase().trim();
+    if (upper.contains('AM') || upper.contains('PM')) {
+      try {
+        final isPm = upper.contains('PM');
+        final clean = upper.replaceAll('AM', '').replaceAll('PM', '').trim();
+        final parts = clean.split(':');
+        if (parts.isNotEmpty) {
+          int hr = int.tryParse(parts[0].trim()) ?? 0;
+          int min = parts.length > 1 ? (int.tryParse(parts[1].trim()) ?? 0) : 0;
+          if (isPm && hr < 12) hr += 12;
+          if (!isPm && hr == 12) hr = 0;
+          final now = DateTime.now();
+          return DateTime(now.year, now.month, now.day, hr, min).toIso8601String();
+        }
+      } catch (_) {}
+    }
     if (str.contains('Z') || str.contains('+')) return str;
     return str.replaceFirst(' ', 'T');
   }
+
   Map<String, dynamic> toJson() => _$AttendanceModelToJson(this);
 
   AttendanceModel copyWith({

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../../constants/colors.dart';
 import '../../../providers/home_provider.dart';
 import '../../../providers/operations_provider.dart';
@@ -265,6 +266,8 @@ void showCreateLeadBottomSheet(
     required String label,
     required String hintText,
     TextInputType keyboardType = TextInputType.text,
+    List<TextInputFormatter>? inputFormatters,
+    int? maxLength,
     Widget? suffixIcon,
     int maxLines = 1,
     void Function(String)? onChanged,
@@ -284,6 +287,9 @@ void showCreateLeadBottomSheet(
         TextField(
           controller: controller,
           keyboardType: keyboardType,
+          inputFormatters: inputFormatters,
+          maxLength: maxLength,
+          buildCounter: (context, {required currentLength, required isFocused, maxLength}) => null,
           maxLines: maxLines,
           onChanged: onChanged,
           style: const TextStyle(
@@ -441,11 +447,16 @@ void showCreateLeadBottomSheet(
                   ),
                   buildField(
                     controller: phoneController,
-                    label: 'PHONE NUMBER *',
+                    label: 'PHONE NUMBER (10 DIGITS) *',
                     hintText: 'e.g., 9847123456',
                     keyboardType: TextInputType.phone,
+                    maxLength: 10,
+                    inputFormatters: [
+                      FilteringTextInputFormatter.digitsOnly,
+                      LengthLimitingTextInputFormatter(10),
+                    ],
                     onChanged: (val) {
-                      if (whatsappController.text.isEmpty) {
+                      if (whatsappController.text.isEmpty || whatsappController.text.length <= val.length) {
                         setSheetState(() {
                           whatsappController.text = val;
                         });
@@ -454,9 +465,14 @@ void showCreateLeadBottomSheet(
                   ),
                   buildField(
                     controller: whatsappController,
-                    label: 'WHATSAPP NUMBER',
+                    label: 'WHATSAPP NUMBER (10 DIGITS)',
                     hintText: 'e.g., 9847123456',
                     keyboardType: TextInputType.phone,
+                    maxLength: 10,
+                    inputFormatters: [
+                      FilteringTextInputFormatter.digitsOnly,
+                      LengthLimitingTextInputFormatter(10),
+                    ],
                     suffixIcon: Tooltip(
                       message: 'Copy from Phone',
                       child: TextButton.icon(
@@ -885,6 +901,24 @@ void showCreateLeadBottomSheet(
                             );
                             return;
                           }
+                          final cleanPhone = phone.replaceAll(RegExp(r'[^0-9]'), '');
+                          if (cleanPhone.length != 10) {
+                            UiHelpers.showSnackBar(
+                              sheetContext,
+                              'Phone number must be exactly 10 digits!',
+                              Colors.orange,
+                            );
+                            return;
+                          }
+                          final cleanWhatsapp = whatsapp.replaceAll(RegExp(r'[^0-9]'), '');
+                          if (cleanWhatsapp.length != 10) {
+                            UiHelpers.showSnackBar(
+                              sheetContext,
+                              'WhatsApp number must be exactly 10 digits!',
+                              Colors.orange,
+                            );
+                            return;
+                          }
                           if (address.isEmpty) {
                             UiHelpers.showSnackBar(
                               sheetContext,
@@ -944,8 +978,8 @@ void showCreateLeadBottomSheet(
                             final success = await OperationsProvider.instance
                                 .createLeadOnServer(
                               name: name,
-                              phone: phone,
-                              whatsappNumber: whatsapp,
+                              phone: cleanPhone,
+                              whatsappNumber: cleanWhatsapp,
                               email: email.isNotEmpty ? email : 'no-email@example.com',
                               address: address,
                               place: place,

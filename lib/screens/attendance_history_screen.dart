@@ -10,10 +10,12 @@ class AttendanceHistoryScreen extends StatefulWidget {
   const AttendanceHistoryScreen({super.key});
 
   @override
-  State<AttendanceHistoryScreen> createState() => _AttendanceHistoryScreenState();
+  State<AttendanceHistoryScreen> createState() =>
+      _AttendanceHistoryScreenState();
 }
 
-class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> with SingleTickerProviderStateMixin {
+class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen>
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
   bool _historyLoaded = false;
 
@@ -21,10 +23,10 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> with 
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
-    
+
     // Force refresh today's attendance on open
     AttendanceProvider.instance.loadTodayAttendance(isRefresh: true);
-    
+
     _tabController.addListener(_handleTabChange);
   }
 
@@ -49,7 +51,9 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> with 
       AttendanceProvider.instance.loadTodayAttendance(isRefresh: true),
     ];
     if (_tabController.index == 1 || _historyLoaded) {
-      futures.add(AttendanceProvider.instance.loadAttendanceHistory(isRefresh: true));
+      futures.add(
+        AttendanceProvider.instance.loadAttendanceHistory(isRefresh: true),
+      );
     }
     await Future.wait(futures);
   }
@@ -61,7 +65,12 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> with 
       appBar: AppBar(
         title: const Text(
           'SIGN-IN & ATTENDANCE HISTORY',
-          style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, letterSpacing: 1.5, color: AppColors.textPrimary),
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.bold,
+            letterSpacing: 1.5,
+            color: AppColors.textPrimary,
+          ),
         ),
         centerTitle: true,
         bottom: PreferredSize(
@@ -147,10 +156,30 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> with 
 
   Widget _buildTodayTab(AttendanceProvider provider) {
     if (provider.isLoadingToday && provider.todayRecordsList.isEmpty) {
-      return const Center(child: CircularProgressIndicator(color: AppColors.accentTeal));
+      return const Center(
+        child: CircularProgressIndicator(color: AppColors.accentTeal),
+      );
     }
 
-    final records = provider.todayRecordsList;
+    var records = provider.todayRecordsList;
+    if (records.isEmpty && provider.todayHomeAttendance != null) {
+      final att = provider.todayHomeAttendance!;
+      if (att.checkInTime.isNotEmpty && att.checkInTime != '--:--') {
+        records = [
+          {
+            'date': att.date.isNotEmpty
+                ? att.date
+                : DateFormat('yyyy-MM-dd').format(DateTime.now()),
+            'check_in': att.checkInTime,
+            'check_out': att.checkOutTime,
+            'status': att.shiftStatus,
+            'status_text': att.shiftStatus,
+            'hours_worked': att.hoursWorked,
+          },
+        ];
+      }
+    }
+
     if (records.isEmpty) {
       return _buildEmptyState('No attendance logs found for today.');
     }
@@ -167,7 +196,9 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> with 
 
   Widget _buildHistoryTab(AttendanceProvider provider) {
     if (provider.isLoadingHistory && provider.historyRecords.isEmpty) {
-      return const Center(child: CircularProgressIndicator(color: AppColors.accentTeal));
+      return const Center(
+        child: CircularProgressIndicator(color: AppColors.accentTeal),
+      );
     }
 
     final records = provider.historyRecords;
@@ -192,11 +223,19 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> with 
         Center(
           child: Column(
             children: [
-              Icon(Icons.history_toggle_off_rounded, color: Colors.blueGrey.shade200, size: 64),
+              Icon(
+                Icons.history_toggle_off_rounded,
+                color: Colors.blueGrey.shade200,
+                size: 64,
+              ),
               const SizedBox(height: 16),
               Text(
                 message,
-                style: const TextStyle(color: AppColors.textSecondary, fontSize: 13, fontWeight: FontWeight.w500),
+                style: const TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                ),
                 textAlign: TextAlign.center,
               ),
             ],
@@ -206,37 +245,107 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> with 
     );
   }
 
+  String _formatCardTime(String timeStr) {
+    if (timeStr.isEmpty || timeStr == '--:--' || timeStr == 'null')
+      return '--:--';
+    final trimmed = timeStr.trim();
+    if (trimmed.toUpperCase().contains('AM') ||
+        trimmed.toUpperCase().contains('PM')) {
+      return trimmed;
+    }
+    try {
+      final dt = DateTime.tryParse(trimmed);
+      if (dt != null) {
+        return DateFormat('hh:mm a').format(dt.toLocal());
+      }
+    } catch (_) {}
+    return trimmed;
+  }
+
+  DateTime? _parseCardTime(String str) {
+    if (str.isEmpty || str == '--:--') return null;
+    final upper = str.toUpperCase().trim();
+    final now = DateTime.now();
+    if (upper.contains('AM') || upper.contains('PM')) {
+      final isPm = upper.contains('PM');
+      final clean = upper.replaceAll('AM', '').replaceAll('PM', '').trim();
+      final parts = clean.split(':');
+      if (parts.isNotEmpty) {
+        int hr = int.tryParse(parts[0].trim()) ?? 0;
+        int min = parts.length > 1 ? (int.tryParse(parts[1].trim()) ?? 0) : 0;
+        if (isPm && hr < 12) hr += 12;
+        if (!isPm && hr == 12) hr = 0;
+        return DateTime(now.year, now.month, now.day, hr, min);
+      }
+    }
+    return DateTime.tryParse(str);
+  }
+
   Widget _buildAttendanceCard(dynamic record) {
-    if (record is! Map<String, dynamic>) return const SizedBox.shrink();
+    if (record is! Map) return const SizedBox.shrink();
+    final Map<String, dynamic> rec = Map<String, dynamic>.from(record);
 
-    final dateStr = record['date'] as String? ?? '';
-    final checkInTimeStr = record['check_in_time'] as String? ?? '';
-    final checkOutTimeStr = record['check_out_time'] as String? ?? '';
-    final hoursStr = record['hours_worked'] as String? ?? '0.00';
-    final double workingHours = (double.tryParse(hoursStr) ?? 0.0).abs();
-    final statusText = record['status_text'] as String? ?? 'pending';
+    final dateStr = (rec['date'] ?? '').toString();
+    final checkInTimeStr = (rec['check_in_time'] ?? rec['check_in'] ?? '')
+        .toString();
+    final checkOutTimeStr = (rec['check_out_time'] ?? rec['check_out'] ?? '')
+        .toString();
 
-    final String formattedDate = dateStr.isNotEmpty
-        ? DateFormat('dd MMM yyyy').format(DateTime.parse(dateStr))
-        : 'N/A';
+    final rawHours = rec['hours_worked'] ?? rec['working_hours'];
+    double workingHours = 0.0;
+    if (rawHours is num) {
+      workingHours = rawHours.toDouble().abs();
+    } else if (rawHours != null) {
+      workingHours = (double.tryParse(rawHours.toString()) ?? 0.0).abs();
+    }
+    final statusText =
+        (rec['status_text'] ??
+                rec['status'] ??
+                rec['shift_status'] ??
+                'pending')
+            .toString();
 
-    final String formattedCheckIn = checkInTimeStr.isNotEmpty
-        ? DateFormat('hh:mm a').format(UiHelpers.parseUtcDateTime(checkInTimeStr))
-        : '--:--';
+    String formattedDate;
+    if (dateStr.isNotEmpty && dateStr != 'null') {
+      try {
+        formattedDate = DateFormat(
+          'dd MMM yyyy',
+        ).format(DateTime.parse(dateStr));
+      } catch (_) {
+        formattedDate = dateStr;
+      }
+    } else {
+      formattedDate = DateFormat('dd MMM yyyy').format(DateTime.now());
+    }
 
-    final String formattedCheckOut = checkOutTimeStr.isNotEmpty
-        ? DateFormat('hh:mm a').format(UiHelpers.parseUtcDateTime(checkOutTimeStr))
-        : '--:--';
+    final String formattedCheckIn = _formatCardTime(checkInTimeStr);
+    final String formattedCheckOut = _formatCardTime(checkOutTimeStr);
+
+    if (workingHours == 0.0 &&
+        formattedCheckIn != '--:--' &&
+        formattedCheckOut != '--:--') {
+      try {
+        final dtIn = _parseCardTime(formattedCheckIn);
+        final dtOut = _parseCardTime(formattedCheckOut);
+        if (dtIn != null && dtOut != null) {
+          final diff = dtOut.difference(dtIn).inMinutes;
+          if (diff > 0) {
+            workingHours = double.parse((diff / 60.0).toStringAsFixed(2));
+          }
+        }
+      } catch (_) {}
+    }
 
     // Parse image paths
     String checkInSelfie = '';
     String checkOutSelfie = '';
-    final mediaList = record['media'] as List<dynamic>?;
+    final mediaList = rec['media'] as List<dynamic>?;
     if (mediaList != null) {
       for (var m in mediaList) {
-        if (m is Map<String, dynamic>) {
-          final typeText = m['type_text'] as String?;
-          final filePath = m['file_path'] as String?;
+        if (m is Map) {
+          final typeText = m['type_text']?.toString();
+          final filePath = (m['file_path'] ?? m['url'] ?? m['path'])
+              ?.toString();
           if (typeText == 'check-in') {
             checkInSelfie = filePath ?? '';
           } else if (typeText == 'check-out') {
@@ -247,9 +356,12 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> with 
     }
 
     Color badgeColor = Colors.orange;
-    if (statusText.toLowerCase() == 'approved') {
+    final upperStatus = statusText.toUpperCase();
+    if (upperStatus == 'APPROVED' ||
+        upperStatus == 'PRESENT' ||
+        upperStatus == 'COMPLETED') {
       badgeColor = Colors.green;
-    } else if (statusText.toLowerCase() == 'rejected') {
+    } else if (upperStatus == 'REJECTED' || upperStatus == 'ABSENT') {
       badgeColor = Colors.red;
     }
 
@@ -266,7 +378,7 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> with 
             color: Colors.black.withOpacity(0.02),
             blurRadius: 10,
             offset: const Offset(0, 4),
-          )
+          ),
         ],
       ),
       child: Column(
@@ -278,11 +390,19 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> with 
             children: [
               Row(
                 children: [
-                  const Icon(Icons.calendar_today_rounded, color: AppColors.accentTeal, size: 14),
+                  const Icon(
+                    Icons.calendar_today_rounded,
+                    color: AppColors.accentTeal,
+                    size: 14,
+                  ),
                   const SizedBox(width: 6),
                   Text(
                     formattedDate,
-                    style: const TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold, fontSize: 13),
+                    style: const TextStyle(
+                      color: AppColors.textPrimary,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                    ),
                   ),
                 ],
               ),
@@ -295,7 +415,11 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> with 
                 ),
                 child: Text(
                   statusText.toUpperCase(),
-                  style: TextStyle(color: badgeColor, fontSize: 9, fontWeight: FontWeight.bold),
+                  style: TextStyle(
+                    color: badgeColor,
+                    fontSize: 9,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
             ],
@@ -309,9 +433,24 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> with 
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('CHECK-IN', style: TextStyle(color: AppColors.textSecondary, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
+                    const Text(
+                      'CHECK-IN',
+                      style: TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
                     const SizedBox(height: 4),
-                    Text(formattedCheckIn, style: const TextStyle(color: AppColors.textPrimary, fontSize: 13, fontWeight: FontWeight.w700)),
+                    Text(
+                      formattedCheckIn,
+                      style: const TextStyle(
+                        color: AppColors.textPrimary,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                     if (checkInSelfie.isNotEmpty) ...[
                       const SizedBox(height: 8),
                       _buildNetworkThumbnail(checkInSelfie, 'Check-In selfie'),
@@ -325,12 +464,30 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> with 
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('CHECK-OUT', style: TextStyle(color: AppColors.textSecondary, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
+                    const Text(
+                      'CHECK-OUT',
+                      style: TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
                     const SizedBox(height: 4),
-                    Text(formattedCheckOut, style: const TextStyle(color: AppColors.textPrimary, fontSize: 13, fontWeight: FontWeight.w700)),
+                    Text(
+                      formattedCheckOut,
+                      style: const TextStyle(
+                        color: AppColors.textPrimary,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                     if (checkOutSelfie.isNotEmpty) ...[
                       const SizedBox(height: 8),
-                      _buildNetworkThumbnail(checkOutSelfie, 'Check-Out selfie'),
+                      _buildNetworkThumbnail(
+                        checkOutSelfie,
+                        'Check-Out selfie',
+                      ),
                     ],
                   ],
                 ),
@@ -346,17 +503,22 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> with 
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  if (record['device_info'] != null)
+                  if (rec['device_info'] != null)
                     Text(
-                      'Device: ${record['device_info']}',
-                      style: TextStyle(color: Colors.blueGrey.shade600, fontSize: 9),
+                      'Device: ${rec['device_info']}',
+                      style: TextStyle(
+                        color: Colors.blueGrey.shade600,
+                        fontSize: 9,
+                      ),
                     ),
-                  if (record['check_in_lat'] != null)
-                    const SizedBox(height: 2),
-                  if (record['check_in_lat'] != null)
+                  if (rec['check_in_lat'] != null) const SizedBox(height: 2),
+                  if (rec['check_in_lat'] != null)
                     Text(
-                      'GPS: ${double.tryParse(record['check_in_lat'].toString())?.toStringAsFixed(4)}, ${double.tryParse(record['check_in_lng'].toString())?.toStringAsFixed(4)}',
-                      style: TextStyle(color: Colors.blueGrey.shade600, fontSize: 9),
+                      'GPS: ${double.tryParse(rec['check_in_lat'].toString())?.toStringAsFixed(4)}, ${double.tryParse(rec['check_in_lng'].toString())?.toStringAsFixed(4)}',
+                      style: TextStyle(
+                        color: Colors.blueGrey.shade600,
+                        fontSize: 9,
+                      ),
                     ),
                 ],
               ),
@@ -368,7 +530,11 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> with 
                 ),
                 child: Text(
                   '${workingHours.toStringAsFixed(2)} hrs',
-                  style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 11),
+                  style: const TextStyle(
+                    color: Colors.green,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 11,
+                  ),
                 ),
               ),
             ],
@@ -397,7 +563,11 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> with 
             fit: BoxFit.cover,
             errorBuilder: (context, error, stackTrace) => Container(
               color: Colors.grey.shade100,
-              child: const Icon(Icons.broken_image, size: 16, color: Colors.grey),
+              child: const Icon(
+                Icons.broken_image,
+                size: 16,
+                color: Colors.grey,
+              ),
             ),
           ),
         ),
@@ -437,9 +607,18 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> with 
                           child: const Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Icon(Icons.broken_image, size: 48, color: Colors.grey),
+                              Icon(
+                                Icons.broken_image,
+                                size: 48,
+                                color: Colors.grey,
+                              ),
                               SizedBox(height: 8),
-                              Text('Failed to load image', style: TextStyle(color: AppColors.textSecondary)),
+                              Text(
+                                'Failed to load image',
+                                style: TextStyle(
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
                             ],
                           ),
                         ),
@@ -448,7 +627,11 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> with 
                     const SizedBox(height: 10),
                     Text(
                       label.toUpperCase(),
-                      style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.textPrimary, fontSize: 12),
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.textPrimary,
+                        fontSize: 12,
+                      ),
                     ),
                   ],
                 ),
@@ -458,7 +641,11 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> with 
                 top: 0,
                 right: 0,
                 child: IconButton(
-                  icon: const Icon(Icons.close_rounded, color: Colors.black54, size: 24),
+                  icon: const Icon(
+                    Icons.close_rounded,
+                    color: Colors.black54,
+                    size: 24,
+                  ),
                   onPressed: () => Navigator.pop(context),
                 ),
               ),

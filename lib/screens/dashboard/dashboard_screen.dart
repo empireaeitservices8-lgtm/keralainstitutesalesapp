@@ -21,12 +21,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
   @override
   void initState() {
     super.initState();
+    final user = AuthProvider.instance.session;
+    final role = user.role.trim().toUpperCase();
+    final bool isBde = role == 'BDE';
+
     // Preload data
     OperationsProvider.instance.loadOperationsData();
-    OperationsProvider.instance.fetchSmAsms();
-    OperationsProvider.instance.fetchOfficeTelecallers();
-    OperationsProvider.instance.fetchSmPayoutRequests();
-    OperationsProvider.instance.fetchAsmBdes();
+    if (role == 'SM') {
+      OperationsProvider.instance.fetchSmAsms();
+      OperationsProvider.instance.fetchSmPayoutRequests();
+    }
+    if (!isBde && ['ASM', 'BDM', 'SM', 'ADMIN', 'MD'].contains(role)) {
+      OperationsProvider.instance.fetchOfficeTelecallers();
+      OperationsProvider.instance.fetchAsmBdes();
+    }
     OperationsProvider.instance.fetchBdePendingRequests();
     OperationsProvider.instance.fetchWalletApprovalRequests();
     HomeProvider.instance.fetchHomeData();

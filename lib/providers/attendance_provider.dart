@@ -5,13 +5,18 @@ import 'package:dio/dio.dart';
 import '../api/api_client.dart';
 import '../api/api_endpoints.dart';
 import '../models/attendance_model.dart';
+import '../models/home_dashboard_model.dart';
 import 'auth_provider.dart';
+import 'home_provider.dart';
 
 class AttendanceProvider extends ChangeNotifier {
   static final AttendanceProvider instance = AttendanceProvider._internal();
   AttendanceProvider._internal();
 
   AttendanceModel _currentAttendance = AttendanceModel.empty();
+  HomeAttendance? _todayHomeAttendance;
+  HomeAttendance? get todayHomeAttendance => _todayHomeAttendance;
+
   bool _isLocating = false;
   bool _isSubmitting = false;
 
@@ -243,6 +248,10 @@ class AttendanceProvider extends ChangeNotifier {
 
         final String apiStatus =
             (data['status'] ?? record?['status'] ?? 'absent').toString();
+
+        if (todayRecords.isEmpty && record != null) {
+          todayRecords = [record];
+        }
         _todayRecordsList = todayRecords;
 
         if (record != null) {
@@ -259,8 +268,8 @@ class AttendanceProvider extends ChangeNotifier {
               ? _parseTimeString(checkOutTimeStr)
               : null;
 
-          final latVal = record['check_in_lat'];
-          final lngVal = record['check_in_lng'];
+          final latVal = record['check_in_lat'] ?? record['latitude'];
+          final lngVal = record['check_in_lng'] ?? record['longitude'];
           final double lat = latVal != null
               ? double.tryParse(latVal.toString()) ?? 0.0
               : 0.0;
@@ -268,7 +277,7 @@ class AttendanceProvider extends ChangeNotifier {
               ? double.tryParse(lngVal.toString()) ?? 0.0
               : 0.0;
 
-          final double workingHours;
+          double workingHours;
           final rawHours = record['hours_worked'] ?? record['working_hours'];
           if (rawHours is num) {
             workingHours = rawHours.toDouble().abs();
@@ -276,6 +285,16 @@ class AttendanceProvider extends ChangeNotifier {
             workingHours = (double.tryParse(rawHours.toString()) ?? 0.0).abs();
           } else {
             workingHours = 0.0;
+          }
+
+          if (workingHours == 0.0 &&
+              checkOutTime != null &&
+              checkInTimeStr.isNotEmpty &&
+              checkInTimeStr != '--:--') {
+            final diffMin = checkOutTime.difference(checkInTime).inMinutes;
+            if (diffMin > 0) {
+              workingHours = double.parse((diffMin / 60.0).toStringAsFixed(2));
+            }
           }
 
           String checkInSelfie =
@@ -320,19 +339,11 @@ class AttendanceProvider extends ChangeNotifier {
           final rawCheckedOut =
               record['checked_out'] ?? record['is_checked_out'];
           final String recordStatusText =
-              (record['status_text'] ?? record['status'] ?? apiStatus)
+              (record['shift_status'] ??
+                      record['status_text'] ??
+                      record['status'] ??
+                      apiStatus)
                   .toString();
-
-          final bool isCheckedIn = rawCheckedIn != null
-              ? (rawCheckedIn == true ||
-                    rawCheckedIn.toString() == '1' ||
-                    rawCheckedIn.toString().toLowerCase() == 'true')
-              : (apiStatus.toLowerCase() == 'checked_in' ||
-                    recordStatusText.toUpperCase() == 'ONLINE' ||
-                    recordStatusText.toUpperCase() == 'PRESENT' ||
-                    (checkInTimeStr.isNotEmpty &&
-                        checkInTimeStr != '--:--' &&
-                        checkInTimeStr != 'null'));
 
           final bool isCheckedOut = rawCheckedOut != null
               ? (rawCheckedOut == true ||
@@ -345,21 +356,48 @@ class AttendanceProvider extends ChangeNotifier {
                         checkOutTimeStr != '--:--' &&
                         checkOutTimeStr != 'null'));
 
+          final bool isCheckedIn =
+              !isCheckedOut &&
+              (rawCheckedIn != null
+                  ? (rawCheckedIn == true ||
+                        rawCheckedIn.toString() == '1' ||
+                        rawCheckedIn.toString().toLowerCase() == 'true')
+                  : (apiStatus.toLowerCase() == 'checked_in' ||
+                        recordStatusText.toUpperCase() == 'ONLINE' ||
+                        recordStatusText.toUpperCase() == 'PRESENT' ||
+                        (checkInTimeStr.isNotEmpty &&
+                            checkInTimeStr != '--:--' &&
+                            checkInTimeStr != 'null')));
+
           String localStatus = 'Absent';
-          if (isCheckedOut) {
+          if (isCheckedOut || recordStatusText.toUpperCase() == 'COMPLETED') {
             localStatus = 'Completed';
-          } else if (isCheckedIn) {
+          } else if (isCheckedIn ||
+              (checkInTimeStr.isNotEmpty && checkInTimeStr != '--:--')) {
             localStatus = 'Present';
           }
 
           final email = AuthProvider.instance.session.email;
-          final empName = email.isNotEmpty
-              ? email.split('@')[0].toUpperCase()
-              : 'SALES OFFICER';
           final emailHash = email.hashCode.abs().toString();
-          final empId = email.isNotEmpty
+          final fallbackEmpId = email.isNotEmpty
               ? 'EMP_${emailHash.substring(0, emailHash.length > 4 ? 4 : emailHash.length)}'
               : 'EMP_4096';
+          final empName =
+              (record['name'] ??
+                      record['employee_name'] ??
+                      (AuthProvider.instance.session.name.isNotEmpty
+                          ? AuthProvider.instance.session.name
+                          : (email.isNotEmpty
+                                ? email.split('@')[0].toUpperCase()
+                                : 'SALES OFFICER')))
+                  .toString()
+                  .trim();
+          final empId =
+              (record['employee_id'] ??
+                      record['emp_id'] ??
+                      fallbackEmpId)
+                  .toString()
+                  .trim();
 
           _currentAttendance = AttendanceModel(
             employeeId: empId,
@@ -373,6 +411,22 @@ class AttendanceProvider extends ChangeNotifier {
             workingHours: workingHours,
             status: localStatus,
             statusText: recordStatusText,
+          );
+
+          _todayHomeAttendance = HomeAttendance(
+            checkInTime: checkInTimeStr,
+            checkOutTime: checkOutTimeStr,
+            shiftStatus: recordStatusText.isNotEmpty
+                ? recordStatusText
+                : (isCheckedOut
+                      ? 'COMPLETED'
+                      : (isCheckedIn ? 'ACTIVE' : 'OFFLINE')),
+            isCheckedIn: isCheckedIn,
+            isCheckedOut: isCheckedOut,
+            date: (record['date'] ?? '').toString(),
+            hoursWorked: workingHours,
+            locationLat: lat > 0 ? lat : null,
+            locationLng: lng > 0 ? lng : null,
           );
 
           await prefs.setString(_keyStatus, localStatus);
@@ -389,9 +443,26 @@ class AttendanceProvider extends ChangeNotifier {
           await prefs.setString(_keyCheckOutSelfie, checkOutSelfie);
           await prefs.setDouble(_keyWorkingHours, workingHours);
           await prefs.setString(_keyStatusText, recordStatusText);
+
+          try {
+            HomeProvider.instance.updateAttendanceFromStatus(
+              checkInTime: checkInTimeStr,
+              checkOutTime: checkOutTimeStr,
+              shiftStatus: recordStatusText.isNotEmpty
+                  ? recordStatusText
+                  : (isCheckedOut
+                        ? 'COMPLETED'
+                        : (isCheckedIn ? 'ACTIVE' : 'OFFLINE')),
+              isCheckedIn: isCheckedIn,
+              isCheckedOut: isCheckedOut,
+              date: (record['date'] ?? '').toString(),
+              hoursWorked: workingHours,
+            );
+          } catch (_) {}
         } else {
           _currentAttendance = AttendanceModel.empty();
           _todayRecordsList = [];
+          _todayHomeAttendance = null;
           await prefs.setString(_keyStatus, 'Absent');
 
           await prefs.remove(_keyCheckInTime);
@@ -583,6 +654,7 @@ class AttendanceProvider extends ChangeNotifier {
     await prefs.remove(_keyWorkingHours);
 
     _currentAttendance = AttendanceModel.empty();
+    _todayHomeAttendance = null;
     notifyListeners();
   }
 
@@ -626,6 +698,14 @@ class AttendanceProvider extends ChangeNotifier {
     required String checkOutTimeStr,
     required String status,
   }) async {
+    // If we already have authoritative attendance loaded from /attendance/status, don't overwrite with empty/partial home data
+    if (_todayHomeAttendance != null &&
+        _todayHomeAttendance!.checkInTime.isNotEmpty &&
+        _todayHomeAttendance!.checkInTime != '--:--' &&
+        (checkInTimeStr.isEmpty || checkInTimeStr == '--:--')) {
+      return;
+    }
+
     String localStatus = 'Absent';
     if (checkedOut) {
       localStatus = 'Completed';
@@ -671,6 +751,7 @@ class AttendanceProvider extends ChangeNotifier {
     _currentAttendance = AttendanceModel.empty();
     _todayRecordsList = [];
     _historyRecords = [];
+    _todayHomeAttendance = null;
     _isSelfieCaptured = false;
     _selfiePath = '';
     _capturedAt = null;

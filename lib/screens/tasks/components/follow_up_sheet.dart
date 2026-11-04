@@ -38,6 +38,23 @@ const List<String> kPaymentVerificationOptions = [
   'Unverified',
 ];
 
+String _formatFollowUpDateOnly(String raw) {
+  if (raw.isEmpty) return '';
+  if (raw.contains(',')) {
+    final parts = raw.split(',');
+    if (parts.isNotEmpty && parts[0].trim().isNotEmpty) {
+      return parts[0].trim();
+    }
+  }
+  try {
+    final parsed = DateTime.tryParse(raw);
+    if (parsed != null) {
+      return DateFormat('dd MMM yyyy').format(parsed.toLocal());
+    }
+  } catch (_) {}
+  return raw;
+}
+
 String _getOrdinal(int index) {
   final n = index + 1;
   if (n >= 11 && n <= 13) {
@@ -95,11 +112,21 @@ void showFollowUpBottomSheet(
   required String userRole,
   required Future<void> Function() onSaved,
 }) {
-  var currentTask = task;
+  final liveTask = OperationsProvider.instance.tasks.where((t) =>
+      t.id == task.id ||
+      (t.leadId != null && t.leadId == task.leadId) ||
+      t.leadIdentifier == task.leadIdentifier
+  ).firstOrNull ?? task;
+  var currentTask = liveTask;
 
   DateTime selectedDate = DateTime.now().add(const Duration(days: 1));
   final remarkController = TextEditingController();
-  final studentIdController = TextEditingController();
+  final defaultStudentId = (currentTask.studentId != null && currentTask.studentId!.trim().isNotEmpty)
+      ? currentTask.studentId!.trim()
+      : ((task.studentId != null && task.studentId!.trim().isNotEmpty)
+          ? task.studentId!.trim()
+          : 'STU-${currentTask.leadIdentifier.replaceAll("LD-", "").replaceAll("LD_", "")}');
+  final studentIdController = TextEditingController(text: defaultStudentId);
 
   final defaultCourse = currentTask.course.isNotEmpty
       ? currentTask.course
@@ -250,6 +277,15 @@ void showFollowUpBottomSheet(
                   ),
                   const Divider(color: Color(0xFFE2E8F0), height: 32),
 
+                  if (defaultStudentId.isNotEmpty) ...[
+                    _buildMetaRow(
+                      'Student ID',
+                      defaultStudentId,
+                      Icons.badge_outlined,
+                    ),
+                    const SizedBox(height: 8),
+                  ],
+
                   _buildMetaRow(
                     'Course Interest',
                     currentTask.course,
@@ -339,13 +375,13 @@ void showFollowUpBottomSheet(
                                     Row(
                                       children: [
                                         const Icon(
-                                          Icons.access_time_rounded,
+                                          Icons.calendar_today_rounded,
                                           color: AppColors.textSecondary,
                                           size: 13,
                                         ),
                                         const SizedBox(width: 4),
                                         Text(
-                                          item.dateTime,
+                                          _formatFollowUpDateOnly(item.dateTime),
                                           style: const TextStyle(
                                             color: AppColors.textSecondary,
                                             fontSize: 12,

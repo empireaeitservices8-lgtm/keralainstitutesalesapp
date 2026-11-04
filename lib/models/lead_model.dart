@@ -98,6 +98,8 @@ class LeadModel {
   final int id;
   @JsonKey(name: 'lead_id')
   final String? leadId;
+  @JsonKey(name: 'student_id', fromJson: _parseStringNullable)
+  final String? studentId;
   @JsonKey(fromJson: _parseString)
   final String name;
   @JsonKey(fromJson: _parseString)
@@ -159,6 +161,7 @@ class LeadModel {
   const LeadModel({
     required this.id,
     this.leadId,
+    this.studentId,
     required this.name,
     required this.phone,
     this.whatsappNumber,

@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../constants/colors.dart';
 import '../models/home_dashboard_model.dart';
@@ -439,7 +439,7 @@ class _EmployeeDashboardScreenState extends State<EmployeeDashboardScreen> {
                 children: [
                   const Text('CHECK IN', style: TextStyle(color: AppColors.textSecondary, fontSize: 10, fontWeight: FontWeight.w600)),
                   const SizedBox(height: 4),
-                  Text(checkedIn && apiAttendance.checkInTime.isNotEmpty ? _formatTime12Hr(apiAttendance.checkInTime) : '--:--', style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.textPrimary, fontSize: 13)),
+                  Text((apiAttendance.checkInTime.isNotEmpty && apiAttendance.checkInTime != '--:--' && apiAttendance.checkInTime != 'null') ? _formatTime12Hr(apiAttendance.checkInTime) : (checkedIn ? 'Logged In' : '--:--'), style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.textPrimary, fontSize: 13)),
                 ],
                ),
                Column(
@@ -447,7 +447,7 @@ class _EmployeeDashboardScreenState extends State<EmployeeDashboardScreen> {
                 children: [
                   const Text('CHECK OUT', style: TextStyle(color: AppColors.textSecondary, fontSize: 10, fontWeight: FontWeight.w600)),
                   const SizedBox(height: 4),
-                  Text(checkedOut && apiAttendance.checkOutTime.isNotEmpty ? _formatTime12Hr(apiAttendance.checkOutTime) : '--:--', style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.textPrimary, fontSize: 13)),
+                  Text((apiAttendance.checkOutTime.isNotEmpty && apiAttendance.checkOutTime != '--:--' && apiAttendance.checkOutTime != 'null') ? _formatTime12Hr(apiAttendance.checkOutTime) : (checkedOut ? 'Logged Out' : '--:--'), style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.textPrimary, fontSize: 13)),
                 ],
                ),
              ],

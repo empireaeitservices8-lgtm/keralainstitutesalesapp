@@ -7,6 +7,7 @@ import '../../constants/colors.dart';
 import '../../models/home_dashboard_model.dart';
 import '../../models/office_telecaller_model.dart';
 import '../../models/performance_task.dart';
+import '../../providers/attendance_provider.dart';
 import '../../providers/home_provider.dart';
 import '../../providers/operations_provider.dart';
 import '../attendance_screen.dart';
@@ -393,52 +394,97 @@ class ManagementDashboardView extends StatelessWidget {
     BuildContext context, [
     HomeAttendance? apiAttendance,
   ]) {
-    final effectiveAtt = apiAttendance ?? data.attendance;
-    final bool checkedIn =
-        data.isUserCheckedIn || (effectiveAtt?.isCheckedIn ?? false);
-    final bool checkedOut =
-        data.isUserCheckedOut ||
-        (effectiveAtt != null &&
-            (effectiveAtt.isCheckedOut ||
-                effectiveAtt.shiftStatus == 'COMPLETED' ||
-                effectiveAtt.shiftStatus == 'CHECKED_OUT'));
+    return AnimatedBuilder(
+      animation: AttendanceProvider.instance,
+      builder: (context, _) {
+        final currentAtt = AttendanceProvider.instance.currentAttendance;
+        final providerHomeAtt = AttendanceProvider.instance.todayHomeAttendance;
+        final effectiveAtt = providerHomeAtt ?? apiAttendance ?? data.attendance;
 
-    final String checkInTime =
-        checkedIn &&
-            effectiveAtt != null &&
+        final bool hasProviderCheckIn = currentAtt.status != 'Absent';
+        final bool hasProviderCheckOut = currentAtt.checkOutTime != null;
+
+        final bool checkedIn =
+            data.isUserCheckedIn ||
+            (effectiveAtt?.isCheckedIn ?? false) ||
+            currentAtt.status == 'Present';
+
+        final bool checkedOut =
+            data.isUserCheckedOut ||
+            (effectiveAtt != null &&
+                (effectiveAtt.isCheckedOut ||
+                    effectiveAtt.shiftStatus.toUpperCase() == 'COMPLETED' ||
+                    effectiveAtt.shiftStatus.toUpperCase() == 'CHECKED_OUT')) ||
+            currentAtt.status == 'Completed';
+
+        // 1. Resolve Check-In Time: Prioritize authoritative recorded time
+        String rawCheckIn = '';
+        if (providerHomeAtt != null &&
+            providerHomeAtt.checkInTime.isNotEmpty &&
+            providerHomeAtt.checkInTime != '--:--' &&
+            providerHomeAtt.checkInTime != 'null') {
+          rawCheckIn = providerHomeAtt.checkInTime;
+        } else if (effectiveAtt != null &&
             effectiveAtt.checkInTime.isNotEmpty &&
-            effectiveAtt.checkInTime != 'null'
-        ? _formatTime12Hr(effectiveAtt.checkInTime)
-        : (checkedIn ? 'Logged In' : '--:--');
+            effectiveAtt.checkInTime != '--:--' &&
+            effectiveAtt.checkInTime != 'null') {
+          rawCheckIn = effectiveAtt.checkInTime;
+        } else if (hasProviderCheckIn) {
+          rawCheckIn = DateFormat('hh:mm a').format(currentAtt.checkInTime);
+        }
 
-    final String checkOutTime =
-        checkedOut &&
-            effectiveAtt != null &&
+        final String checkInTime = rawCheckIn.isNotEmpty
+            ? _formatTime12Hr(rawCheckIn)
+            : (checkedIn ? 'Logged In' : '--:--');
+
+        // 2. Resolve Check-Out Time
+        String rawCheckOut = '';
+        if (providerHomeAtt != null &&
+            providerHomeAtt.checkOutTime.isNotEmpty &&
+            providerHomeAtt.checkOutTime != '--:--' &&
+            providerHomeAtt.checkOutTime != 'null') {
+          rawCheckOut = providerHomeAtt.checkOutTime;
+        } else if (effectiveAtt != null &&
             effectiveAtt.checkOutTime.isNotEmpty &&
-            effectiveAtt.checkOutTime != 'null'
-        ? _formatTime12Hr(effectiveAtt.checkOutTime)
-        : (checkedOut ? 'Logged Out' : '--:--');
+            effectiveAtt.checkOutTime != '--:--' &&
+            effectiveAtt.checkOutTime != 'null') {
+          rawCheckOut = effectiveAtt.checkOutTime;
+        } else if (hasProviderCheckOut) {
+          rawCheckOut = DateFormat('hh:mm a').format(currentAtt.checkOutTime!);
+        }
 
-    final String shiftStatus =
-        effectiveAtt?.shiftStatus ??
-        (checkedOut
-            ? 'LOGGED OUT'
-            : (checkedIn ? 'LOGGED IN' : 'NOT LOGGED IN'));
+        final String checkOutTime = rawCheckOut.isNotEmpty
+            ? _formatTime12Hr(rawCheckOut)
+            : (checkedOut ? 'Logged Out' : '--:--');
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _buildAttendanceCard(
-          context: context,
-          checkedIn: checkedIn,
-          checkedOut: checkedOut,
-          checkInTime: checkInTime,
-          checkOutTime: checkOutTime,
-          shiftStatus: shiftStatus,
-          date: effectiveAtt?.date,
-        ),
-        const SizedBox(height: 20),
-      ],
+        final String shiftStatus =
+            effectiveAtt?.shiftStatus ??
+            (currentAtt.statusText?.isNotEmpty == true
+                ? currentAtt.statusText!
+                : (checkedOut
+                    ? 'LOGGED OUT'
+                    : (checkedIn ? 'LOGGED IN' : 'NOT LOGGED IN')));
+
+        final String? effectiveDate = (providerHomeAtt?.date.isNotEmpty == true)
+            ? providerHomeAtt!.date
+            : ((effectiveAtt?.date.isNotEmpty == true) ? effectiveAtt!.date : null);
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildAttendanceCard(
+              context: context,
+              checkedIn: checkedIn,
+              checkedOut: checkedOut,
+              checkInTime: checkInTime,
+              checkOutTime: checkOutTime,
+              shiftStatus: shiftStatus,
+              date: effectiveDate,
+            ),
+            const SizedBox(height: 20),
+          ],
+        );
+      },
     );
   }
 

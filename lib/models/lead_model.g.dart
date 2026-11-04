@@ -60,9 +60,35 @@ LeadModel _$LeadModelFromJson(Map<String, dynamic> json) {
       ? (json['id'] as num).toInt()
       : (int.tryParse(json['id']?.toString() ?? '') ?? 0);
 
+  final rawStudentId = json['student_id'] ??
+      json['studentId'] ??
+      json['student_no'] ??
+      json['studentNo'] ??
+      json['student_code'] ??
+      json['studentCode'] ??
+      json['admission_no'] ??
+      json['admissionNo'] ??
+      (json['student'] is Map
+          ? (json['student']['student_id'] ??
+              json['student']['student_no'] ??
+              json['student']['student_code'] ??
+              json['student']['id'] ??
+              json['student']['code'])
+          : null) ??
+      (json['admission'] is Map
+          ? (json['admission']['student_id'] ??
+              json['admission']['admission_no'] ??
+              json['admission']['id'])
+          : null);
+  final parsedStudentId =
+      (rawStudentId != null && rawStudentId.toString().trim().isNotEmpty)
+          ? rawStudentId.toString().trim()
+          : null;
+
   return LeadModel(
     id: parsedId,
     leadId: (parsedLeadId != null && parsedLeadId.isNotEmpty) ? parsedLeadId : null,
+    studentId: (parsedStudentId != null && parsedStudentId.isNotEmpty) ? parsedStudentId : null,
     name: LeadModel._parseString(json['name']),
   phone: LeadModel._parseString(json['phone']),
   whatsappNumber: LeadModel._parseStringNullable(json['whatsapp_number']),
@@ -110,6 +136,7 @@ LeadModel _$LeadModelFromJson(Map<String, dynamic> json) {
 Map<String, dynamic> _$LeadModelToJson(LeadModel instance) => <String, dynamic>{
   'id': instance.id,
   'lead_id': instance.leadId,
+  'student_id': instance.studentId,
   'name': instance.name,
   'phone': instance.phone,
   'whatsapp_number': instance.whatsappNumber,

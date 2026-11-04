@@ -46,6 +46,50 @@ class HomeDashboardModel {
     this.rawJson,
   });
 
+  HomeDashboardModel copyWith({
+    HomeUser? user,
+    int? designationId,
+    String? designationName,
+    HomeAttendance? attendance,
+    HomeEodSync? eodSync,
+    HomeOperationalOverview? operationalOverview,
+    String? dashboardType,
+    String? teamName,
+    HomeTeamMetrics? teamMetrics,
+    Map<String, List<HomeBdeStatus>>? teamSubordinateStatus,
+    List<HomeTerritoryReport>? territoryReport,
+    HomeTasksData? tasks,
+    HomeLeavesData? leaves,
+    HomeWalletData? wallet,
+    HomeLeadsData? leads,
+    HomeTeamData? team,
+    HomeTargetData? target,
+    HomeFollowUpsData? followUps,
+    Map<String, dynamic>? rawJson,
+  }) {
+    return HomeDashboardModel(
+      user: user ?? this.user,
+      designationId: designationId ?? this.designationId,
+      designationName: designationName ?? this.designationName,
+      attendance: attendance ?? this.attendance,
+      eodSync: eodSync ?? this.eodSync,
+      operationalOverview: operationalOverview ?? this.operationalOverview,
+      dashboardType: dashboardType ?? this.dashboardType,
+      teamName: teamName ?? this.teamName,
+      teamMetrics: teamMetrics ?? this.teamMetrics,
+      teamSubordinateStatus: teamSubordinateStatus ?? this.teamSubordinateStatus,
+      territoryReport: territoryReport ?? this.territoryReport,
+      tasks: tasks ?? this.tasks,
+      leaves: leaves ?? this.leaves,
+      wallet: wallet ?? this.wallet,
+      leads: leads ?? this.leads,
+      team: team ?? this.team,
+      target: target ?? this.target,
+      followUps: followUps ?? this.followUps,
+      rawJson: rawJson ?? this.rawJson,
+    );
+  }
+
   // Employee alias for user
   HomeUser get employee => user;
 
@@ -1012,12 +1056,30 @@ class HomeTargetData {
   final int targetLeads;
   final int targetAdmissions;
   final int monthlyTarget;
+  final int dailyTarget;
+  final int dailyAchieved;
+  final int dailyRemaining;
+  final double dailyPercentage;
+  final int monthlyAchieved;
+  final int monthlyRemaining;
+  final double monthlyPercentage;
+  final String period;
 
   const HomeTargetData({
     this.targetLeads = 0,
     this.targetAdmissions = 0,
     this.monthlyTarget = 0,
+    this.dailyTarget = 0,
+    this.dailyAchieved = 0,
+    this.dailyRemaining = 0,
+    this.dailyPercentage = 0.0,
+    this.monthlyAchieved = 0,
+    this.monthlyRemaining = 0,
+    this.monthlyPercentage = 0.0,
+    this.period = '',
   });
+
+  bool get hasTargets => dailyTarget > 0 || monthlyTarget > 0 || targetLeads > 0;
 
   factory HomeTargetData.fromJson(dynamic json, [dynamic admissionsJson]) {
     if (json == null) {
@@ -1045,6 +1107,25 @@ class HomeTargetData {
       );
     }
     if (json is Map) {
+      final int dailyTarget = UiHelpers.parseInt(json['daily_target'] ?? json['daily']);
+      final int dailyAchieved = UiHelpers.parseInt(json['daily_achieved']);
+      final int dailyRemaining = json['daily_remaining'] != null
+          ? UiHelpers.parseInt(json['daily_remaining'])
+          : (dailyTarget - dailyAchieved).clamp(0, 999999);
+      final double dailyPercentage = (json['daily_percentage'] as num?)?.toDouble() ??
+          (dailyTarget > 0 ? ((dailyAchieved / dailyTarget) * 100).clamp(0.0, 100.0) : 0.0);
+
+      int mTarget = UiHelpers.parseInt(
+        json['monthly_target'] ?? json['target'] ?? json['target_leads'],
+      );
+      final int monthlyAchieved = UiHelpers.parseInt(json['monthly_achieved'] ?? json['achieved']);
+      final int monthlyRemaining = json['monthly_remaining'] != null
+          ? UiHelpers.parseInt(json['monthly_remaining'])
+          : (mTarget - monthlyAchieved).clamp(0, 999999);
+      final double monthlyPercentage = (json['monthly_percentage'] as num?)?.toDouble() ??
+          (mTarget > 0 ? ((monthlyAchieved / mTarget) * 100).clamp(0.0, 100.0) : 0.0);
+      final String period = (json['period'] ?? '').toString();
+
       int leads = UiHelpers.parseInt(
         json['target_leads'] ??
             json['monthly_target'] ??
@@ -1054,9 +1135,6 @@ class HomeTargetData {
       );
       int admissions = UiHelpers.parseInt(
         json['target_admissions'] ?? json['admissions'] ?? admissionsJson,
-      );
-      int mTarget = UiHelpers.parseInt(
-        json['monthly_target'] ?? json['target'] ?? leads,
       );
 
       if (json['monthly'] is Map) {
@@ -1082,6 +1160,14 @@ class HomeTargetData {
         targetLeads: leads > 0 ? leads : mTarget,
         targetAdmissions: admissions,
         monthlyTarget: mTarget > 0 ? mTarget : leads,
+        dailyTarget: dailyTarget,
+        dailyAchieved: dailyAchieved,
+        dailyRemaining: dailyRemaining,
+        dailyPercentage: dailyPercentage,
+        monthlyAchieved: monthlyAchieved,
+        monthlyRemaining: monthlyRemaining,
+        monthlyPercentage: monthlyPercentage,
+        period: period,
       );
     }
     return const HomeTargetData();
@@ -1091,6 +1177,14 @@ class HomeTargetData {
     'target_leads': targetLeads,
     'target_admissions': targetAdmissions,
     'monthly_target': monthlyTarget,
+    'daily_target': dailyTarget,
+    'daily_achieved': dailyAchieved,
+    'daily_remaining': dailyRemaining,
+    'daily_percentage': dailyPercentage,
+    'monthly_achieved': monthlyAchieved,
+    'monthly_remaining': monthlyRemaining,
+    'monthly_percentage': monthlyPercentage,
+    'period': period,
   };
 }
 

@@ -200,7 +200,7 @@ void showTaskDetailsBottomSheet(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        'LEAD VISIT FILE • ${task.id}',
+                        'LEAD VISIT FILE • ${task.leadIdentifier}',
                         style: const TextStyle(
                           color: AppColors.accentTeal,
                           fontSize: 11,
@@ -242,6 +242,8 @@ void showTaskDetailsBottomSheet(
 
                   // SECTION 1: Contact Details
                   _buildSectionHeader('CONTACT & LOCATION'),
+                  if (task.studentId != null && task.studentId!.trim().isNotEmpty)
+                    _buildFullTile('Student ID', task.studentId!.trim(), Icons.badge_outlined),
                   _buildPairRow(
                     _buildInfoTile('Phone', (task.phone != null && task.phone!.isNotEmpty) ? task.phone! : '-', Icons.phone_outlined),
                     _buildInfoTile('WhatsApp', (task.whatsappNumber != null && task.whatsappNumber!.isNotEmpty) ? task.whatsappNumber! : ((task.phone != null && task.phone!.isNotEmpty) ? task.phone! : '-'), Icons.chat_bubble_outline),

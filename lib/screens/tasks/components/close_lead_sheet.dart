@@ -22,19 +22,34 @@ void showCloseLeadSheet(
   String? initialRemarks,
   VoidCallback? onClosed,
 }) {
-  final defaultCourse = task.course.trim().isNotEmpty
-      ? task.course.trim()
-      : (task.interestedCourse != null && task.interestedCourse!.trim().isNotEmpty
-          ? task.interestedCourse!.trim()
-          : 'Full-Stack Web Development');
+  final liveTask = OperationsProvider.instance.tasks.where((t) =>
+      t.id == task.id ||
+      (t.leadId != null && t.leadId == task.leadId) ||
+      t.leadIdentifier == task.leadIdentifier
+  ).firstOrNull ?? task;
+
+  final defaultCourse = liveTask.course.trim().isNotEmpty
+      ? liveTask.course.trim()
+      : (task.course.trim().isNotEmpty
+          ? task.course.trim()
+          : (liveTask.interestedCourse != null && liveTask.interestedCourse!.trim().isNotEmpty
+              ? liveTask.interestedCourse!.trim()
+              : 'Full-Stack Web Development'));
 
   final defaultRemarks = (initialRemarks != null && initialRemarks.trim().isNotEmpty)
       ? initialRemarks.trim()
-      : (task.remarks != null && task.remarks!.trim().isNotEmpty
-          ? task.remarks!.trim()
-          : 'Admission confirmed, fee paid');
+      : (liveTask.remarks != null && liveTask.remarks!.trim().isNotEmpty
+          ? liveTask.remarks!.trim()
+          : (task.remarks != null && task.remarks!.trim().isNotEmpty
+              ? task.remarks!.trim()
+              : 'Admission confirmed, fee paid'));
 
-  final studentIdController = TextEditingController();
+  final defaultStudentId = (liveTask.studentId != null && liveTask.studentId!.trim().isNotEmpty)
+      ? liveTask.studentId!.trim()
+      : ((task.studentId != null && task.studentId!.trim().isNotEmpty)
+          ? task.studentId!.trim()
+          : 'STU-${liveTask.leadIdentifier.replaceAll("LD-", "").replaceAll("LD_", "")}');
+  final studentIdController = TextEditingController(text: defaultStudentId);
   final courseController = TextEditingController(text: defaultCourse);
   final paymentController = TextEditingController();
   final remarksController = TextEditingController(text: defaultRemarks);
@@ -115,7 +130,7 @@ void showCloseLeadSheet(
                                 ),
                                 const SizedBox(width: 6),
                                 Text(
-                                  'CLOSE LEAD • ${task.leadIdentifier}',
+                                  'CLOSE LEAD • ${liveTask.leadIdentifier}',
                                   style: const TextStyle(
                                     color: AppColors.accentTeal,
                                     fontSize: 11,
@@ -574,8 +589,8 @@ void showCloseLeadSheet(
 
                                 try {
                                   await OperationsProvider.instance.closeLead(
-                                    id: task.leadIdentifier,
-                                    leadId: task.leadId ?? task.leadIdentifier,
+                                    id: liveTask.leadIdentifier,
+                                    leadId: liveTask.leadId ?? liveTask.leadIdentifier,
                                     studentId: studentId,
                                     course: course,
                                     payment: payment,

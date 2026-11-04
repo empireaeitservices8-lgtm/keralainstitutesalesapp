@@ -41,6 +41,46 @@ class HomeProvider extends BaseProvider<HomeDashboardModel> {
   int? _selectedDistrictId;
   int? get selectedDistrictId => _selectedDistrictId;
 
+  HomeAttendance? _statusAttendance;
+  HomeAttendance? get statusAttendance => _statusAttendance;
+
+  void updateAttendanceFromStatus({
+    required String checkInTime,
+    required String checkOutTime,
+    required String shiftStatus,
+    required bool isCheckedIn,
+    required bool isCheckedOut,
+    String date = '',
+    double hoursWorked = 0.0,
+  }) {
+    final current = state.data;
+    final newAttendance = HomeAttendance(
+      checkInTime: (checkInTime.isNotEmpty && checkInTime != 'null')
+          ? checkInTime
+          : (current?.attendance?.checkInTime ?? ''),
+      checkOutTime: (checkOutTime.isNotEmpty && checkOutTime != 'null')
+          ? checkOutTime
+          : (current?.attendance?.checkOutTime ?? ''),
+      shiftStatus: shiftStatus.isNotEmpty
+          ? shiftStatus
+          : (current?.attendance?.shiftStatus ?? 'OFFLINE'),
+      isCheckedIn: isCheckedIn,
+      isCheckedOut: isCheckedOut,
+      date: date.isNotEmpty ? date : (current?.attendance?.date ?? ''),
+      hoursWorked: hoursWorked > 0 ? hoursWorked : (current?.attendance?.hoursWorked ?? 0.0),
+    );
+
+    _statusAttendance = newAttendance;
+
+    if (current != null) {
+      final updatedModel = current.copyWith(attendance: newAttendance);
+      setState(ApiResponse.success(updatedModel));
+      SharedPreferences.getInstance().then((prefs) {
+        prefs.setString('cached_home_data', jsonEncode(updatedModel.toJson()));
+      }).catchError((_) {});
+    }
+  }
+
   void setSelectedDistrictId(int? id) {
     _selectedDistrictId = id;
     notifyListeners();
@@ -265,9 +305,47 @@ class HomeProvider extends BaseProvider<HomeDashboardModel> {
         final Map<String, dynamic> data = rawData is Map
             ? Map<String, dynamic>.from(rawData)
             : Map<String, dynamic>.from(homeResponse.data);
-        final model = HomeDashboardModel.fromJson(data);
+        var model = HomeDashboardModel.fromJson(data);
 
-        // 1. Sync attendance
+        // Merge authoritative attendance status if already loaded from /attendance/status
+        if (_statusAttendance != null) {
+          final curAtt = model.attendance;
+          final mergedCheckIn = (_statusAttendance!.checkInTime.isNotEmpty &&
+                  _statusAttendance!.checkInTime != '--:--' &&
+                  _statusAttendance!.checkInTime != 'null')
+              ? _statusAttendance!.checkInTime
+              : (curAtt?.checkInTime ?? '');
+          final mergedCheckOut = (_statusAttendance!.checkOutTime.isNotEmpty &&
+                  _statusAttendance!.checkOutTime != '--:--' &&
+                  _statusAttendance!.checkOutTime != 'null')
+              ? _statusAttendance!.checkOutTime
+              : (curAtt?.checkOutTime ?? '');
+          final mergedShiftStatus = _statusAttendance!.shiftStatus.isNotEmpty
+              ? _statusAttendance!.shiftStatus
+              : (curAtt?.shiftStatus ?? 'OFFLINE');
+          final mergedDate = _statusAttendance!.date.isNotEmpty
+              ? _statusAttendance!.date
+              : (curAtt?.date ?? '');
+          final mergedHours = _statusAttendance!.hoursWorked > 0
+              ? _statusAttendance!.hoursWorked
+              : (curAtt?.hoursWorked ?? 0.0);
+
+          model = model.copyWith(
+            attendance: HomeAttendance(
+              checkInTime: mergedCheckIn,
+              checkOutTime: mergedCheckOut,
+              shiftStatus: mergedShiftStatus,
+              isCheckedIn: _statusAttendance!.isCheckedIn,
+              isCheckedOut: _statusAttendance!.isCheckedOut,
+              date: mergedDate,
+              hoursWorked: mergedHours,
+              locationLat: _statusAttendance!.locationLat ?? curAtt?.locationLat,
+              locationLng: _statusAttendance!.locationLng ?? curAtt?.locationLng,
+            ),
+          );
+        }
+
+        // 1. Sync attendance to AttendanceProvider
         if (model.attendance != null) {
           AttendanceProvider.instance.syncAttendanceFromHome(
             checkedIn: model.attendance!.isCheckedIn,
