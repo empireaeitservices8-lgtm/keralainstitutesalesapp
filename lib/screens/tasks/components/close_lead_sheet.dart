@@ -583,10 +583,11 @@ void showCloseLeadSheet(
                                   return;
                                 }
 
+
+                                final messenger = ScaffoldMessenger.of(sheetContext);
                                 setSheetState(() {
                                   isSubmitting = true;
                                 });
-
                                 try {
                                   await OperationsProvider.instance.closeLead(
                                     id: liveTask.leadIdentifier,
@@ -598,30 +599,28 @@ void showCloseLeadSheet(
                                     remarks: remarks,
                                   );
 
+
                                   if (sheetContext.mounted) {
-                                    Navigator.of(sheetContext).pop(); // Close sheet
-                                  } else if (context.mounted && Navigator.of(context).canPop()) {
-                                    Navigator.of(context).pop();
+                                    Navigator.of(sheetContext).pop();
                                   }
-                                  if (sheetContext.mounted || context.mounted) {
-                                    UiHelpers.showSnackBar(
-                                      context,
-                                      'Admission confirmed & lead closed successfully for ${task.studentName}!',
-                                      Colors.green,
-                                    );
-                                  }
+
+                                  UiHelpers.showMessengerSnackBar(
+                                    messenger,
+                                    'Admission confirmed & lead closed for ' + task.studentName + '!',
+                                    Colors.green,
+                                  );
 
                                   onClosed?.call();
                                 } catch (e) {
+                                  UiHelpers.showMessengerSnackBar(
+                                    messenger,
+                                    'Failed to close lead: ' + e.toString(),
+                                    Colors.red,
+                                  );
                                   if (sheetContext.mounted) {
                                     setSheetState(() {
                                       isSubmitting = false;
                                     });
-                                    UiHelpers.showSnackBar(
-                                      sheetContext,
-                                      'Failed to close lead: ${e.toString()}',
-                                      Colors.red,
-                                    );
                                   }
                                 }
                               },

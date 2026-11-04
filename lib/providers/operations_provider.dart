@@ -1913,6 +1913,7 @@ class OperationsProvider extends ChangeNotifier {
     required String paymentVerification,
     required String studentId,
     required String course,
+    String? proofPath,
   }) async {
     final targetLeadId = resolveLeadId(actualLeadId, leadId);
 
@@ -1928,6 +1929,10 @@ class OperationsProvider extends ChangeNotifier {
         'student_id': studentId,
         'course': course,
       };
+      if (proofPath != null && proofPath.isNotEmpty) {
+        payload['proof'] = proofPath;
+        payload['attachment'] = proofPath;
+      }
 
       debugPrint('[saveFollowUp] Posting to /leads/$targetLeadId/followup: $payload');
       await ApiClient.instance.post(
@@ -1944,6 +1949,7 @@ class OperationsProvider extends ChangeNotifier {
         )..add(FollowUpItem(
             dateTime: nextFollowupDate,
             remark: remarks,
+            attachment: proofPath,
           ));
 
         _tasks[index] = currentTask.copyWith(
@@ -3193,7 +3199,7 @@ class OperationsProvider extends ChangeNotifier {
           } catch (_) {
             // Fallback to original
           }
-          return FollowUpItem(dateTime: formattedDate, remark: f.notes ?? '');
+          return FollowUpItem(dateTime: formattedDate, remark: f.notes ?? '', attachment: f.attachment);
         }).toList() ??
         [];
 

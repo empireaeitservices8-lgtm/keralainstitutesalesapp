@@ -1,5 +1,8 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:image_picker/image_picker.dart';
+import '../../../api/api_endpoints.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../constants/colors.dart';
 import '../../../models/task_model.dart';
@@ -144,6 +147,7 @@ void showFollowUpBottomSheet(
 
   bool isSaving = false;
   bool showForm = false;
+  String? selectedProofPath;
 
   OperationsProvider.instance.fetchCourses();
 
@@ -1249,5 +1253,275 @@ void _showFollowUpCoursePicker(
         },
       );
     },
+  );
+}
+
+
+Widget _buildFollowUpAttachmentThumbnail(
+  BuildContext context,
+  String path,
+  String label,
+) {
+  return GestureDetector(
+    onTap: () => _showFollowUpImageDialog(context, path, label),
+    child: Container(
+      width: double.infinity,
+      constraints: const BoxConstraints(maxHeight: 140),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFFCBD5E1), width: 1.2),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(9),
+        child: _buildUniversalFollowUpImage(path, fit: BoxFit.cover),
+      ),
+    ),
+  );
+}
+
+Widget _buildUniversalFollowUpImage(String path, {BoxFit fit = BoxFit.cover}) {
+  final trimmed = path.trim();
+  if (trimmed.isEmpty) return const SizedBox.shrink();
+
+  if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+    return Image.network(
+      trimmed,
+      fit: fit,
+      errorBuilder: (_, __, ___) => _buildFollowUpImageError(),
+      loadingBuilder: (context, child, progress) {
+        if (progress == null) return child;
+        return const Center(
+          child: SizedBox(
+            width: 20,
+            height: 20,
+            child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.accentTeal),
+          ),
+        );
+      },
+    );
+  }
+
+  try {
+    final file = File(trimmed);
+    if (file.existsSync()) {
+      return Image.file(
+        file,
+        fit: fit,
+        errorBuilder: (_, __, ___) => _buildFollowUpImageError(),
+      );
+    }
+  } catch (_) {}
+
+  if (trimmed.startsWith('/') || trimmed.startsWith('storage') || trimmed.startsWith('uploads')) {
+    final clean = trimmed.startsWith('/') ? trimmed.substring(1) : trimmed;
+    final fullUrl = '${ApiEndpoints.baseUrl.replaceAll('/api', '')}/$clean';
+    return Image.network(
+      fullUrl,
+      fit: fit,
+      errorBuilder: (_, __, ___) => _buildFollowUpImageError(),
+    );
+  }
+
+  return Image.file(
+    File(trimmed),
+    fit: fit,
+    errorBuilder: (_, __, ___) => _buildFollowUpImageError(),
+  );
+}
+
+Widget _buildFollowUpImageError() {
+  return Container(
+    height: 80,
+    color: Colors.grey.shade100,
+    alignment: Alignment.center,
+    child: const Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(Icons.broken_image, size: 24, color: Colors.grey),
+        SizedBox(height: 4),
+        Text('Unable to preview photo', style: TextStyle(color: AppColors.textSecondary, fontSize: 10)),
+      ],
+    ),
+  );
+}
+
+void _showFollowUpImageDialog(BuildContext context, String path, String label) {
+  showDialog(
+    context: context,
+    builder: (ctx) {
+      return Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            Container(
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.of(ctx).size.height * 0.75,
+                maxWidth: MediaQuery.of(ctx).size.width * 0.90,
+              ),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(20),
+                color: Colors.white,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.2),
+                    blurRadius: 20,
+                    offset: const Offset(0, 8),
+                  ),
+                ],
+              ),
+              padding: const EdgeInsets.all(14),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    label.toUpperCase(),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.textPrimary,
+                      fontSize: 13,
+                      letterSpacing: 0.8,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Flexible(
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(14),
+                      child: _buildUniversalFollowUpImage(path, fit: BoxFit.contain),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Positioned(
+              top: 0,
+              right: 0,
+              child: Material(
+                color: Colors.white,
+                shape: const CircleBorder(),
+                elevation: 4,
+                child: IconButton(
+                  icon: const Icon(Icons.close_rounded, color: Colors.black87, size: 20),
+                  onPressed: () => Navigator.pop(ctx),
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    },
+  );
+}
+
+Widget _buildAttachmentPicker({
+  required BuildContext context,
+  required String? selectedPath,
+  required ValueChanged<String> onPicked,
+  required VoidCallback onRemoved,
+}) {
+  if (selectedPath != null && selectedPath.isNotEmpty) {
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: AppColors.bgInput,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.accentTeal.withOpacity(0.4)),
+      ),
+      child: Row(
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: SizedBox(
+              width: 50,
+              height: 50,
+              child: _buildUniversalFollowUpImage(selectedPath, fit: BoxFit.cover),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Attachment Selected',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                Text(
+                  selectedPath.split('/').last.split('\\').last,
+                  style: const TextStyle(
+                    fontSize: 10,
+                    color: AppColors.textSecondary,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.delete_outline_rounded, color: Colors.red, size: 20),
+            onPressed: onRemoved,
+          ),
+        ],
+      ),
+    );
+  }
+
+  return Row(
+    children: [
+      Expanded(
+        child: OutlinedButton.icon(
+          style: OutlinedButton.styleFrom(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            side: BorderSide(color: AppColors.accentTeal.withOpacity(0.4)),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+          icon: const Icon(Icons.camera_alt_outlined, size: 16, color: AppColors.accentTeal),
+          label: const Text(
+            'Camera',
+            style: TextStyle(fontSize: 12, color: AppColors.accentTeal, fontWeight: FontWeight.bold),
+          ),
+          onPressed: () async {
+            try {
+              final picker = ImagePicker();
+              final xfile = await picker.pickImage(source: ImageSource.camera, imageQuality: 80);
+              if (xfile != null) onPicked(xfile.path);
+            } catch (e) {
+              UiHelpers.showSnackBar(context, 'Failed to open camera: $e', Colors.red);
+            }
+          },
+        ),
+      ),
+      const SizedBox(width: 10),
+      Expanded(
+        child: OutlinedButton.icon(
+          style: OutlinedButton.styleFrom(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            side: BorderSide(color: AppColors.accentTeal.withOpacity(0.4)),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+          icon: const Icon(Icons.photo_library_outlined, size: 16, color: AppColors.accentTeal),
+          label: const Text(
+            'Gallery',
+            style: TextStyle(fontSize: 12, color: AppColors.accentTeal, fontWeight: FontWeight.bold),
+          ),
+          onPressed: () async {
+            try {
+              final picker = ImagePicker();
+              final xfile = await picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
+              if (xfile != null) onPicked(xfile.path);
+            } catch (e) {
+              UiHelpers.showSnackBar(context, 'Failed to pick image: $e', Colors.red);
+            }
+          },
+        ),
+      ),
+    ],
   );
 }

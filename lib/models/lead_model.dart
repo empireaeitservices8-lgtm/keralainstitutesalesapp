@@ -47,6 +47,7 @@ class LeadFollowUp {
   final String followupDate;
   final String? type;
   final String? notes;
+  final String? attachment;
 
   const LeadFollowUp({
     required this.id,
@@ -55,6 +56,7 @@ class LeadFollowUp {
     required this.followupDate,
     this.type,
     this.notes,
+    this.attachment,
   });
 
   factory LeadFollowUp.fromJson(Map<String, dynamic> json) =>

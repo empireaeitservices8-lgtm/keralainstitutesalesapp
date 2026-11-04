@@ -177,18 +177,30 @@ class TaskModel {
 class FollowUpItem {
   final String dateTime;
   final String remark;
+  final String? attachment;
 
-  FollowUpItem({required this.dateTime, required this.remark});
+  FollowUpItem({
+    required this.dateTime,
+    required this.remark,
+    this.attachment,
+  });
 
   factory FollowUpItem.fromJson(Map<String, dynamic> json) {
     return FollowUpItem(
-      dateTime: json['dateTime'] as String? ?? json['date_time'] as String? ?? '',
-      remark: json['remark'] as String? ?? '',
+      dateTime: json['dateTime'] as String? ?? json['date_time'] as String? ?? json['followup_date'] as String? ?? '',
+      remark: json['remark'] as String? ?? json['notes'] as String? ?? '',
+      attachment: json['attachment'] as String? ??
+          json['proof'] as String? ??
+          json['image'] as String? ??
+          json['photo'] as String? ??
+          json['file_path'] as String? ??
+          json['file'] as String?,
     );
   }
 
   Map<String, dynamic> toJson() => {
     'dateTime': dateTime,
     'remark': remark,
+    if (attachment != null) 'attachment': attachment,
   };
 }
