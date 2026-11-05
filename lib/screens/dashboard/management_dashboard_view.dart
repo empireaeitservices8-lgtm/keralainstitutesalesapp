@@ -7105,7 +7105,7 @@ class ManagementDashboardView extends StatelessWidget {
                                 ),
                                 const SizedBox(height: 2),
                                 Text(
-                                  '${bde.district} • ${bde.team}',
+                                  '${bde.zone.isNotEmpty ? '${bde.zone} • ' : ''}${bde.district} • ${bde.team}',
                                   style: const TextStyle(
                                     fontSize: 10.5,
                                     color: AppColors.textSecondary,

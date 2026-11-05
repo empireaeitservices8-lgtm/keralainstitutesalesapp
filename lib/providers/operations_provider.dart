@@ -92,6 +92,9 @@ class OperationsProvider extends ChangeNotifier {
       debugPrint(
         '[fetchSmAsms] Skipping /api/sm/asms because user role ($cleanRole) is not SM',
       );
+      debugPrint(
+        '[fetchSmAsms] Skipping /api/sm/asms because user role ($cleanRole) is not SM',
+      );
       return;
     }
 
@@ -158,7 +161,7 @@ class OperationsProvider extends ChangeNotifier {
     int dailyTarget = 12,
   }) async {
     try {
-      final finalTeamCode = teamCode.trim().toUpperCase();
+      final finalTeamCode = teamCode;
       final finalPassword = password.trim().isNotEmpty
           ? password.trim()
           : 'password123';
@@ -185,9 +188,30 @@ class OperationsProvider extends ChangeNotifier {
       String asmId = 'asm_${DateTime.now().millisecondsSinceEpoch}';
       String employeeId =
           'ASM${(_smAsms.length + 1).toString().padLeft(3, '0')}';
+
       String message =
           'ASM $name created successfully with team $finalTeamCode.';
 
+      try {
+        final response = await ApiClient.instance.post(
+          ApiEndpoints.smCreateAsm,
+          data: payload,
+        );
+        debugPrint('[CreateAsm] Server response: ${response.statusCode}');
+        if (response.data != null && response.data is Map) {
+          final resData = response.data['data'];
+          if (resData is Map) {
+            if (resData['employee_id'] != null)
+              employeeId = resData['employee_id'].toString();
+            if (resData['id'] != null) asmId = resData['id'].toString();
+          }
+        }
+      } catch (e) {
+        debugPrint('[CreateAsm] API call handled locally: $e');
+        try {
+          await ApiClient.instance.post(ApiEndpoints.smAsms, data: payload);
+        } catch (_) {}
+      }
       final response = await ApiClient.instance.post(
         ApiEndpoints.smCreateAsm,
         data: payload,
@@ -1322,6 +1346,7 @@ class OperationsProvider extends ChangeNotifier {
     try {
       final payload = {
         'request_id': requestId,
+
         'action': 'forward_to_sm',
         'notes': notes,
       };
@@ -1361,6 +1386,7 @@ class OperationsProvider extends ChangeNotifier {
     try {
       final payload = {
         'request_id': requestId,
+
         'action': 'forward_to_sm',
         'notes': notes,
       };
@@ -1575,9 +1601,14 @@ class OperationsProvider extends ChangeNotifier {
           (idx != -1 && _walletApprovalRequests[idx].requestId.isNotEmpty)
           ? _walletApprovalRequests[idx].requestId
           : requestId;
+      final mongoId = (idx != -1 && _walletApprovalRequests[idx].id.isNotEmpty)
+          ? _walletApprovalRequests[idx].id
+          : requestId;
 
       final payload = {
         'request_id': reqCode,
+        'id': mongoId,
+        '_id': mongoId,
         'action': 'forward_to_sm',
         'remarks': remarks,
         'notes': remarks,
@@ -1589,6 +1620,15 @@ class OperationsProvider extends ChangeNotifier {
         );
       } catch (e) {
         debugPrint('[forwardWalletRequestToSm] API call: $e');
+        if (mongoId != reqCode) {
+          payload['request_id'] = mongoId;
+          try {
+            await ApiClient.instance.post(
+              ApiEndpoints.walletWorkflow,
+              data: payload,
+            );
+          } catch (_) {}
+        }
       }
 
       if (idx != -1) {
@@ -1633,6 +1673,9 @@ class OperationsProvider extends ChangeNotifier {
       final reqCode =
           (idx != -1 && _walletApprovalRequests[idx].requestId.isNotEmpty)
           ? _walletApprovalRequests[idx].requestId
+          : requestId;
+      final mongoId = (idx != -1 && _walletApprovalRequests[idx].id.isNotEmpty)
+          ? _walletApprovalRequests[idx].id
           : requestId;
 
       final payload = {

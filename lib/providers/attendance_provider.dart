@@ -7,6 +7,7 @@ import '../api/api_client.dart';
 import '../api/api_endpoints.dart';
 import '../models/attendance_model.dart';
 import '../models/home_dashboard_model.dart';
+import '../utils/helpers.dart';
 import 'auth_provider.dart';
 import 'home_provider.dart';
 
@@ -228,15 +229,58 @@ class AttendanceProvider extends ChangeNotifier {
           data = Map<String, dynamic>.from(rawData);
           if (data['today_records'] is List) {
             todayRecords = data['today_records'] as List<dynamic>;
+          } else if (data['sessions'] is List) {
+            todayRecords = data['sessions'] as List<dynamic>;
+          } else if (data['punches'] is List) {
+            todayRecords = data['punches'] as List<dynamic>;
+          } else if (data['attendance'] is Map &&
+              (data['attendance']['sessions'] is List ||
+                  data['attendance']['punches'] is List)) {
+            todayRecords = (data['attendance']['sessions'] ??
+                data['attendance']['punches']) as List<dynamic>;
           }
           if (data['record'] is Map) {
             record = Map<String, dynamic>.from(data['record'] as Map);
           } else if (data['attendance'] is Map) {
             record = Map<String, dynamic>.from(data['attendance'] as Map);
+            final punches = (record['sessions'] is List &&
+                    (record['sessions'] as List).isNotEmpty)
+                ? (record['sessions'] as List)
+                : (record['punches'] is List ? (record['punches'] as List) : null);
+            if (punches != null && punches.isNotEmpty && punches.last is Map) {
+              final parentHours = record['hours_worked'] ??
+                  record['hours_worked_formatted'] ??
+                  record['working_hours'];
+              final lastPunch = Map<String, dynamic>.from(punches.last as Map);
+              record = {...record, ...lastPunch};
+              if (UiHelpers.parseWorkingHours(lastPunch['hours_worked'] ??
+                          lastPunch['hours_worked_formatted']) ==
+                      0.0 &&
+                  UiHelpers.parseWorkingHours(parentHours) > 0.0) {
+                record['hours_worked'] = parentHours;
+                record['hours_worked_formatted'] = parentHours;
+              }
+            }
           } else if (data.containsKey('check_in') ||
               data.containsKey('check_in_time') ||
               data.containsKey('checked_in')) {
-            record = data;
+            record = Map<String, dynamic>.from(data);
+            if (todayRecords.isNotEmpty && todayRecords.last is Map) {
+              final parentHours = record['hours_worked'] ??
+                  record['hours_worked_formatted'] ??
+                  record['working_hours'];
+              final lastPunch = Map<String, dynamic>.from(
+                todayRecords.last as Map,
+              );
+              record = {...record, ...lastPunch};
+              if (UiHelpers.parseWorkingHours(lastPunch['hours_worked'] ??
+                          lastPunch['hours_worked_formatted']) ==
+                      0.0 &&
+                  UiHelpers.parseWorkingHours(parentHours) > 0.0) {
+                record['hours_worked'] = parentHours;
+                record['hours_worked_formatted'] = parentHours;
+              }
+            }
           } else if (todayRecords.isNotEmpty && todayRecords.last is Map) {
             record = Map<String, dynamic>.from(todayRecords.last as Map);
           }
@@ -249,11 +293,24 @@ class AttendanceProvider extends ChangeNotifier {
 
         final String apiStatus =
             (data['status'] ?? record?['status'] ?? 'absent').toString();
+        final String parentDate = (data['date'] ??
+                (data['attendance'] is Map ? data['attendance']['date'] : null) ??
+                record?['date'] ??
+                '')
+            .toString();
 
         if (todayRecords.isEmpty && record != null) {
           todayRecords = [record];
         }
-        _todayRecordsList = todayRecords;
+        final enrichedToday = _enrichTodaySessions(
+          todayRecords,
+          fallbackDate: parentDate,
+          fallbackStatus: apiStatus,
+        );
+        if (enrichedToday.length >= _todayRecordsList.length ||
+            _todayRecordsList.isEmpty) {
+          _todayRecordsList = enrichedToday;
+        }
 
         if (record != null) {
           final String checkInTimeStr =
@@ -278,15 +335,11 @@ class AttendanceProvider extends ChangeNotifier {
               ? double.tryParse(lngVal.toString()) ?? 0.0
               : 0.0;
 
-          double workingHours;
-          final rawHours = record['hours_worked'] ?? record['working_hours'];
-          if (rawHours is num) {
-            workingHours = rawHours.toDouble().abs();
-          } else if (rawHours != null) {
-            workingHours = (double.tryParse(rawHours.toString()) ?? 0.0).abs();
-          } else {
-            workingHours = 0.0;
-          }
+          final rawHours =
+              record['hours_worked'] ??
+              record['hours_worked_formatted'] ??
+              record['working_hours'];
+          double workingHours = UiHelpers.parseWorkingHours(rawHours);
 
           if (workingHours == 0.0 &&
               checkOutTime != null &&
@@ -294,7 +347,7 @@ class AttendanceProvider extends ChangeNotifier {
               checkInTimeStr != '--:--') {
             final diffMin = checkOutTime.difference(checkInTime).inMinutes;
             if (diffMin > 0) {
-              workingHours = double.parse((diffMin / 60.0).toStringAsFixed(2));
+              workingHours = diffMin / 60.0;
             }
           }
 
@@ -666,6 +719,65 @@ class AttendanceProvider extends ChangeNotifier {
     return null;
   }
 
+  List<Map<String, dynamic>> _enrichTodaySessions(
+    List<dynamic> rawList, {
+    String fallbackDate = '',
+    String fallbackStatus = '',
+  }) {
+    final todayStr = DateFormat('yyyy-MM-dd').format(DateTime.now());
+    final effectiveDate =
+        (fallbackDate.isNotEmpty && fallbackDate != 'null') ? fallbackDate : todayStr;
+    final List<Map<String, dynamic>> enriched = [];
+
+    for (final item in rawList) {
+      if (item is! Map) continue;
+      final map = Map<String, dynamic>.from(item);
+
+      // If item itself is a day wrapper with sessions/punches, unwrap its sessions
+      final nestedList = (map['sessions'] is List && (map['sessions'] as List).isNotEmpty)
+          ? (map['sessions'] as List)
+          : ((map['punches'] is List && (map['punches'] as List).isNotEmpty)
+              ? (map['punches'] as List)
+              : null);
+
+      if (nestedList != null) {
+        final dayDate = (map['date'] ?? effectiveDate).toString();
+        final dayStatus = (map['status'] ?? map['shift_status'] ?? fallbackStatus).toString();
+        for (final s in nestedList) {
+          if (s is Map) {
+            final sessionMap = Map<String, dynamic>.from(s);
+            sessionMap['date'] ??= dayDate;
+            sessionMap['employee_id'] ??= map['employee_id'];
+            sessionMap['name'] ??= map['name'];
+            final co = (sessionMap['check_out_time'] ?? sessionMap['check_out'] ?? '')
+                .toString()
+                .trim();
+            if (sessionMap['status'] == null && sessionMap['status_text'] == null) {
+              sessionMap['status'] = (co.isNotEmpty && co != '--:--' && co != 'null')
+                  ? 'COMPLETED'
+                  : (dayStatus.isNotEmpty && dayStatus.toLowerCase() != 'absent'
+                      ? dayStatus
+                      : 'ONLINE');
+            }
+            enriched.add(sessionMap);
+          }
+        }
+      } else {
+        map['date'] ??= effectiveDate;
+        final co = (map['check_out_time'] ?? map['check_out'] ?? '').toString().trim();
+        if (map['status'] == null && map['status_text'] == null && map['shift_status'] == null) {
+          map['status'] = (co.isNotEmpty && co != '--:--' && co != 'null')
+              ? 'COMPLETED'
+              : (fallbackStatus.isNotEmpty && fallbackStatus.toLowerCase() != 'absent'
+                  ? fallbackStatus
+                  : 'ONLINE');
+        }
+        enriched.add(map);
+      }
+    }
+    return enriched;
+  }
+
   /// Fetch online attendance history (all days)
   Future<void> loadAttendanceHistory({bool isRefresh = false}) async {
     if (!isRefresh && _historyRecords.isNotEmpty) return;
@@ -689,6 +801,22 @@ class AttendanceProvider extends ChangeNotifier {
             _historyRecords = rawData['records'] as List<dynamic>;
           } else if (rawData['data'] is List) {
             _historyRecords = rawData['data'] as List<dynamic>;
+          }
+        }
+
+        // Sync today's sessions from history if today's day record is present
+        final todayStr = DateFormat('yyyy-MM-dd').format(DateTime.now());
+        for (final item in _historyRecords) {
+          if (item is Map && (item['date'] ?? '').toString() == todayStr) {
+            final todaySessions = _enrichTodaySessions(
+              [item],
+              fallbackDate: todayStr,
+              fallbackStatus: (item['status'] ?? 'ONLINE').toString(),
+            );
+            if (todaySessions.length >= _todayRecordsList.length) {
+              _todayRecordsList = todaySessions;
+            }
+            break;
           }
         }
       }

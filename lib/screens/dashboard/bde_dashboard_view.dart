@@ -500,71 +500,9 @@ class BdeDashboardView extends StatelessWidget {
                     value: '\u20B9${NumberFormat('#,##,###').format(incentives.toInt())} Earn.',
                     icon: Icons.auto_graph_rounded,
                     iconColor: Colors.amber,
-                    onTap: () {
-                      showModalBottomSheet(
-                        context: context,
-                        backgroundColor: Colors.white,
-                        shape: const RoundedRectangleBorder(
-                          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-                        ),
-                        builder: (ctx) => SafeArea(
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Container(
-                                  width: 40,
-                                  height: 4,
-                                  margin: const EdgeInsets.only(bottom: 16),
-                                  decoration: BoxDecoration(
-                                    color: Colors.grey.shade300,
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                ),
-                                ListTile(
-                                  leading: Container(
-                                    padding: const EdgeInsets.all(8),
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFF0F766E).withOpacity(0.12),
-                                      shape: BoxShape.circle,
-                                    ),
-                                    child: const Icon(Icons.payments_rounded, color: Color(0xFF0F766E)),
-                                  ),
-                                  title: const Text('Request Incentive Withdrawal', style: TextStyle(fontWeight: FontWeight.bold)),
-                                  subtitle: const Text('Submit claim directly to ASM'),
-                                  trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 14),
-                                  onTap: () {
-                                    Navigator.pop(ctx);
-                                    showIncentiveRequestSheet(context, currentBalance: incentives.toDouble());
-                                  },
-                                ),
-                                const Divider(),
-                                ListTile(
-                                  leading: Container(
-                                    padding: const EdgeInsets.all(8),
-                                    decoration: BoxDecoration(
-                                      color: Colors.amber.withOpacity(0.12),
-                                      shape: BoxShape.circle,
-                                    ),
-                                    child: const Icon(Icons.auto_graph_rounded, color: Colors.amber),
-                                  ),
-                                  title: const Text('View Incentives & Milestones', style: TextStyle(fontWeight: FontWeight.bold)),
-                                  subtitle: const Text('See transaction history and performance bonus'),
-                                  trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 14),
-                                  onTap: () {
-                                    Navigator.pop(ctx);
-                                    HomeProvider.instance.setCurrentIndex(2);
-                                  },
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      );
-                    },
+                    onTap: () => HomeProvider.instance.setCurrentIndex(2),
                     bottom: const Text(
-                      'Tap to Request or View',
+                      'Tap to View Incentives',
                       style: TextStyle(
                         color: AppColors.accentTeal,
                         fontSize: 11,

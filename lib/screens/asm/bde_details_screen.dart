@@ -2,10 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import '../../constants/colors.dart';
 import '../../models/asm_bde_model.dart';
-import '../../models/sm_payout_request_model.dart';
 import '../../models/task_model.dart';
+import '../../models/wallet_approval_request_model.dart';
 import '../../providers/operations_provider.dart';
 
 class BdeDetailsScreen extends StatefulWidget {
@@ -19,6 +18,15 @@ class BdeDetailsScreen extends StatefulWidget {
 }
 
 class _BdeDetailsScreenState extends State<BdeDetailsScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // Fetch wallet approval requests from GET /api/wallet/requests
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      OperationsProvider.instance.fetchWalletApprovalRequests(isRefresh: true);
+    });
+  }
+
   // Helper to copy text to clipboard
   void _copyToClipboard(String text, String label) {
     Clipboard.setData(ClipboardData(text: text));
@@ -69,10 +77,8 @@ class _BdeDetailsScreenState extends State<BdeDetailsScreen> {
       );
       return;
     }
-    // Prepend India country code if length is 10 digits
-    final formattedNumber = digitsOnly.length == 10
-        ? '91$digitsOnly'
-        : digitsOnly;
+    final formattedNumber =
+        digitsOnly.length == 10 ? '91$digitsOnly' : digitsOnly;
     final Uri url = Uri.parse('https://wa.me/$formattedNumber');
     if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
       if (mounted) {
@@ -110,83 +116,261 @@ class _BdeDetailsScreenState extends State<BdeDetailsScreen> {
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final bde = widget.bde;
-    final bool isActive = bde.status.toLowerCase() == 'active';
+  // Forward to SM confirmation dialog
+  void _showForwardToSmDialog(
+    BuildContext context, {
+    required WalletApprovalRequestItem item,
+    required OperationsProvider provider,
+  }) {
+    final notesCtrl = TextEditingController(
+      text: 'ASM verified admissions & recommended.',
+    );
 
-    return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        centerTitle: false,
-        leading: IconButton(
-          icon: const Icon(
-            Icons.arrow_back_ios_new_rounded,
-            color: Color(0xFF0F172A),
-            size: 20,
-          ),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
           children: [
-            const Text(
-              'BDE Executive Profile',
-              style: TextStyle(
-                color: Color(0xFF0F172A),
-                fontSize: 17,
-                fontWeight: FontWeight.w800,
-                letterSpacing: 0.2,
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: const Color(0xFF0F766E).withOpacity(0.1),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(
+                Icons.forward_to_inbox_rounded,
+                color: Color(0xFF0F766E),
+                size: 22,
               ),
             ),
-            Text(
-              '${bde.employeeId} • ${bde.district.isNotEmpty ? bde.district : 'Regional Team'}',
-              style: const TextStyle(
-                fontSize: 11,
-                color: Color(0xFF64748B),
-                fontWeight: FontWeight.w500,
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Text(
+                'Forward to SM',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF0F172A),
+                ),
               ),
             ),
           ],
         ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Forward withdrawal request ${item.requestId} (${item.formattedAmount}) for ${item.employee} to State Sales Manager (SM)?',
+              style: const TextStyle(
+                fontSize: 13,
+                color: Color(0xFF475569),
+                height: 1.4,
+              ),
+            ),
+            const SizedBox(height: 14),
+            TextField(
+              controller: notesCtrl,
+              maxLines: 2,
+              decoration: InputDecoration(
+                labelText: 'ASM Recommendation / Remarks',
+                hintText: 'Enter review notes...',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                contentPadding: const EdgeInsets.all(12),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text(
+              'Cancel',
+              style: TextStyle(color: Color(0xFF64748B)),
+            ),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF0F766E),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            ),
+            onPressed: () async {
+              Navigator.pop(ctx);
+              final notes = notesCtrl.text.trim();
+              final ok = await provider.forwardWalletRequestToSm(
+                item.id,
+                remarks: notes.isNotEmpty
+                    ? notes
+                    : 'ASM verified admissions & recommended.',
+              );
+              if (mounted) {
+                if (ok) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        'Request ${item.requestId} successfully forwarded to SM!',
+                      ),
+                      backgroundColor: const Color(0xFF0F766E),
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Failed to forward request to SM'),
+                      backgroundColor: Colors.redAccent,
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                }
+              }
+            },
+            child: const Text(
+              'Confirm & Forward',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ],
       ),
-      body: ListenableBuilder(
-        listenable: OperationsProvider.instance,
-        builder: (context, _) {
-          final provider = OperationsProvider.instance;
+    );
+  }
 
-          // Filter leads/tasks matching this BDE
-          final assignedTasks = provider.rawTasks.where((t) {
-            final matchEmail =
-                bde.email.isNotEmpty &&
-                t.assignedBdeEmail.toLowerCase() == bde.email.toLowerCase();
-            final matchName =
-                bde.name.isNotEmpty &&
-                (t.employee?.toLowerCase() == bde.name.toLowerCase());
-            final matchEmpId =
-                bde.employeeId.isNotEmpty &&
-                (t.employee?.toLowerCase() == bde.employeeId.toLowerCase());
-            return matchEmail || matchName || matchEmpId;
-          }).toList();
+  @override
+  Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: OperationsProvider.instance,
+      builder: (context, _) {
+        final provider = OperationsProvider.instance;
 
-          // Filter payout/salary requests for this BDE
-          final payoutRequests = provider.bdePayoutRequests.where((r) {
-            final matchId =
-                bde.employeeId.isNotEmpty &&
-                r.employeeId.toLowerCase() == bde.employeeId.toLowerCase();
-            final matchName =
-                bde.name.isNotEmpty &&
-                r.employeeName.toLowerCase().contains(bde.name.toLowerCase());
-            return matchId || matchName;
-          }).toList();
+        // Obtain latest data for this BDE from provider if available
+        final bde = provider.asmBdes.firstWhere(
+          (b) =>
+              (b.id.isNotEmpty && b.id == widget.bde.id) ||
+              (b.employeeId.isNotEmpty &&
+                  b.employeeId.toLowerCase() ==
+                      widget.bde.employeeId.toLowerCase()),
+          orElse: () => widget.bde,
+        );
 
-          return RefreshIndicator(
+        final bool isActive = bde.status.toLowerCase() == 'active';
+
+        // Filter leads/tasks matching this BDE
+        final assignedTasks = provider.rawTasks.where((t) {
+          final matchEmail = bde.email.isNotEmpty &&
+              t.assignedBdeEmail.toLowerCase() == bde.email.toLowerCase();
+          final matchName = bde.name.isNotEmpty &&
+              (t.employee?.toLowerCase() == bde.name.toLowerCase());
+          final matchEmpId = bde.employeeId.isNotEmpty &&
+              (t.employee?.toLowerCase() == bde.employeeId.toLowerCase());
+          return matchEmail || matchName || matchEmpId;
+        }).toList();
+
+        // Filter wallet/incentive requests from /api/wallet/requests for this BDE
+        final bdeWalletRequests = provider.walletApprovalRequests.where((r) {
+          final matchEmpId = bde.employeeId.isNotEmpty &&
+              r.employeeId.toLowerCase() == bde.employeeId.toLowerCase();
+          final matchName = bde.name.isNotEmpty &&
+              (r.employee.toLowerCase() == bde.name.toLowerCase() ||
+                  r.employee.toLowerCase().contains(bde.name.toLowerCase()) ||
+                  bde.name.toLowerCase().contains(r.employee.toLowerCase()));
+          return matchEmpId || matchName;
+        }).toList();
+
+        return Scaffold(
+          backgroundColor: const Color(0xFFF8FAFC),
+          appBar: AppBar(
+            backgroundColor: Colors.white,
+            elevation: 0,
+            centerTitle: false,
+            leading: IconButton(
+              icon: const Icon(
+                Icons.arrow_back_ios_new_rounded,
+                color: Color(0xFF0F172A),
+                size: 20,
+              ),
+              onPressed: () => Navigator.pop(context),
+            ),
+            title: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  bde.name.isNotEmpty ? bde.name : 'BDE Details',
+                  style: const TextStyle(
+                    color: Color(0xFF0F172A),
+                    fontSize: 17,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.2,
+                  ),
+                ),
+                Text(
+                  '${bde.employeeId} • ${bde.designation}',
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: Color(0xFF64748B),
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              IconButton(
+                icon: const Icon(
+                  Icons.refresh_rounded,
+                  color: Color(0xFF0F766E),
+                  size: 22,
+                ),
+                tooltip: 'Refresh BDE Details',
+                onPressed: () async {
+                  await provider.fetchAsmBdes(isRefresh: true);
+                  await provider.fetchWalletApprovalRequests(isRefresh: true);
+                },
+              ),
+              IconButton(
+                icon: const Icon(
+                  Icons.share_outlined,
+                  color: Color(0xFF0F766E),
+                  size: 20,
+                ),
+                tooltip: 'Share Profile Details',
+                onPressed: () {
+                  final shareText = '''
+BDE Executive Profile:
+Name: ${bde.name}
+Employee ID: ${bde.employeeId}
+Designation: ${bde.designation}
+District: ${bde.district}
+Zone: ${bde.zone}
+Team: ${bde.team}
+Reports To: ${bde.reportsTo}
+Salary: ${bde.formattedSalary}
+Incentive: ${bde.formattedIncentive}
+Email: ${bde.email}
+Phone: ${bde.contactNumber}
+Total Leads: ${bde.totalLeads}
+Admissions: ${bde.admissions}
+Conversion Rate: ${bde.displayConversionRate}
+Status: ${bde.status}
+''';
+                  _copyToClipboard(shareText, 'Executive details');
+                },
+              ),
+              const SizedBox(width: 4),
+            ],
+          ),
+          body: RefreshIndicator(
             color: const Color(0xFF0F766E),
             onRefresh: () async {
               await provider.fetchAsmBdes(isRefresh: true);
-              // await provider.fetchBdePayoutRequests(isRefresh: true);
+              await provider.fetchWalletApprovalRequests(isRefresh: true);
             },
             child: SingleChildScrollView(
               physics: const AlwaysScrollableScrollPhysics(),
@@ -198,18 +382,32 @@ class _BdeDetailsScreenState extends State<BdeDetailsScreen> {
                   _buildIdentityCard(bde, isActive),
                   const SizedBox(height: 16),
 
-                  // 2. Performance & Conversion Metrics
+                  // 2. Performance & Conversion Metrics (total_leads, admissions, conversion_rate)
                   _buildPerformanceSection(bde),
                   const SizedBox(height: 16),
 
-                  // 3. Organization & Territory Details
+                  // 3. Compensation & Payouts (salary, incentive)
+                  _buildCompensationSection(bde),
+                  const SizedBox(height: 16),
+
+                  // 4. INCENTIVE & WALLET REQUESTS (with "Forward to SM" button)
+                  _buildWalletRequestsSection(bdeWalletRequests, provider),
+                  const SizedBox(height: 16),
+
+                  // 5. Organization, Zone & Territory Details
                   _buildSectionCard(
                     title: 'TERRITORY & REPORTING',
                     icon: Icons.account_tree_outlined,
                     children: [
                       _buildInfoRow(
+                        icon: Icons.public_outlined,
+                        label: 'Zone',
+                        value: bde.zone.isNotEmpty ? bde.zone : 'Not Assigned',
+                      ),
+                      const Divider(height: 16, color: Color(0xFFF1F5F9)),
+                      _buildInfoRow(
                         icon: Icons.location_on_outlined,
-                        label: 'Assigned District',
+                        label: 'District',
                         value: bde.district.isNotEmpty
                             ? bde.district
                             : 'Not Assigned',
@@ -217,8 +415,8 @@ class _BdeDetailsScreenState extends State<BdeDetailsScreen> {
                       const Divider(height: 16, color: Color(0xFFF1F5F9)),
                       _buildInfoRow(
                         icon: Icons.groups_outlined,
-                        label: 'Sales Team',
-                        value: bde.team.isNotEmpty ? bde.team : 'Regional Team',
+                        label: 'Team',
+                        value: bde.team.isNotEmpty ? bde.team : 'CLT Team',
                       ),
                       const Divider(height: 16, color: Color(0xFFF1F5F9)),
                       _buildInfoRow(
@@ -234,13 +432,13 @@ class _BdeDetailsScreenState extends State<BdeDetailsScreen> {
                         label: 'Reports To',
                         value: bde.reportsTo.isNotEmpty
                             ? bde.reportsTo
-                            : 'Area Sales Manager (ASM)',
+                            : 'ASM001',
                       ),
                     ],
                   ),
                   const SizedBox(height: 16),
 
-                  // 4. Contact & Identity Information
+                  // 6. Contact & System Details
                   _buildSectionCard(
                     title: 'CONTACT & SYSTEM DETAILS',
                     icon: Icons.contact_phone_outlined,
@@ -248,9 +446,8 @@ class _BdeDetailsScreenState extends State<BdeDetailsScreen> {
                       _buildActionInfoRow(
                         icon: Icons.email_outlined,
                         label: 'Email Address',
-                        value: bde.email.isNotEmpty
-                            ? bde.email
-                            : 'Not Provided',
+                        value:
+                            bde.email.isNotEmpty ? bde.email : 'Not Provided',
                         actionIcon: Icons.send_outlined,
                         actionTooltip: 'Send Email',
                         onTapAction: bde.email.isNotEmpty
@@ -263,7 +460,7 @@ class _BdeDetailsScreenState extends State<BdeDetailsScreen> {
                       const Divider(height: 16, color: Color(0xFFF1F5F9)),
                       _buildActionInfoRow(
                         icon: Icons.phone_outlined,
-                        label: 'Phone Number',
+                        label: 'Contact Number',
                         value: bde.contactNumber.isNotEmpty
                             ? bde.contactNumber
                             : 'Not Provided',
@@ -274,55 +471,54 @@ class _BdeDetailsScreenState extends State<BdeDetailsScreen> {
                             : null,
                         onCopy: bde.contactNumber.isNotEmpty
                             ? () => _copyToClipboard(
-                                bde.contactNumber,
-                                'Phone number',
-                              )
+                                  bde.contactNumber,
+                                  'Contact number',
+                                )
                             : null,
                       ),
                       const Divider(height: 16, color: Color(0xFFF1F5F9)),
                       _buildActionInfoRow(
                         icon: Icons.credit_card_outlined,
-                        label: 'Employee Code',
+                        label: 'Employee ID',
                         value: bde.employeeId.isNotEmpty
                             ? bde.employeeId
                             : 'Not Set',
                         onCopy: bde.employeeId.isNotEmpty
                             ? () => _copyToClipboard(
-                                bde.employeeId,
-                                'Employee ID',
-                              )
+                                  bde.employeeId,
+                                  'Employee ID',
+                                )
                             : null,
                       ),
-                      if (bde.id.isNotEmpty && bde.id != bde.employeeId) ...[
-                        const Divider(height: 16, color: Color(0xFFF1F5F9)),
-                        _buildActionInfoRow(
-                          icon: Icons.fingerprint_outlined,
-                          label: 'Internal System ID',
-                          value: bde.id,
-                          onCopy: () => _copyToClipboard(bde.id, 'System ID'),
-                        ),
-                      ],
+                      const Divider(height: 16, color: Color(0xFFF1F5F9)),
+                      _buildActionInfoRow(
+                        icon: Icons.fingerprint_outlined,
+                        label: 'System ID',
+                        value: bde.id.isNotEmpty ? bde.id : 'N/A',
+                        onCopy: bde.id.isNotEmpty
+                            ? () => _copyToClipboard(bde.id, 'System ID')
+                            : null,
+                      ),
+                      const Divider(height: 16, color: Color(0xFFF1F5F9)),
+                      _buildInfoRow(
+                        icon: Icons.check_circle_outline_rounded,
+                        label: 'Account Status',
+                        value: bde.status.toUpperCase(),
+                      ),
                     ],
                   ),
                   const SizedBox(height: 16),
 
-                  // 5. Assigned Tasks / Leads
+                  // 7. Assigned Tasks / Leads
                   _buildTasksSection(assignedTasks),
-                  const SizedBox(height: 16),
-
-                  // 6. Payout & Approval Requests (if any)
-                  if (payoutRequests.isNotEmpty) ...[
-                    _buildPayoutSection(payoutRequests),
-                    const SizedBox(height: 16),
-                  ],
 
                   const SizedBox(height: 24),
                 ],
               ),
             ),
-          );
-        },
-      ),
+          ),
+        );
+      },
     );
   }
 
@@ -349,7 +545,6 @@ class _BdeDetailsScreenState extends State<BdeDetailsScreen> {
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Avatar
                 CircleAvatar(
                   radius: 32,
                   backgroundColor: const Color(0xFF0F766E).withOpacity(0.12),
@@ -365,7 +560,6 @@ class _BdeDetailsScreenState extends State<BdeDetailsScreen> {
                   ),
                 ),
                 const SizedBox(width: 16),
-                // Name & Badges
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -383,7 +577,6 @@ class _BdeDetailsScreenState extends State<BdeDetailsScreen> {
                               ),
                             ),
                           ),
-                          // Status Badge
                           Container(
                             padding: const EdgeInsets.symmetric(
                               horizontal: 10,
@@ -441,7 +634,6 @@ class _BdeDetailsScreenState extends State<BdeDetailsScreen> {
                         ),
                       ),
                       const SizedBox(height: 8),
-                      // Territory chip
                       Wrap(
                         spacing: 6,
                         runSpacing: 4,
@@ -486,6 +678,28 @@ class _BdeDetailsScreenState extends State<BdeDetailsScreen> {
                                 ),
                               ),
                             ),
+                          if (bde.zone.isNotEmpty)
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFFEF3C7),
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(
+                                  color: const Color(0xFFFDE68A),
+                                ),
+                              ),
+                              child: Text(
+                                bde.zone,
+                                style: const TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w600,
+                                  color: Color(0xFFB45309),
+                                ),
+                              ),
+                            ),
                           if (bde.team.isNotEmpty)
                             Container(
                               padding: const EdgeInsets.symmetric(
@@ -516,7 +730,6 @@ class _BdeDetailsScreenState extends State<BdeDetailsScreen> {
               ],
             ),
             const SizedBox(height: 18),
-            // Quick Action Buttons Row
             Row(
               children: [
                 Expanded(
@@ -556,7 +769,6 @@ class _BdeDetailsScreenState extends State<BdeDetailsScreen> {
     );
   }
 
-  // Communication Pill Button
   Widget _buildCommunicationButton({
     required IconData icon,
     required String label,
@@ -593,8 +805,11 @@ class _BdeDetailsScreenState extends State<BdeDetailsScreen> {
     );
   }
 
-  // Performance Section
   Widget _buildPerformanceSection(AsmBdeModel bde) {
+    final double ratio = bde.totalLeads > 0
+        ? (bde.admissions / bde.totalLeads).clamp(0.0, 1.0)
+        : 0.0;
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(18),
@@ -637,8 +852,8 @@ class _BdeDetailsScreenState extends State<BdeDetailsScreen> {
             children: [
               Expanded(
                 child: _buildMetricTile(
-                  label: 'LEADS ASSIGNED',
-                  value: '${bde.leadsAssigned}',
+                  label: 'TOTAL LEADS',
+                  value: '${bde.totalLeads}',
                   icon: Icons.assignment_ind_outlined,
                   color: const Color(0xFF0F766E),
                   bgColor: const Color(0xFFF0FDFA),
@@ -648,7 +863,7 @@ class _BdeDetailsScreenState extends State<BdeDetailsScreen> {
               Expanded(
                 child: _buildMetricTile(
                   label: 'ADMISSIONS',
-                  value: '${bde.admissionsClosed}',
+                  value: '${bde.admissions}',
                   icon: Icons.school_outlined,
                   color: const Color(0xFF2563EB),
                   bgColor: const Color(0xFFEFF6FF),
@@ -658,9 +873,7 @@ class _BdeDetailsScreenState extends State<BdeDetailsScreen> {
               Expanded(
                 child: _buildMetricTile(
                   label: 'CONVERSION',
-                  value: bde.conversionRate.isNotEmpty
-                      ? bde.conversionRate
-                      : '0%',
+                  value: bde.displayConversionRate,
                   icon: Icons.trending_up_rounded,
                   color: const Color(0xFF16A34A),
                   bgColor: const Color(0xFFF0FDF4),
@@ -669,18 +882,13 @@ class _BdeDetailsScreenState extends State<BdeDetailsScreen> {
             ],
           ),
           const SizedBox(height: 14),
-          // Progress bar representation
           ClipRRect(
             borderRadius: BorderRadius.circular(6),
             child: LinearProgressIndicator(
-              value: bde.leadsAssigned > 0
-                  ? (bde.admissionsClosed / bde.leadsAssigned).clamp(0.0, 1.0)
-                  : 0.0,
+              value: ratio,
               minHeight: 7,
               backgroundColor: const Color(0xFFF1F5F9),
-              valueColor: const AlwaysStoppedAnimation<Color>(
-                Color(0xFF0F766E),
-              ),
+              valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF0F766E)),
             ),
           ),
           const SizedBox(height: 6),
@@ -688,7 +896,7 @@ class _BdeDetailsScreenState extends State<BdeDetailsScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Conversion Success Rate: ${bde.conversionRate}',
+                'Conversion Rate: ${bde.displayConversionRate}',
                 style: const TextStyle(
                   fontSize: 10.5,
                   fontWeight: FontWeight.w600,
@@ -696,7 +904,7 @@ class _BdeDetailsScreenState extends State<BdeDetailsScreen> {
                 ),
               ),
               Text(
-                '${bde.admissionsClosed} / ${bde.leadsAssigned} Leads',
+                '${bde.admissions} / ${bde.totalLeads} Closed',
                 style: const TextStyle(
                   fontSize: 10.5,
                   fontWeight: FontWeight.bold,
@@ -710,7 +918,536 @@ class _BdeDetailsScreenState extends State<BdeDetailsScreen> {
     );
   }
 
-  // Single Metric Tile
+  Widget _buildCompensationSection(AsmBdeModel bde) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.02),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(
+                Icons.account_balance_wallet_outlined,
+                size: 16,
+                color: Color(0xFF0F766E),
+              ),
+              SizedBox(width: 6),
+              Text(
+                'COMPENSATION & FINANCIALS',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF64748B),
+                  letterSpacing: 0.8,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                child: Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Row(
+                        children: [
+                          Icon(
+                            Icons.monetization_on_outlined,
+                            size: 18,
+                            color: Color(0xFF64748B),
+                          ),
+                          SizedBox(width: 6),
+                          Text(
+                            'BASE SALARY',
+                            style: TextStyle(
+                              fontSize: 9.5,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF64748B),
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        bde.formattedSalary,
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w900,
+                          color: Color(0xFF0F172A),
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      const Text(
+                        'Monthly fixed pay',
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: Color(0xFF94A3B8),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF0FDF4),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: const Color(0xFFBBF7D0)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Row(
+                        children: [
+                          Icon(
+                            Icons.stars_rounded,
+                            size: 18,
+                            color: Color(0xFF16A34A),
+                          ),
+                          SizedBox(width: 6),
+                          Text(
+                            'INCENTIVE',
+                            style: TextStyle(
+                              fontSize: 9.5,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF16A34A),
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        bde.formattedIncentive,
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w900,
+                          color: Color(0xFF15803D),
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      const Text(
+                        'Performance bonus',
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: Color(0xFF16A34A),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Incentive & Wallet Requests Section (GET /api/wallet/requests & POST /api/wallet/workflow)
+  Widget _buildWalletRequestsSection(
+    List<WalletApprovalRequestItem> requests,
+    OperationsProvider provider,
+  ) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.02),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  const Icon(
+                    Icons.account_balance_wallet_rounded,
+                    size: 16,
+                    color: Color(0xFF0F766E),
+                  ),
+                  const SizedBox(width: 6),
+                  const Text(
+                    'INCENTIVE & WALLET REQUESTS',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF64748B),
+                      letterSpacing: 0.8,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 7,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF0F766E).withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      '${requests.length}',
+                      style: const TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF0F766E),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              if (provider.isLoadingWalletRequests)
+                const SizedBox(
+                  width: 14,
+                  height: 14,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Color(0xFF0F766E),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          if (requests.isEmpty)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: const Color(0xFFF1F5F9)),
+              ),
+              child: const Column(
+                children: [
+                  Icon(
+                    Icons.receipt_long_outlined,
+                    size: 32,
+                    color: Color(0xFF94A3B8),
+                  ),
+                  SizedBox(height: 6),
+                  Text(
+                    'No Withdrawal Requests',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF475569),
+                    ),
+                  ),
+                  SizedBox(height: 2),
+                  Text(
+                    'No wallet incentive requests found for this executive.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 10.5,
+                      color: Color(0xFF94A3B8),
+                    ),
+                  ),
+                ],
+              ),
+            )
+          else
+            ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: requests.length,
+              separatorBuilder: (context, index) => const SizedBox(height: 12),
+              itemBuilder: (context, index) {
+                final req = requests[index];
+                final statusStr = req.status.toLowerCase();
+                final bool canForwardToSm =
+                    statusStr.contains('submitted to asm') ||
+                    req.status == 'Pending_ASM' ||
+                    (req.isPending && !req.isForwardedToSm);
+
+                Color statusBgColor = const Color(0xFFFEF3C7);
+                Color statusTextColor = const Color(0xFFD97706);
+                Color statusBorderColor = const Color(0xFFFDE68A);
+
+                if (req.isPaid) {
+                  statusBgColor = const Color(0xFFECFDF5);
+                  statusTextColor = const Color(0xFF059669);
+                  statusBorderColor = const Color(0xFFA7F3D0);
+                } else if (statusStr.contains('accounts')) {
+                  statusBgColor = const Color(0xFFEEF2FF);
+                  statusTextColor = const Color(0xFF4338CA);
+                  statusBorderColor = const Color(0xFFC7D2FE);
+                } else if (req.isForwardedToSm) {
+                  statusBgColor = const Color(0xFFEFF6FF);
+                  statusTextColor = const Color(0xFF2563EB);
+                  statusBorderColor = const Color(0xFFBFDBFE);
+                }
+
+                return Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Header: Request ID & Status Badge
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 7,
+                                  vertical: 2.5,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF0F766E).withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  req.requestId.isNotEmpty
+                                      ? req.requestId
+                                      : 'WDR-${req.id.substring(req.id.length > 4 ? req.id.length - 4 : 0)}',
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                    color: Color(0xFF0F766E),
+                                  ),
+                                ),
+                              ),
+                              if (req.createdAt != null &&
+                                  req.createdAt!.isNotEmpty) ...[
+                                const SizedBox(width: 8),
+                                Text(
+                                  req.createdAt!.length > 10
+                                      ? req.createdAt!.substring(0, 10)
+                                      : req.createdAt!,
+                                  style: const TextStyle(
+                                    fontSize: 10,
+                                    color: Color(0xFF94A3B8),
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 3,
+                            ),
+                            decoration: BoxDecoration(
+                              color: statusBgColor,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: statusBorderColor),
+                            ),
+                            child: Text(
+                              req.status.toUpperCase(),
+                              style: TextStyle(
+                                fontSize: 9.5,
+                                fontWeight: FontWeight.bold,
+                                color: statusTextColor,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+
+                      // Amount & Balance Row
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'WITHDRAWAL AMOUNT',
+                                style: TextStyle(
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF64748B),
+                                  letterSpacing: 0.4,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                req.formattedAmount,
+                                style: const TextStyle(
+                                  fontSize: 19,
+                                  fontWeight: FontWeight.w900,
+                                  color: Color(0xFF0F172A),
+                                ),
+                              ),
+                            ],
+                          ),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              const Text(
+                                'WALLET BALANCE',
+                                style: TextStyle(
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF64748B),
+                                  letterSpacing: 0.4,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                req.formattedBalance,
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF0F766E),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+
+                      // Remarks
+                      if (req.remarks != null && req.remarks!.isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: const Color(0xFFE2E8F0)),
+                          ),
+                          child: Text(
+                            'Remarks: ${req.remarks}',
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: Color(0xFF475569),
+                              fontStyle: FontStyle.italic,
+                            ),
+                          ),
+                        ),
+                      ],
+
+                      // Forward to SM Button or Status banner
+                      const SizedBox(height: 12),
+                      if (canForwardToSm)
+                        SizedBox(
+                          width: double.infinity,
+                          height: 40,
+                          child: ElevatedButton.icon(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF0F766E),
+                              foregroundColor: Colors.white,
+                              elevation: 0,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                            ),
+                            icon: const Icon(
+                              Icons.forward_to_inbox_rounded,
+                              size: 17,
+                            ),
+                            label: const Text(
+                              'Forward to SM',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 0.3,
+                              ),
+                            ),
+                            onPressed: () => _showForwardToSmDialog(
+                              context,
+                              item: req,
+                              provider: provider,
+                            ),
+                          ),
+                        )
+                      else
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          decoration: BoxDecoration(
+                            color: statusBgColor.withOpacity(0.6),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: statusBorderColor.withOpacity(0.5),
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                req.isPaid
+                                    ? Icons.check_circle_rounded
+                                    : Icons.info_outline_rounded,
+                                size: 14,
+                                color: statusTextColor,
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                req.isPaid
+                                    ? 'Incentive Disbursed & Settled'
+                                    : req.isForwardedToSm
+                                        ? 'Forwarded to SM • Awaiting Review'
+                                        : 'In Review Queue • ${req.status}',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: statusTextColor,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                    ],
+                  ),
+                );
+              },
+            ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildMetricTile({
     required String label,
     required String value,
@@ -753,7 +1490,6 @@ class _BdeDetailsScreenState extends State<BdeDetailsScreen> {
     );
   }
 
-  // Generic Section Card Container
   Widget _buildSectionCard({
     required String title,
     required IconData icon,
@@ -799,7 +1535,6 @@ class _BdeDetailsScreenState extends State<BdeDetailsScreen> {
     );
   }
 
-  // Simple Info Row
   Widget _buildInfoRow({
     required IconData icon,
     required String label,
@@ -837,7 +1572,6 @@ class _BdeDetailsScreenState extends State<BdeDetailsScreen> {
     );
   }
 
-  // Info Row with Copy and Action Button
   Widget _buildActionInfoRow({
     required IconData icon,
     required String label,
@@ -899,7 +1633,6 @@ class _BdeDetailsScreenState extends State<BdeDetailsScreen> {
     );
   }
 
-  // Tasks / Leads assigned to BDE
   Widget _buildTasksSection(List<TaskModel> tasks) {
     return Container(
       width: double.infinity,
@@ -920,45 +1653,40 @@ class _BdeDetailsScreenState extends State<BdeDetailsScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                children: [
-                  const Icon(
-                    Icons.assignment_outlined,
-                    size: 16,
+              const Icon(
+                Icons.assignment_outlined,
+                size: 16,
+                color: Color(0xFF0F766E),
+              ),
+              const SizedBox(width: 6),
+              const Text(
+                'ASSIGNED LEADS & PIPELINE',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF64748B),
+                  letterSpacing: 0.8,
+                ),
+              ),
+              const SizedBox(width: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 7,
+                  vertical: 2,
+                ),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0F766E).withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  '${tasks.length}',
+                  style: const TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
                     color: Color(0xFF0F766E),
                   ),
-                  const SizedBox(width: 6),
-                  const Text(
-                    'ASSIGNED LEADS & PIPELINE',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF64748B),
-                      letterSpacing: 0.8,
-                    ),
-                  ),
-                  const SizedBox(width: 6),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 7,
-                      vertical: 2,
-                    ),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF0F766E).withOpacity(0.12),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Text(
-                      '${tasks.length}',
-                      style: const TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF0F766E),
-                      ),
-                    ),
-                  ),
-                ],
+                ),
               ),
             ],
           ),
@@ -992,7 +1720,10 @@ class _BdeDetailsScreenState extends State<BdeDetailsScreen> {
                   Text(
                     'There are currently no matching leads cached for this BDE.',
                     textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 10.5, color: Color(0xFF94A3B8)),
+                    style: TextStyle(
+                      fontSize: 10.5,
+                      color: Color(0xFF94A3B8),
+                    ),
                   ),
                 ],
               ),
@@ -1016,9 +1747,8 @@ class _BdeDetailsScreenState extends State<BdeDetailsScreen> {
                     children: [
                       CircleAvatar(
                         radius: 16,
-                        backgroundColor: const Color(
-                          0xFF0F766E,
-                        ).withOpacity(0.12),
+                        backgroundColor:
+                            const Color(0xFF0F766E).withOpacity(0.12),
                         child: Text(
                           task.studentName.isNotEmpty
                               ? task.studentName.substring(0, 1).toUpperCase()
@@ -1080,150 +1810,6 @@ class _BdeDetailsScreenState extends State<BdeDetailsScreen> {
                 );
               },
             ),
-        ],
-      ),
-    );
-  }
-
-  // Payout requests section
-  Widget _buildPayoutSection(List<SmPayoutRequestModel> requests) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.02),
-            blurRadius: 8,
-            offset: const Offset(0, 3),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Icon(
-                Icons.receipt_long_outlined,
-                size: 16,
-                color: Color(0xFF0F766E),
-              ),
-              const SizedBox(width: 6),
-              const Text(
-                'PAYOUT & FINANCIAL REQUESTS',
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF64748B),
-                  letterSpacing: 0.8,
-                ),
-              ),
-              const SizedBox(width: 6),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF0F766E).withOpacity(0.12),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Text(
-                  '${requests.length}',
-                  style: const TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF0F766E),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          ListView.separated(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: requests.length,
-            separatorBuilder: (context, index) => const SizedBox(height: 8),
-            itemBuilder: (context, index) {
-              final req = requests[index];
-              return Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF8FAFC),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFFE2E8F0)),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          '${req.type} Request',
-                          style: const TextStyle(
-                            fontSize: 12.5,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF0F172A),
-                          ),
-                        ),
-                        if (req.month != null)
-                          Text(
-                            'Month: ${req.month}',
-                            style: const TextStyle(
-                              fontSize: 10.5,
-                              color: Color(0xFF64748B),
-                            ),
-                          ),
-                      ],
-                    ),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Text(
-                          req.formattedAmount,
-                          style: const TextStyle(
-                            fontSize: 13.5,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF0F766E),
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 6,
-                            vertical: 1.5,
-                          ),
-                          decoration: BoxDecoration(
-                            color: req.isPaid
-                                ? const Color(0xFFECFDF5)
-                                : req.isPending
-                                ? const Color(0xFFFEF3C7)
-                                : const Color(0xFFEFF6FF),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Text(
-                            req.status,
-                            style: TextStyle(
-                              fontSize: 9,
-                              fontWeight: FontWeight.bold,
-                              color: req.isPaid
-                                  ? const Color(0xFF059669)
-                                  : req.isPending
-                                  ? const Color(0xFFD97706)
-                                  : const Color(0xFF2563EB),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              );
-            },
-          ),
         ],
       ),
     );
