@@ -41,6 +41,7 @@ LeadFollowUp _$LeadFollowUpFromJson(Map<String, dynamic> json) => LeadFollowUp(
   followupDate: json['followup_date']?.toString() ?? '',
   type: json['type'] as String?,
   notes: json['notes'] as String?,
+  attachment: (json['attachment'] ?? json['proof'] ?? json['image'] ?? json['photo'] ?? json['file_path']) as String?,
 );
 
 Map<String, dynamic> _$LeadFollowUpToJson(LeadFollowUp instance) =>
@@ -51,6 +52,7 @@ Map<String, dynamic> _$LeadFollowUpToJson(LeadFollowUp instance) =>
       'followup_date': instance.followupDate,
       'type': instance.type,
       'notes': instance.notes,
+      'attachment': instance.attachment,
     };
 
 LeadModel _$LeadModelFromJson(Map<String, dynamic> json) {

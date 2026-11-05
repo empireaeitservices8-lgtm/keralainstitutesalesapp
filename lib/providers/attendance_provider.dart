@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:dio/dio.dart';
 import '../api/api_client.dart';
@@ -335,6 +336,23 @@ class AttendanceProvider extends ChangeNotifier {
             }
           }
 
+          final todayKey = (record['date'] ?? '').toString().isNotEmpty
+              ? record['date'].toString()
+              : DateFormat('yyyy-MM-dd').format(DateTime.now());
+
+          if (checkInSelfie.isEmpty) {
+            checkInSelfie =
+                prefs.getString('attendance_selfie_in_$todayKey') ??
+                prefs.getString(_keyCheckInSelfie) ??
+                _currentAttendance.checkInSelfie;
+          }
+          if (checkOutSelfie.isEmpty) {
+            checkOutSelfie =
+                prefs.getString('attendance_selfie_out_$todayKey') ??
+                prefs.getString(_keyCheckOutSelfie) ??
+                (_currentAttendance.checkOutSelfie ?? '');
+          }
+
           final rawCheckedIn = record['checked_in'] ?? record['is_checked_in'];
           final rawCheckedOut =
               record['checked_out'] ?? record['is_checked_out'];
@@ -393,9 +411,7 @@ class AttendanceProvider extends ChangeNotifier {
                   .toString()
                   .trim();
           final empId =
-              (record['employee_id'] ??
-                      record['emp_id'] ??
-                      fallbackEmpId)
+              (record['employee_id'] ?? record['emp_id'] ?? fallbackEmpId)
                   .toString()
                   .trim();
 
@@ -433,14 +449,26 @@ class AttendanceProvider extends ChangeNotifier {
           await prefs.setString(_keyCheckInTime, checkInTime.toIso8601String());
           await prefs.setDouble(_keyCheckInLat, lat);
           await prefs.setDouble(_keyCheckInLng, lng);
-          await prefs.setString(_keyCheckInSelfie, checkInSelfie);
+          if (checkInSelfie.isNotEmpty) {
+            await prefs.setString(_keyCheckInSelfie, checkInSelfie);
+            await prefs.setString(
+              'attendance_selfie_in_$todayKey',
+              checkInSelfie,
+            );
+          }
           if (checkOutTime != null) {
             await prefs.setString(
               _keyCheckOutTime,
               checkOutTime.toIso8601String(),
             );
           }
-          await prefs.setString(_keyCheckOutSelfie, checkOutSelfie);
+          if (checkOutSelfie.isNotEmpty) {
+            await prefs.setString(_keyCheckOutSelfie, checkOutSelfie);
+            await prefs.setString(
+              'attendance_selfie_out_$todayKey',
+              checkOutSelfie,
+            );
+          }
           await prefs.setDouble(_keyWorkingHours, workingHours);
           await prefs.setString(_keyStatusText, recordStatusText);
 
@@ -539,6 +567,8 @@ class AttendanceProvider extends ChangeNotifier {
       await prefs.setDouble(_keyCheckInLat, lat);
       await prefs.setDouble(_keyCheckInLng, lng);
       await prefs.setString(_keyCheckInSelfie, selfiePath);
+      final todayKey = DateFormat('yyyy-MM-dd').format(DateTime.now());
+      await prefs.setString('attendance_selfie_in_$todayKey', selfiePath);
 
       _isSubmitting = false;
       notifyListeners();
@@ -594,6 +624,8 @@ class AttendanceProvider extends ChangeNotifier {
       await prefs.setString(_keyStatus, 'Completed');
       await prefs.setString(_keyCheckOutTime, checkOutTime.toIso8601String());
       await prefs.setString(_keyCheckOutSelfie, selfiePath);
+      final todayKey = DateFormat('yyyy-MM-dd').format(DateTime.now());
+      await prefs.setString('attendance_selfie_out_$todayKey', selfiePath);
       await prefs.setDouble(_keyWorkingHours, workingHours);
 
       _isSubmitting = false;
@@ -605,6 +637,33 @@ class AttendanceProvider extends ChangeNotifier {
       debugPrint('Check-Out API request failed: $e');
       rethrow;
     }
+  }
+
+  /// Get cached or live selfie path for a specific date
+  Future<String?> getSelfieForDate(
+    String dateStr, {
+    required bool isCheckIn,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    final key = isCheckIn
+        ? 'attendance_selfie_in_$dateStr'
+        : 'attendance_selfie_out_$dateStr';
+    final saved = prefs.getString(key);
+    if (saved != null && saved.isNotEmpty) return saved;
+
+    final todayStr = DateFormat('yyyy-MM-dd').format(DateTime.now());
+    if (dateStr == todayStr) {
+      if (isCheckIn) {
+        return _currentAttendance.checkInSelfie.isNotEmpty
+            ? _currentAttendance.checkInSelfie
+            : prefs.getString(_keyCheckInSelfie);
+      } else {
+        return (_currentAttendance.checkOutSelfie?.isNotEmpty == true)
+            ? _currentAttendance.checkOutSelfie
+            : prefs.getString(_keyCheckOutSelfie);
+      }
+    }
+    return null;
   }
 
   /// Fetch online attendance history (all days)

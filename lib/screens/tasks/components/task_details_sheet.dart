@@ -1,5 +1,7 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import '../../../api/api_endpoints.dart';
 import '../../../constants/colors.dart';
 import '../../../models/task_model.dart';
 import 'close_lead_sheet.dart';
@@ -396,6 +398,131 @@ void showTaskDetailsBottomSheet(
             ),
           );
         },
+      );
+    },
+  );
+}
+
+
+Widget _buildUniversalProofImage(String path, {BoxFit fit = BoxFit.cover}) {
+  final trimmed = path.trim();
+  if (trimmed.isEmpty) return const SizedBox.shrink();
+
+  if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+    return Image.network(
+      trimmed,
+      fit: fit,
+      errorBuilder: (_, __, ___) => _buildProofErrorWidget(),
+    );
+  }
+
+  try {
+    final file = File(trimmed);
+    if (file.existsSync()) {
+      return Image.file(
+        file,
+        fit: fit,
+        errorBuilder: (_, __, ___) => _buildProofErrorWidget(),
+      );
+    }
+  } catch (_) {}
+
+  if (trimmed.startsWith('/') || trimmed.startsWith('storage') || trimmed.startsWith('uploads')) {
+    final clean = trimmed.startsWith('/') ? trimmed.substring(1) : trimmed;
+    final fullUrl = '${ApiEndpoints.baseUrl.replaceAll('/api', '')}/$clean';
+    return Image.network(
+      fullUrl,
+      fit: fit,
+      errorBuilder: (_, __, ___) => _buildProofErrorWidget(),
+    );
+  }
+
+  return Image.file(
+    File(trimmed),
+    fit: fit,
+    errorBuilder: (_, __, ___) => _buildProofErrorWidget(),
+  );
+}
+
+Widget _buildProofErrorWidget() {
+  return Container(
+    color: Colors.grey.shade100,
+    alignment: Alignment.center,
+    child: const Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(Icons.broken_image, size: 28, color: Colors.grey),
+        SizedBox(height: 4),
+        Text('Failed to load proof image', style: TextStyle(color: AppColors.textSecondary, fontSize: 11)),
+      ],
+    ),
+  );
+}
+
+void _showProofImagePreview(BuildContext context, String path) {
+  showDialog(
+    context: context,
+    builder: (ctx) {
+      return Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            Container(
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.of(ctx).size.height * 0.75,
+                maxWidth: MediaQuery.of(ctx).size.width * 0.90,
+              ),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(20),
+                color: Colors.white,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.2),
+                    blurRadius: 20,
+                    offset: const Offset(0, 8),
+                  ),
+                ],
+              ),
+              padding: const EdgeInsets.all(14),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                    'VISIT COMPLETION PROOF',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.textPrimary,
+                      fontSize: 13,
+                      letterSpacing: 0.8,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Flexible(
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(14),
+                      child: _buildUniversalProofImage(path, fit: BoxFit.contain),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Positioned(
+              top: 0,
+              right: 0,
+              child: Material(
+                color: Colors.white,
+                shape: const CircleBorder(),
+                elevation: 4,
+                child: IconButton(
+                  icon: const Icon(Icons.close_rounded, color: Colors.black87, size: 20),
+                  onPressed: () => Navigator.pop(ctx),
+                ),
+              ),
+            ),
+          ],
+        ),
       );
     },
   );

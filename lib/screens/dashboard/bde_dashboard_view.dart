@@ -454,7 +454,7 @@ class BdeDashboardView extends StatelessWidget {
                     value: '$assignedLeads Active',
                     icon: Icons.task_alt_rounded,
                     iconColor: Colors.cyan,
-                    onTap: () => HomeProvider.instance.setCurrentIndex(1),
+                    onTap: () => HomeProvider.instance.setCurrentIndex(1, initialTaskTabIndex: 0),
                     bottom: ClipRRect(
                       borderRadius: BorderRadius.circular(4),
                       child: LinearProgressIndicator(
@@ -472,7 +472,7 @@ class BdeDashboardView extends StatelessWidget {
                     value: '$followUpLeads Scheduled',
                     icon: Icons.next_plan_outlined,
                     iconColor: Colors.teal,
-                    onTap: () => HomeProvider.instance.setCurrentIndex(1),
+                    onTap: () => HomeProvider.instance.setCurrentIndex(1, initialTaskTabIndex: 0),
                     bottom: const Text(
                       'Interested status leads',
                       style: TextStyle(
@@ -897,8 +897,6 @@ class BdeDashboardView extends StatelessWidget {
   }
 
   Widget _buildPerformanceSection() {
-    final tasks = HomeProvider.instance.performanceTasks;
-    final summary = HomeProvider.instance.tasksSummary;
     final target = data.target;
     final bool hasTargets = target != null && target.hasTargets;
 
@@ -914,7 +912,7 @@ class BdeDashboardView extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Assigned Tasks & Targets',
+                  'Daily & Monthly Targets',
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
@@ -932,23 +930,7 @@ class BdeDashboardView extends StatelessWidget {
                 ),
               ],
             ),
-            if (summary != null && summary.total > 0)
-              Row(
-                children: [
-                  _buildSummaryBadge(
-                    '${summary.pending} Pending',
-                    Colors.amber.shade800,
-                    Colors.amber.shade50,
-                  ),
-                  const SizedBox(width: 6),
-                  _buildSummaryBadge(
-                    '${summary.completed} Done',
-                    Colors.green.shade800,
-                    Colors.green.shade50,
-                  ),
-                ],
-              )
-            else if (hasTargets)
+            if (hasTargets)
               _buildSummaryBadge(
                 '${target.dailyRemaining > 0 ? target.dailyRemaining : target.monthlyRemaining} Pending',
                 Colors.teal.shade800,
@@ -957,8 +939,9 @@ class BdeDashboardView extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 14),
-        if (hasTargets) _buildTargetsCard(target),
-        if (tasks.isEmpty && !hasTargets)
+        if (hasTargets)
+          _buildTargetsCard(target)
+        else
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
             decoration: BoxDecoration(
@@ -975,7 +958,7 @@ class BdeDashboardView extends StatelessWidget {
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: const Icon(
-                    Icons.assignment_outlined,
+                    Icons.track_changes_rounded,
                     color: AppColors.accentTeal,
                     size: 24,
                   ),
@@ -986,7 +969,7 @@ class BdeDashboardView extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'No Tasks Assigned',
+                        'No Targets Assigned',
                         style: TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.bold,
@@ -1006,184 +989,7 @@ class BdeDashboardView extends StatelessWidget {
                 ),
               ],
             ),
-          )
-        else
-          ...tasks.map((task) {
-            final double progress = task.totalTarget > 0
-                ? (task.achieved / task.totalTarget).clamp(0.0, 1.0)
-                : 0.0;
-            final int percentage = (progress * 100).toInt();
-
-            String dateRange = '';
-            if (task.periodStart.isNotEmpty && task.periodEnd.isNotEmpty) {
-              dateRange = task.periodStart == task.periodEnd
-                  ? task.periodStart
-                  : '${task.periodStart} - ${task.periodEnd}';
-            } else if (task.periodStart.isNotEmpty) {
-              dateRange = task.periodStart;
-            }
-
-            return Container(
-              margin: const EdgeInsets.only(bottom: 12),
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: const Color(0xFFE2E8F0)),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.02),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: task.isCompleted
-                              ? Colors.green.shade50
-                              : AppColors.accentTeal.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Icon(
-                          task.isCompleted
-                              ? Icons.task_alt_rounded
-                              : Icons.track_changes_rounded,
-                          size: 18,
-                          color: task.isCompleted
-                              ? Colors.green.shade700
-                              : AppColors.accentTeal,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              task.title,
-                              style: const TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.bold,
-                                color: AppColors.textPrimary,
-                              ),
-                            ),
-                            if (task.employee.isNotEmpty)
-                              Padding(
-                                padding: const EdgeInsets.only(top: 2),
-                                child: Text(
-                                  '${task.employee}${task.employeeId.isNotEmpty ? ' (${task.employeeId})' : ''}',
-                                  style: const TextStyle(
-                                    fontSize: 11,
-                                    color: AppColors.textSecondary,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ),
-                          ],
-                        ),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: task.isCompleted
-                              ? Colors.green.shade50
-                              : Colors.amber.shade50,
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(
-                            color: task.isCompleted
-                                ? Colors.green.shade200
-                                : Colors.amber.shade200,
-                            width: 0.8,
-                          ),
-                        ),
-                        child: Text(
-                          task.isCompleted ? 'Completed' : 'Pending',
-                          style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                            color: task.isCompleted
-                                ? Colors.green.shade800
-                                : Colors.amber.shade800,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 14),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'Progress: ${task.achieved} / ${task.totalTarget}${task.metricType.isNotEmpty ? ' ${task.metricType}' : ''}',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.textPrimary,
-                        ),
-                      ),
-                      Text(
-                        '$percentage%',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.accentTeal,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(4),
-                    child: LinearProgressIndicator(
-                      value: progress,
-                      minHeight: 8,
-                      backgroundColor: const Color(0xFFF1F5F9),
-                      valueColor: AlwaysStoppedAnimation<Color>(
-                        task.isCompleted ? Colors.green : AppColors.accentTeal,
-                      ),
-                    ),
-                  ),
-                  if (dateRange.isNotEmpty ||
-                      task.frequency.isNotEmpty ||
-                      task.metricType.isNotEmpty) ...[
-                    const SizedBox(height: 12),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 6,
-                      children: [
-                        if (dateRange.isNotEmpty)
-                          _buildDetailChip(
-                            Icons.calendar_today_outlined,
-                            dateRange,
-                          ),
-                        if (task.metricType.isNotEmpty)
-                          _buildDetailChip(
-                            Icons.ads_click_rounded,
-                            task.metricType,
-                          ),
-                        if (task.frequency.isNotEmpty)
-                          _buildDetailChip(
-                            Icons.repeat_rounded,
-                            task.frequency.toUpperCase(),
-                          ),
-                      ],
-                    ),
-                  ],
-                ],
-              ),
-            );
-          }).toList(),
+          ),
       ],
     );
   }
@@ -1202,32 +1008,6 @@ class BdeDashboardView extends StatelessWidget {
           fontWeight: FontWeight.w700,
           color: textColor,
         ),
-      ),
-    );
-  }
-
-  Widget _buildDetailChip(IconData icon, String text) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFC),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 11, color: AppColors.textSecondary),
-          const SizedBox(width: 4),
-          Text(
-            text,
-            style: const TextStyle(
-              fontSize: 10,
-              fontWeight: FontWeight.w600,
-              color: AppColors.textSecondary,
-            ),
-          ),
-        ],
       ),
     );
   }

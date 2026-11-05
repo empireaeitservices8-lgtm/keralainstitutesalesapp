@@ -1,5 +1,8 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../api/api_endpoints.dart';
 import '../constants/colors.dart';
 import '../providers/attendance_provider.dart';
 import '../utils/helpers.dart';
@@ -18,16 +21,48 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   bool _historyLoaded = false;
+  Map<String, String> _cachedSelfies = {};
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
 
+    _loadLocalSelfies();
     // Force refresh today's attendance on open
     AttendanceProvider.instance.loadTodayAttendance(isRefresh: true);
 
     _tabController.addListener(_handleTabChange);
+  }
+
+  Future<void> _loadLocalSelfies() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final keys = prefs.getKeys();
+      final map = <String, String>{};
+      for (final k in keys) {
+        if (k.startsWith('attendance_selfie_in_')) {
+          final date = k.replaceFirst('attendance_selfie_in_', '');
+          final val = prefs.getString(k);
+          if (val != null && val.isNotEmpty) map['in_' + date] = val;
+        } else if (k.startsWith('attendance_selfie_out_')) {
+          final date = k.replaceFirst('attendance_selfie_out_', '');
+          final val = prefs.getString(k);
+          if (val != null && val.isNotEmpty) map['out_' + date] = val;
+        }
+      }
+      final todayStr = DateFormat('yyyy-MM-dd').format(DateTime.now());
+      final todayIn = prefs.getString('attendance_checkin_selfie');
+      if (todayIn != null && todayIn.isNotEmpty) map['in_' + todayStr] = todayIn;
+      final todayOut = prefs.getString('attendance_checkout_selfie');
+      if (todayOut != null && todayOut.isNotEmpty) map['out_' + todayStr] = todayOut;
+
+      if (mounted) {
+        setState(() {
+          _cachedSelfies = map;
+        });
+      }
+    } catch (_) {}
   }
 
   void _handleTabChange() {
@@ -343,15 +378,55 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen>
     if (mediaList != null) {
       for (var m in mediaList) {
         if (m is Map) {
-          final typeText = m['type_text']?.toString();
-          final filePath = (m['file_path'] ?? m['url'] ?? m['path'])
-              ?.toString();
-          if (typeText == 'check-in') {
+          final typeText = m['type_text']?.toString().toLowerCase();
+          final filePath = (m['file_path'] ?? m['url'] ?? m['path'])?.toString();
+          if (typeText == 'check-in' || typeText == 'check_in') {
             checkInSelfie = filePath ?? '';
-          } else if (typeText == 'check-out') {
+          } else if (typeText == 'check-out' || typeText == 'check_out') {
             checkOutSelfie = filePath ?? '';
           }
         }
+      }
+    }
+
+    if (checkInSelfie.isEmpty) {
+      checkInSelfie = (rec['check_in_selfie'] ??
+              rec['checkin_selfie'] ??
+              rec['selfie'] ??
+              rec['check_in_photo'] ??
+              rec['check_in_image'] ??
+              rec['image'] ??
+              rec['photo'] ??
+              '')
+          .toString();
+      if (checkInSelfie == 'null') checkInSelfie = '';
+    }
+    if (checkOutSelfie.isEmpty) {
+      checkOutSelfie = (rec['check_out_selfie'] ??
+              rec['checkout_selfie'] ??
+              rec['check_out_photo'] ??
+              rec['check_out_image'] ??
+              '')
+          .toString();
+      if (checkOutSelfie == 'null') checkOutSelfie = '';
+    }
+
+    final todayStr = DateFormat('yyyy-MM-dd').format(DateTime.now());
+    final isToday = dateStr == todayStr || rec['date'] == todayStr;
+    final provAttendance = AttendanceProvider.instance.currentAttendance;
+
+    if (checkInSelfie.isEmpty) {
+      if (isToday && provAttendance.checkInSelfie.isNotEmpty) {
+        checkInSelfie = provAttendance.checkInSelfie;
+      } else {
+        checkInSelfie = _cachedSelfies['in_' + dateStr] ?? _cachedSelfies['in_' + (rec['date']?.toString() ?? '')] ?? '';
+      }
+    }
+    if (checkOutSelfie.isEmpty) {
+      if (isToday && (provAttendance.checkOutSelfie ?? '').isNotEmpty) {
+        checkOutSelfie = provAttendance.checkOutSelfie!;
+      } else {
+        checkOutSelfie = _cachedSelfies['out_' + dateStr] ?? _cachedSelfies['out_' + (rec['date']?.toString() ?? '')] ?? '';
       }
     }
 
@@ -453,7 +528,7 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen>
                     ),
                     if (checkInSelfie.isNotEmpty) ...[
                       const SizedBox(height: 8),
-                      _buildNetworkThumbnail(checkInSelfie, 'Check-In selfie'),
+                      _buildSelfieThumbnail(checkInSelfie, 'Check-In selfie'),
                     ],
                   ],
                 ),
@@ -484,7 +559,7 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen>
                     ),
                     if (checkOutSelfie.isNotEmpty) ...[
                       const SizedBox(height: 8),
-                      _buildNetworkThumbnail(
+                      _buildSelfieThumbnail(
                         checkOutSelfie,
                         'Check-Out selfie',
                       ),
@@ -544,93 +619,151 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen>
     );
   }
 
-  Widget _buildNetworkThumbnail(String url, String label) {
+  Widget _buildSelfieThumbnail(String path, String label) {
+    final trimmed = path.trim();
+    if (trimmed.isEmpty) return const SizedBox.shrink();
+
     return GestureDetector(
       onTap: () {
-        _showImagePreviewDialog(url, label);
+        _showImagePreviewDialog(trimmed, label);
       },
       child: Container(
-        width: 42,
-        height: 42,
+        width: 44,
+        height: 44,
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: const Color(0xFFE2E8F0)),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: const Color(0xFFCBD5E1), width: 1.2),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 4,
+              offset: const Offset(0, 2),
+            ),
+          ],
         ),
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(8),
-          child: Image.network(
-            url,
-            fit: BoxFit.cover,
-            errorBuilder: (context, error, stackTrace) => Container(
-              color: Colors.grey.shade100,
-              child: const Icon(
-                Icons.broken_image,
-                size: 16,
-                color: Colors.grey,
-              ),
-            ),
-          ),
+          borderRadius: BorderRadius.circular(8.8),
+          child: _buildUniversalImage(trimmed, fit: BoxFit.cover),
         ),
       ),
     );
   }
 
-  void _showImagePreviewDialog(String url, String label) {
+  Widget _buildUniversalImage(String path, {BoxFit fit = BoxFit.cover}) {
+    final trimmed = path.trim();
+    if (trimmed.isEmpty) {
+      return _buildImagePlaceholder();
+    }
+
+    // 1. Remote HTTP/HTTPS URL
+    if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+      return Image.network(
+        trimmed,
+        fit: fit,
+        errorBuilder: (context, error, stackTrace) => _buildImagePlaceholder(),
+        loadingBuilder: (context, child, loadingProgress) {
+          if (loadingProgress == null) return child;
+          return Container(
+            color: Colors.grey.shade100,
+            alignment: Alignment.center,
+            child: const SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.accentTeal),
+            ),
+          );
+        },
+      );
+    }
+
+    // 2. Local File
+    try {
+      final file = File(trimmed);
+      if (file.existsSync()) {
+        return Image.file(
+          file,
+          fit: fit,
+          errorBuilder: (context, error, stackTrace) => _buildImagePlaceholder(),
+        );
+      }
+    } catch (_) {}
+
+    // 3. Relative server path
+    if (trimmed.startsWith('/') || trimmed.startsWith('storage') || trimmed.startsWith('uploads')) {
+      final clean = trimmed.startsWith('/') ? trimmed.substring(1) : trimmed;
+      final fullUrl = ApiEndpoints.baseUrl.replaceAll('/api', '') + '/' + clean;
+      return Image.network(
+        fullUrl,
+        fit: fit,
+        errorBuilder: (context, error, stackTrace) => _buildImagePlaceholder(),
+      );
+    }
+
+    // Fallback attempt as local file
+    return Image.file(
+      File(trimmed),
+      fit: fit,
+      errorBuilder: (context, error, stackTrace) => _buildImagePlaceholder(),
+    );
+  }
+
+  Widget _buildImagePlaceholder() {
+    return Container(
+      color: Colors.grey.shade100,
+      alignment: Alignment.center,
+      child: const Icon(
+        Icons.face_retouching_natural_rounded,
+        size: 20,
+        color: AppColors.accentTeal,
+      ),
+    );
+  }
+
+  void _showImagePreviewDialog(String path, String label) {
     showDialog(
       context: context,
       builder: (context) {
         return Dialog(
           backgroundColor: Colors.transparent,
-          insetPadding: const EdgeInsets.all(20),
+          insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
           child: Stack(
             alignment: Alignment.center,
             children: [
               // Photo Frame
               Container(
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(16),
-                  color: Colors.white,
+                constraints: BoxConstraints(
+                  maxHeight: MediaQuery.of(context).size.height * 0.75,
+                  maxWidth: MediaQuery.of(context).size.width * 0.90,
                 ),
-                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(20),
+                  color: Colors.white,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.2),
+                      blurRadius: 20,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
+                ),
+                padding: const EdgeInsets.all(14),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: Image.network(
-                        url,
-                        fit: BoxFit.contain,
-                        errorBuilder: (context, error, stackTrace) => Container(
-                          height: 200,
-                          color: Colors.grey.shade100,
-                          alignment: Alignment.center,
-                          child: const Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                Icons.broken_image,
-                                size: 48,
-                                color: Colors.grey,
-                              ),
-                              SizedBox(height: 8),
-                              Text(
-                                'Failed to load image',
-                                style: TextStyle(
-                                  color: AppColors.textSecondary,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 10),
                     Text(
                       label.toUpperCase(),
                       style: const TextStyle(
                         fontWeight: FontWeight.bold,
                         color: AppColors.textPrimary,
-                        fontSize: 12,
+                        fontSize: 13,
+                        letterSpacing: 0.8,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Flexible(
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(14),
+                        child: _buildUniversalImage(path, fit: BoxFit.contain),
                       ),
                     ),
                   ],
@@ -640,13 +773,18 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen>
               Positioned(
                 top: 0,
                 right: 0,
-                child: IconButton(
-                  icon: const Icon(
-                    Icons.close_rounded,
-                    color: Colors.black54,
-                    size: 24,
+                child: Material(
+                  color: Colors.white,
+                  shape: const CircleBorder(),
+                  elevation: 4,
+                  child: IconButton(
+                    icon: const Icon(
+                      Icons.close_rounded,
+                      color: Colors.black87,
+                      size: 20,
+                    ),
+                    onPressed: () => Navigator.pop(context),
                   ),
-                  onPressed: () => Navigator.pop(context),
                 ),
               ),
             ],
