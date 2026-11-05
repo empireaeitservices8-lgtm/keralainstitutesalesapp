@@ -31,6 +31,8 @@ class HomeProvider extends BaseProvider<HomeDashboardModel> {
   int _initialTaskTabIndex = 0;
   int get initialTaskTabIndex => _initialTaskTabIndex;
 
+  int? _pendingTaskTabIndex;
+
   bool _gpsLoggingEnforced = true;
   bool _biometricEnforced = true;
   bool _autoSyncActive = true;
@@ -112,16 +114,27 @@ class HomeProvider extends BaseProvider<HomeDashboardModel> {
     notifyListeners();
   }
 
-  void setCurrentIndex(int index, {int initialTaskTabIndex = 0}) {
+  void setCurrentIndex(int index, {int? initialTaskTabIndex}) {
     _currentIndex = index;
-    _initialTaskTabIndex = initialTaskTabIndex;
+    if (initialTaskTabIndex != null) {
+      _initialTaskTabIndex = initialTaskTabIndex;
+      _pendingTaskTabIndex = initialTaskTabIndex;
+    } else {
+      _initialTaskTabIndex = 0;
+    }
     notifyListeners();
     _triggerTabApiCalls(index);
   }
 
   int consumeInitialTaskTabIndex() {
-    final val = _initialTaskTabIndex;
-    _initialTaskTabIndex = 0;
+    final val = _pendingTaskTabIndex ?? _initialTaskTabIndex;
+    _pendingTaskTabIndex = null;
+    return val;
+  }
+
+  int? consumePendingTaskTabIndex() {
+    final val = _pendingTaskTabIndex;
+    _pendingTaskTabIndex = null;
     return val;
   }
 

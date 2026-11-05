@@ -594,6 +594,38 @@ class HomeAttendance {
       if (raw['attendance'] is Map) {
         return HomeAttendance.fromJson(Map<String, dynamic>.from(raw['attendance'] as Map));
       }
+      final punchesList =
+          (raw['sessions'] is List && (raw['sessions'] as List).isNotEmpty)
+          ? (raw['sessions'] as List)
+          : ((raw['punches'] is List && (raw['punches'] as List).isNotEmpty)
+                ? (raw['punches'] as List)
+                : null);
+      if (punchesList != null) {
+        final last = punchesList.last;
+        if (last is Map) {
+          final merged = <String, dynamic>{
+            ...Map<String, dynamic>.from(raw),
+            ...Map<String, dynamic>.from(last),
+          };
+          final rawHours = UiHelpers.parseWorkingHours(
+            raw['hours_worked'] ??
+                raw['hours_worked_formatted'] ??
+                raw['working_hours'],
+          );
+          final lastHours = UiHelpers.parseWorkingHours(
+            last['hours_worked'] ??
+                last['hours_worked_formatted'] ??
+                last['working_hours'],
+          );
+          if (lastHours == 0.0 && rawHours > 0.0) {
+            merged['hours_worked'] =
+                raw['hours_worked'] ?? raw['hours_worked_formatted'];
+            merged['hours_worked_formatted'] =
+                raw['hours_worked_formatted'] ?? raw['hours_worked'];
+          }
+          return HomeAttendance.fromJson(merged);
+        }
+      }
       if (raw['list'] is List && (raw['list'] as List).isNotEmpty) {
         final last = (raw['list'] as List).last;
         if (last is Map) {
@@ -667,7 +699,11 @@ class HomeAttendance {
       isCheckedIn: isCheckedIn,
       isCheckedOut: isCheckedOut,
       date: (json['date'] ?? '').toString(),
-      hoursWorked: (json['hours_worked'] as num?)?.toDouble() ?? 0.0,
+      hoursWorked: UiHelpers.parseWorkingHours(
+        json['hours_worked'] ??
+            json['hours_worked_formatted'] ??
+            json['working_hours'],
+      ),
       locationLat: _parseLocation(json['location_lat']),
       locationLng: _parseLocation(json['location_lng']),
     );

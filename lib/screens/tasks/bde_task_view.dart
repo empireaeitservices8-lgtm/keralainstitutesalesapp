@@ -26,10 +26,22 @@ class _BdeTaskViewState extends State<BdeTaskView>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this, initialIndex: 0);
+    final initialTab = HomeProvider.instance.consumeInitialTaskTabIndex();
+    _tabController = TabController(
+      length: 2,
+      vsync: this,
+      initialIndex: initialTab,
+    );
 
-    // Initial fetch of pending leads
-    OperationsProvider.instance.fetchLeads(status: 1, isRefresh: true);
+    if (initialTab == 1) {
+      _completedLeadsLoaded = true;
+      OperationsProvider.instance.fetchCompletedLeads(isRefresh: true);
+    } else {
+      // Initial fetch of pending leads
+      OperationsProvider.instance.fetchLeads(status: 1, isRefresh: true);
+    }
+
+    HomeProvider.instance.addListener(_onHomeProviderChanged);
 
     _tabController.addListener(() {
       if (_tabController.index == 1 && !_completedLeadsLoaded) {
@@ -39,8 +51,27 @@ class _BdeTaskViewState extends State<BdeTaskView>
     });
   }
 
+  void _onHomeProviderChanged() {
+    if (!mounted) return;
+    if (HomeProvider.instance.currentIndex == 1) {
+      final targetTab = HomeProvider.instance.consumePendingTaskTabIndex();
+      if (targetTab != null) {
+        if (_tabController.index != targetTab) {
+          _tabController.animateTo(targetTab);
+        }
+        if (targetTab == 1) {
+          _completedLeadsLoaded = true;
+          OperationsProvider.instance.fetchCompletedLeads(isRefresh: true);
+        } else {
+          OperationsProvider.instance.fetchLeads(status: 1, isRefresh: true);
+        }
+      }
+    }
+  }
+
   @override
   void dispose() {
+    HomeProvider.instance.removeListener(_onHomeProviderChanged);
     _tabController.dispose();
     super.dispose();
   }

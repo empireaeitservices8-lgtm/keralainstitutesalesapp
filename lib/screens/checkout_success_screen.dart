@@ -126,7 +126,11 @@ class CheckoutSuccessScreen extends StatelessWidget {
                               borderRadius: BorderRadius.circular(6),
                             ),
                             child: Text(
-                              '${attendance.workingHours?.toStringAsFixed(2) ?? '0.00'} hrs',
+                              UiHelpers.formatWorkingHours(
+                                attendance.workingHours,
+                                checkIn: attendance.checkInTime,
+                                checkOut: attendance.checkOutTime,
+                              ),
                               style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 13),
                             ),
                           ),

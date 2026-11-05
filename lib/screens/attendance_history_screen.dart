@@ -29,8 +29,10 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen>
     _tabController = TabController(length: 2, vsync: this);
 
     _loadLocalSelfies();
-    // Force refresh today's attendance on open
+    // Force refresh today's attendance and history on open
+    _historyLoaded = true;
     AttendanceProvider.instance.loadTodayAttendance(isRefresh: true);
+    AttendanceProvider.instance.loadAttendanceHistory(isRefresh: true);
 
     _tabController.addListener(_handleTabChange);
   }
@@ -318,7 +320,38 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen>
 
   Widget _buildAttendanceCard(dynamic record) {
     if (record is! Map) return const SizedBox.shrink();
-    final Map<String, dynamic> rec = Map<String, dynamic>.from(record);
+    Map<String, dynamic> rec = Map<String, dynamic>.from(record);
+
+    final rawSessions =
+        (rec['sessions'] is List && (rec['sessions'] as List).isNotEmpty)
+        ? (rec['sessions'] as List)
+        : ((rec['punches'] is List && (rec['punches'] as List).isNotEmpty)
+              ? (rec['punches'] as List)
+              : null);
+    final List<Map<String, dynamic>> sessionsList = rawSessions != null
+        ? rawSessions
+              .whereType<Map>()
+              .map((e) => Map<String, dynamic>.from(e))
+              .toList()
+        : [];
+
+    if (sessionsList.length == 1) {
+      final onlySession = sessionsList.first;
+      final parentHours =
+          rec['hours_worked'] ??
+          rec['hours_worked_formatted'] ??
+          rec['working_hours'];
+      rec = {...rec, ...onlySession};
+      if (UiHelpers.parseWorkingHours(
+                onlySession['hours_worked'] ??
+                    onlySession['hours_worked_formatted'],
+              ) ==
+              0.0 &&
+          UiHelpers.parseWorkingHours(parentHours) > 0.0) {
+        rec['hours_worked'] = parentHours;
+        rec['hours_worked_formatted'] = parentHours;
+      }
+    }
 
     final dateStr = (rec['date'] ?? '').toString();
     final checkInTimeStr = (rec['check_in_time'] ?? rec['check_in'] ?? '')
@@ -326,18 +359,58 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen>
     final checkOutTimeStr = (rec['check_out_time'] ?? rec['check_out'] ?? '')
         .toString();
 
-    final rawHours = rec['hours_worked'] ?? rec['working_hours'];
-    double workingHours = 0.0;
-    if (rawHours is num) {
-      workingHours = rawHours.toDouble().abs();
-    } else if (rawHours != null) {
-      workingHours = (double.tryParse(rawHours.toString()) ?? 0.0).abs();
+    final rawHours =
+        rec['hours_worked'] ??
+        rec['hours_worked_formatted'] ??
+        rec['working_hours'];
+    double workingHours = UiHelpers.parseWorkingHours(rawHours);
+
+    bool useSummedHoursFormat = false;
+    if (sessionsList.isNotEmpty) {
+      double sumSessionHours = 0.0;
+      for (final s in sessionsList) {
+        double sh = UiHelpers.parseWorkingHours(
+          s['hours_worked'] ??
+              s['hours_worked_formatted'] ??
+              s['working_hours'],
+        );
+        if (sh == 0.0) {
+          final sIn = _parseCardTime(
+            _formatCardTime(
+              (s['check_in_time'] ?? s['check_in'] ?? '').toString(),
+            ),
+          );
+          final sOut = _parseCardTime(
+            _formatCardTime(
+              (s['check_out_time'] ?? s['check_out'] ?? '').toString(),
+            ),
+          );
+          if (sIn != null && sOut != null) {
+            final diff = sOut.difference(sIn).inMinutes;
+            if (diff > 0) sh = diff / 60.0;
+          }
+        }
+        sumSessionHours += sh;
+      }
+      if (sumSessionHours > workingHours) {
+        workingHours = sumSessionHours;
+        useSummedHoursFormat = true;
+      }
     }
+
     final statusText =
         (rec['status_text'] ??
                 rec['status'] ??
                 rec['shift_status'] ??
-                'pending')
+                (checkOutTimeStr.isNotEmpty &&
+                        checkOutTimeStr != '--:--' &&
+                        checkOutTimeStr != 'null'
+                    ? 'COMPLETED'
+                    : (checkInTimeStr.isNotEmpty &&
+                              checkInTimeStr != '--:--' &&
+                              checkInTimeStr != 'null'
+                          ? 'ONLINE'
+                          : 'pending')))
             .toString();
 
     String formattedDate;
@@ -356,20 +429,22 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen>
     final String formattedCheckIn = _formatCardTime(checkInTimeStr);
     final String formattedCheckOut = _formatCardTime(checkOutTimeStr);
 
-    if (workingHours == 0.0 &&
-        formattedCheckIn != '--:--' &&
-        formattedCheckOut != '--:--') {
-      try {
-        final dtIn = _parseCardTime(formattedCheckIn);
-        final dtOut = _parseCardTime(formattedCheckOut);
-        if (dtIn != null && dtOut != null) {
-          final diff = dtOut.difference(dtIn).inMinutes;
-          if (diff > 0) {
-            workingHours = double.parse((diff / 60.0).toStringAsFixed(2));
-          }
-        }
-      } catch (_) {}
+    final dtIn = _parseCardTime(formattedCheckIn);
+    final dtOut = _parseCardTime(formattedCheckOut);
+    if (workingHours == 0.0 && dtIn != null && dtOut != null) {
+      final diff = dtOut.difference(dtIn).inMinutes;
+      if (diff > 0) {
+        workingHours = diff / 60.0;
+      }
     }
+    final String formattedHours = UiHelpers.formatWorkingHours(
+      workingHours,
+      rawFormatted: useSummedHoursFormat
+          ? null
+          : (rec['hours_worked_formatted'] ?? rec['hours_worked'])?.toString(),
+      checkIn: sessionsList.length > 1 ? null : dtIn,
+      checkOut: sessionsList.length > 1 ? null : dtOut,
+    );
 
     // Parse image paths
     String checkInSelfie = '';
@@ -434,11 +509,28 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen>
     final upperStatus = statusText.toUpperCase();
     if (upperStatus == 'APPROVED' ||
         upperStatus == 'PRESENT' ||
-        upperStatus == 'COMPLETED') {
+        upperStatus == 'COMPLETED' ||
+        upperStatus == 'ONLINE' ||
+        upperStatus == 'ACTIVE') {
       badgeColor = Colors.green;
     } else if (upperStatus == 'REJECTED' || upperStatus == 'ABSENT') {
       badgeColor = Colors.red;
     }
+
+    final dynamic latRaw = rec['check_in_lat'] ??
+        rec['latitude'] ??
+        rec['location_lat'] ??
+        (sessionsList.isNotEmpty
+            ? (sessionsList.last['latitude'] ??
+                sessionsList.last['location_lat'])
+            : null);
+    final dynamic lngRaw = rec['check_in_lng'] ??
+        rec['longitude'] ??
+        rec['location_lng'] ??
+        (sessionsList.isNotEmpty
+            ? (sessionsList.last['longitude'] ??
+                sessionsList.last['location_lng'])
+            : null);
 
     return Container(
       width: double.infinity,
@@ -501,74 +593,216 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen>
           ),
           const Divider(color: Color(0xFFEFF2F5), height: 24),
 
-          // Check-In and Check-Out Columns
-          Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'CHECK-IN',
-                      style: TextStyle(
-                        color: AppColors.textSecondary,
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 0.5,
+          if (sessionsList.length > 1) ...[
+            for (int i = 0; i < sessionsList.length; i++) ...[
+              if (i > 0) const Divider(color: Color(0xFFEFF2F5), height: 20),
+              Builder(
+                builder: (context) {
+                  final s = sessionsList[i];
+                  final sInStr = _formatCardTime(
+                    (s['check_in_time'] ?? s['check_in'] ?? '').toString(),
+                  );
+                  final sOutStr = _formatCardTime(
+                    (s['check_out_time'] ?? s['check_out'] ?? '').toString(),
+                  );
+                  final sDtIn = _parseCardTime(sInStr);
+                  final sDtOut = _parseCardTime(sOutStr);
+                  final sHoursVal = UiHelpers.parseWorkingHours(
+                    s['hours_worked'] ??
+                        s['hours_worked_formatted'] ??
+                        s['working_hours'],
+                  );
+                  final bool isSessionActive =
+                      sOutStr == '--:--' && sInStr != '--:--';
+                  final String sHoursText = isSessionActive && sHoursVal == 0.0
+                      ? 'Active'
+                      : UiHelpers.formatWorkingHours(
+                          sHoursVal,
+                          rawFormatted:
+                              (s['hours_worked_formatted'] ?? s['hours_worked'])
+                                  ?.toString(),
+                          checkIn: sDtIn,
+                          checkOut: sDtOut,
+                        );
+
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Session ${i + 1}',
+                            style: const TextStyle(
+                              color: AppColors.accentTeal,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          Text(
+                            sHoursText,
+                            style: TextStyle(
+                              color: isSessionActive
+                                  ? AppColors.accentTeal
+                                  : Colors.blueGrey.shade600,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      formattedCheckIn,
-                      style: const TextStyle(
-                        color: AppColors.textPrimary,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    if (checkInSelfie.isNotEmpty) ...[
                       const SizedBox(height: 8),
-                      _buildSelfieThumbnail(checkInSelfie, 'Check-In selfie'),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'CHECK-IN',
+                                  style: TextStyle(
+                                    color: AppColors.textSecondary,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                    letterSpacing: 0.5,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  sInStr,
+                                  style: const TextStyle(
+                                    color: AppColors.textPrimary,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                                if (i == sessionsList.length - 1 &&
+                                    checkInSelfie.isNotEmpty) ...[
+                                  const SizedBox(height: 8),
+                                  _buildSelfieThumbnail(
+                                    checkInSelfie,
+                                    'Check-In selfie',
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                          Container(
+                            width: 1,
+                            height: 40,
+                            color: const Color(0xFFEFF2F5),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'CHECK-OUT',
+                                  style: TextStyle(
+                                    color: AppColors.textSecondary,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                    letterSpacing: 0.5,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  sOutStr,
+                                  style: const TextStyle(
+                                    color: AppColors.textPrimary,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                                if (i == sessionsList.length - 1 &&
+                                    checkOutSelfie.isNotEmpty) ...[
+                                  const SizedBox(height: 8),
+                                  _buildSelfieThumbnail(
+                                    checkOutSelfie,
+                                    'Check-Out selfie',
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
                     ],
-                  ],
-                ),
-              ),
-              Container(width: 1, height: 50, color: const Color(0xFFEFF2F5)),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'CHECK-OUT',
-                      style: TextStyle(
-                        color: AppColors.textSecondary,
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 0.5,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      formattedCheckOut,
-                      style: const TextStyle(
-                        color: AppColors.textPrimary,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    if (checkOutSelfie.isNotEmpty) ...[
-                      const SizedBox(height: 8),
-                      _buildSelfieThumbnail(
-                        checkOutSelfie,
-                        'Check-Out selfie',
-                      ),
-                    ],
-                  ],
-                ),
+                  );
+                },
               ),
             ],
-          ),
+          ] else ...[
+            // Check-In and Check-Out Columns
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'CHECK-IN',
+                        style: TextStyle(
+                          color: AppColors.textSecondary,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        formattedCheckIn,
+                        style: const TextStyle(
+                          color: AppColors.textPrimary,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      if (checkInSelfie.isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        _buildSelfieThumbnail(checkInSelfie, 'Check-In selfie'),
+                      ],
+                    ],
+                  ),
+                ),
+                Container(width: 1, height: 50, color: const Color(0xFFEFF2F5)),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'CHECK-OUT',
+                        style: TextStyle(
+                          color: AppColors.textSecondary,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        formattedCheckOut,
+                        style: const TextStyle(
+                          color: AppColors.textPrimary,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      if (checkOutSelfie.isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        _buildSelfieThumbnail(
+                          checkOutSelfie,
+                          'Check-Out selfie',
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ],
           const Divider(color: Color(0xFFEFF2F5), height: 24),
 
           // Footer: Total Hours, Device info, Coordinates
@@ -586,10 +820,10 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen>
                         fontSize: 9,
                       ),
                     ),
-                  if (rec['check_in_lat'] != null) const SizedBox(height: 2),
-                  if (rec['check_in_lat'] != null)
+                  if (latRaw != null && lngRaw != null) const SizedBox(height: 2),
+                  if (latRaw != null && lngRaw != null)
                     Text(
-                      'GPS: ${double.tryParse(rec['check_in_lat'].toString())?.toStringAsFixed(4)}, ${double.tryParse(rec['check_in_lng'].toString())?.toStringAsFixed(4)}',
+                      'GPS: ${double.tryParse(latRaw.toString())?.toStringAsFixed(4)}, ${double.tryParse(lngRaw.toString())?.toStringAsFixed(4)}',
                       style: TextStyle(
                         color: Colors.blueGrey.shade600,
                         fontSize: 9,
@@ -604,7 +838,7 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen>
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
-                  '${workingHours.toStringAsFixed(2)} hrs',
+                  formattedHours,
                   style: const TextStyle(
                     color: Colors.green,
                     fontWeight: FontWeight.bold,
