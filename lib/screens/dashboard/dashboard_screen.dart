@@ -48,19 +48,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
         user.role == 'ASM' ||
         homeData?.dashboardType?.toUpperCase() == 'ASM' ||
         homeData?.designationName.toUpperCase() == 'ASM' ||
-        homeData?.designationName.toLowerCase().contains('area sales') == true ||
-        homeData?.designationName.toLowerCase().contains('area manager') == true ||
+        homeData?.designationName.toLowerCase().contains('area sales') ==
+            true ||
+        homeData?.designationName.toLowerCase().contains('area manager') ==
+            true ||
         homeData?.designationName.toLowerCase().contains('asm') == true;
 
-    final bool isSm = !isAsm && (
-        user.role == 'SM' ||
-        homeData?.dashboardType?.toUpperCase() == 'SM' ||
-        homeData?.designationName.toUpperCase() == 'SM' ||
-        homeData?.designationName.toLowerCase().contains('state manager') ==
-            true ||
-        homeData?.designationName.toLowerCase().contains('sales manager') ==
-            true
-    );
+    final bool isSm =
+        !isAsm &&
+        (user.role == 'SM' ||
+            homeData?.dashboardType?.toUpperCase() == 'SM' ||
+            homeData?.designationName.toUpperCase() == 'SM' ||
+            homeData?.designationName.toLowerCase().contains('state manager') ==
+                true ||
+            homeData?.designationName.toLowerCase().contains('sales manager') ==
+                true);
 
     final bool isAccounts = user.role == 'ACCOUNTS' || user.role == 'ADMIN';
 
@@ -68,7 +70,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ? [
             {'icon': Icons.home_rounded, 'label': 'Home'},
             {'icon': Icons.groups_rounded, 'label': 'Teams'},
-            {'icon': Icons.check_circle_outline_rounded, 'label': 'Tasks'},
+            {'icon': Icons.check_circle_outline_rounded, 'label': 'Incentive'},
             {'icon': Icons.person_outline_rounded, 'label': 'Profile'},
           ]
         : isAccounts
@@ -181,19 +183,25 @@ class _DashboardScreenState extends State<DashboardScreen> {
             user.role == 'ASM' ||
             homeData?.dashboardType?.toUpperCase() == 'ASM' ||
             homeData?.designationName.toUpperCase() == 'ASM' ||
-            homeData?.designationName.toLowerCase().contains('area sales') == true ||
-            homeData?.designationName.toLowerCase().contains('area manager') == true ||
+            homeData?.designationName.toLowerCase().contains('area sales') ==
+                true ||
+            homeData?.designationName.toLowerCase().contains('area manager') ==
+                true ||
             homeData?.designationName.toLowerCase().contains('asm') == true;
 
-        final bool isSm = !isAsm && (
-            user.role == 'SM' ||
-            homeData?.dashboardType?.toUpperCase() == 'SM' ||
-            homeData?.designationName.toUpperCase() == 'SM' ||
-            homeData?.designationName.toLowerCase().contains('state manager') ==
-                true ||
-            homeData?.designationName.toLowerCase().contains('sales manager') ==
-                true
-        );
+        final bool isSm =
+            !isAsm &&
+            (user.role == 'SM' ||
+                homeData?.dashboardType?.toUpperCase() == 'SM' ||
+                homeData?.designationName.toUpperCase() == 'SM' ||
+                homeData?.designationName.toLowerCase().contains(
+                      'state manager',
+                    ) ==
+                    true ||
+                homeData?.designationName.toLowerCase().contains(
+                      'sales manager',
+                    ) ==
+                    true);
 
         final String effectiveRole = isAsm ? 'ASM' : (isSm ? 'SM' : user.role);
         final currentIndex = homeProvider.currentIndex;

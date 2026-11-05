@@ -59,7 +59,8 @@ class OperationsProvider extends ChangeNotifier {
   bool get isLoadingBdeRequests => _isLoadingBdeRequests;
 
   List<WalletApprovalRequestItem> _walletApprovalRequests = [];
-  List<WalletApprovalRequestItem> get walletApprovalRequests => _walletApprovalRequests;
+  List<WalletApprovalRequestItem> get walletApprovalRequests =>
+      _walletApprovalRequests;
   WalletApprovalSummary? _walletApprovalSummary;
   WalletApprovalSummary? get walletApprovalSummary => _walletApprovalSummary;
   bool _isLoadingWalletRequests = false;
@@ -86,7 +87,9 @@ class OperationsProvider extends ChangeNotifier {
   Future<void> fetchSmAsms({bool isRefresh = false}) async {
     final cleanRole = AuthProvider.instance.session.role.trim().toUpperCase();
     if (cleanRole != 'SM') {
-      debugPrint('[fetchSmAsms] Skipping /api/sm/asms because user role ($cleanRole) is not SM');
+      debugPrint(
+        '[fetchSmAsms] Skipping /api/sm/asms because user role ($cleanRole) is not SM',
+      );
       return;
     }
 
@@ -154,7 +157,9 @@ class OperationsProvider extends ChangeNotifier {
   }) async {
     try {
       final finalTeamCode = teamCode ?? _deriveTeamCode(districts, team);
-      final finalPassword = password != null && password.trim().isNotEmpty ? password.trim() : 'password123';
+      final finalPassword = password != null && password.trim().isNotEmpty
+          ? password.trim()
+          : 'password123';
 
       final payload = {
         'name': name,
@@ -171,7 +176,8 @@ class OperationsProvider extends ChangeNotifier {
       };
 
       String asmId = 'asm_${DateTime.now().millisecondsSinceEpoch}';
-      String employeeId = 'ASM${(_smAsms.length + 1).toString().padLeft(3, '0')}';
+      String employeeId =
+          'ASM${(_smAsms.length + 1).toString().padLeft(3, '0')}';
 
       try {
         final response = await ApiClient.instance.post(
@@ -182,17 +188,15 @@ class OperationsProvider extends ChangeNotifier {
         if (response.data != null && response.data is Map) {
           final resData = response.data['data'];
           if (resData is Map) {
-            if (resData['employee_id'] != null) employeeId = resData['employee_id'].toString();
+            if (resData['employee_id'] != null)
+              employeeId = resData['employee_id'].toString();
             if (resData['id'] != null) asmId = resData['id'].toString();
           }
         }
       } catch (e) {
         debugPrint('[CreateAsm] API call handled locally: $e');
         try {
-          await ApiClient.instance.post(
-            ApiEndpoints.smAsms,
-            data: payload,
-          );
+          await ApiClient.instance.post(ApiEndpoints.smAsms, data: payload);
         } catch (_) {}
       }
 
@@ -242,19 +246,36 @@ class OperationsProvider extends ChangeNotifier {
   String _deriveTeamCode(List<String> districts, String? team) {
     if (team != null && team.isNotEmpty) {
       final code = team.replaceAll('Team', '').trim().toUpperCase();
-      if (['TVM', 'PTM', 'KTM', 'EKM', 'PKD', 'CLT', 'KZD', 'KZE', 'OFFICE'].contains(code)) {
+      if ([
+        'TVM',
+        'PTM',
+        'KTM',
+        'EKM',
+        'PKD',
+        'CLT',
+        'KZD',
+        'KZE',
+        'OFFICE',
+      ].contains(code)) {
         return code;
       }
     }
     if (districts.isNotEmpty) {
       final d = districts.first.toLowerCase();
-      if (d.contains('thiruvananthapuram') || d.contains('trivandrum')) return 'TVM';
+      if (d.contains('thiruvananthapuram') || d.contains('trivandrum'))
+        return 'TVM';
       if (d.contains('pathanamthitta') || d.contains('kollam')) return 'PTM';
       if (d.contains('kottayam') || d.contains('idukki')) return 'KTM';
-      if (d.contains('ernakulam') || d.contains('thrissur') || d.contains('cochin')) return 'EKM';
+      if (d.contains('ernakulam') ||
+          d.contains('thrissur') ||
+          d.contains('cochin'))
+        return 'EKM';
       if (d.contains('palakkad') || d.contains('malappuram')) return 'PKD';
       if (d.contains('kozhikode') || d.contains('calicut')) return 'CLT';
-      if (d.contains('kannur') || d.contains('kasaragod') || d.contains('wayanad')) return 'KZD';
+      if (d.contains('kannur') ||
+          d.contains('kasaragod') ||
+          d.contains('wayanad'))
+        return 'KZD';
     }
     return 'EKM';
   }
@@ -262,8 +283,11 @@ class OperationsProvider extends ChangeNotifier {
   // --- Office Team Telecallers APIs ---
   Future<void> fetchOfficeTelecallers({bool isRefresh = false}) async {
     final cleanRole = AuthProvider.instance.session.role.trim().toUpperCase();
-    if (cleanRole == 'BDE' || !['ASM', 'BDM', 'SM', 'ADMIN', 'MD'].contains(cleanRole)) {
-      debugPrint('[fetchOfficeTelecallers] Skipping /api/office/telecallers for role ($cleanRole) - requires ASM, BDM, SM, ADMIN, MD');
+    if (cleanRole == 'BDE' ||
+        !['ASM', 'BDM', 'SM', 'ADMIN', 'MD'].contains(cleanRole)) {
+      debugPrint(
+        '[fetchOfficeTelecallers] Skipping /api/office/telecallers for role ($cleanRole) - requires ASM, BDM, SM, ADMIN, MD',
+      );
       if (_officeTelecallers.isEmpty) {
         _officeTelecallers = _getDefaultTelecallers();
       }
@@ -283,16 +307,24 @@ class OperationsProvider extends ChangeNotifier {
           if (decoded is List) {
             _officeTelecallers = decoded
                 .whereType<Map>()
-                .map((e) => OfficeTelecallerModel.fromJson(Map<String, dynamic>.from(e)))
+                .map(
+                  (e) => OfficeTelecallerModel.fromJson(
+                    Map<String, dynamic>.from(e),
+                  ),
+                )
                 .toList();
             notifyListeners();
           }
         } catch (_) {}
       }
 
-      final response = await ApiClient.instance.get(ApiEndpoints.officeTelecallers);
+      final response = await ApiClient.instance.get(
+        ApiEndpoints.officeTelecallers,
+      );
       debugPrint('====================================================');
-      debugPrint('📞 [GET ${ApiEndpoints.officeTelecallers}] Status: ${response.statusCode}');
+      debugPrint(
+        '📞 [GET ${ApiEndpoints.officeTelecallers}] Status: ${response.statusCode}',
+      );
       debugPrint('📞 [GET ${ApiEndpoints.officeTelecallers}] Response Body:');
       try {
         debugPrint(const JsonEncoder.withIndent('  ').convert(response.data));
@@ -311,7 +343,11 @@ class OperationsProvider extends ChangeNotifier {
         if (raw is List && raw.isNotEmpty) {
           _officeTelecallers = raw
               .whereType<Map>()
-              .map((e) => OfficeTelecallerModel.fromJson(Map<String, dynamic>.from(e)))
+              .map(
+                (e) => OfficeTelecallerModel.fromJson(
+                  Map<String, dynamic>.from(e),
+                ),
+              )
               .toList();
           await prefs.setString(
             'cached_office_telecallers',
@@ -359,24 +395,30 @@ class OperationsProvider extends ChangeNotifier {
       debugPrint('[CreateTelecaller] Server response: ${response.statusCode}');
       debugPrint('[CreateTelecaller] Response data: ${response.data}');
 
-      String empId = 'TC${(_officeTelecallers.length + 1).toString().padLeft(3, '0')}';
+      String empId =
+          'TC${(_officeTelecallers.length + 1).toString().padLeft(3, '0')}';
       String itemId = 'tc_${DateTime.now().millisecondsSinceEpoch}';
-      String message = 'Tele-caller $name ($empId) created successfully under Office Team.';
+      String message =
+          'Tele-caller $name ($empId) created successfully under Office Team.';
 
       if (response.data != null && response.data is Map) {
         final dataMap = response.data as Map;
         if (dataMap['success'] == false) {
           return {
             'success': false,
-            'message': dataMap['message']?.toString() ?? 'Failed to create telecaller.',
+            'message':
+                dataMap['message']?.toString() ??
+                'Failed to create telecaller.',
           };
         }
-        if (dataMap['message'] != null && dataMap['message'].toString().isNotEmpty) {
+        if (dataMap['message'] != null &&
+            dataMap['message'].toString().isNotEmpty) {
           message = dataMap['message'].toString();
         }
         final resData = dataMap['data'];
         if (resData is Map) {
-          if (resData['employee_id'] != null) empId = resData['employee_id'].toString();
+          if (resData['employee_id'] != null)
+            empId = resData['employee_id'].toString();
           if (resData['id'] != null) itemId = resData['id'].toString();
           if (resData['_id'] != null) itemId = resData['_id'].toString();
         }
@@ -411,27 +453,18 @@ class OperationsProvider extends ChangeNotifier {
       } catch (_) {}
 
       notifyListeners();
-      return {
-        'success': true,
-        'message': message,
-        'telecaller': newCaller,
-      };
+      return {'success': true, 'message': message, 'telecaller': newCaller};
     } on NetworkException catch (e) {
       debugPrint('[CreateTelecaller] NetworkException: ${e.message}');
-      return {
-        'success': false,
-        'message': e.message,
-      };
+      return {'success': false, 'message': e.message};
     } catch (e) {
       debugPrint('[CreateTelecaller] Error: $e');
-      final errStr = e.toString()
+      final errStr = e
+          .toString()
           .replaceAll('Exception: ', '')
           .replaceAll('ApiException: ', '')
           .replaceAll('[400] Bad Request: ', '');
-      return {
-        'success': false,
-        'message': errStr,
-      };
+      return {'success': false, 'message': errStr};
     }
   }
 
@@ -495,7 +528,9 @@ class OperationsProvider extends ChangeNotifier {
   Future<void> fetchSmPayoutRequests({bool isRefresh = false}) async {
     final cleanRole = AuthProvider.instance.session.role.trim().toUpperCase();
     if (cleanRole != 'SM') {
-      debugPrint('[fetchSmPayoutRequests] Skipping /api/salary/requests because user role ($cleanRole) is not SM');
+      debugPrint(
+        '[fetchSmPayoutRequests] Skipping /api/salary/requests because user role ($cleanRole) is not SM',
+      );
       return;
     }
 
@@ -512,7 +547,11 @@ class OperationsProvider extends ChangeNotifier {
           if (decoded is List) {
             _smPayoutRequests = decoded
                 .whereType<Map>()
-                .map((e) => SmPayoutRequestModel.fromJson(Map<String, dynamic>.from(e)))
+                .map(
+                  (e) => SmPayoutRequestModel.fromJson(
+                    Map<String, dynamic>.from(e),
+                  ),
+                )
                 .toList();
             notifyListeners();
           }
@@ -533,10 +572,12 @@ class OperationsProvider extends ChangeNotifier {
           if (raw is List) {
             for (final item in raw) {
               if (item is Map) {
-                combined.add(SmPayoutRequestModel.fromJson(
-                  Map<String, dynamic>.from(item),
-                  defaultType: 'Salary',
-                ));
+                combined.add(
+                  SmPayoutRequestModel.fromJson(
+                    Map<String, dynamic>.from(item),
+                    defaultType: 'Salary',
+                  ),
+                );
               }
             }
           }
@@ -557,10 +598,12 @@ class OperationsProvider extends ChangeNotifier {
           if (raw is List) {
             for (final item in raw) {
               if (item is Map) {
-                combined.add(SmPayoutRequestModel.fromJson(
-                  Map<String, dynamic>.from(item),
-                  defaultType: 'Incentive',
-                ));
+                combined.add(
+                  SmPayoutRequestModel.fromJson(
+                    Map<String, dynamic>.from(item),
+                    defaultType: 'Incentive',
+                  ),
+                );
               }
             }
           }
@@ -589,7 +632,10 @@ class OperationsProvider extends ChangeNotifier {
     }
   }
 
-  Future<bool> forwardSalaryToAccounts(String requestId, {String notes = 'Verified by SM'}) async {
+  Future<bool> forwardSalaryToAccounts(
+    String requestId, {
+    String notes = 'Verified by SM',
+  }) async {
     try {
       final payload = {
         'request_id': requestId,
@@ -598,7 +644,10 @@ class OperationsProvider extends ChangeNotifier {
       };
 
       try {
-        await ApiClient.instance.post(ApiEndpoints.salaryWorkflow, data: payload);
+        await ApiClient.instance.post(
+          ApiEndpoints.salaryWorkflow,
+          data: payload,
+        );
       } catch (e) {
         debugPrint('[ForwardSalary] API call: $e');
       }
@@ -622,7 +671,10 @@ class OperationsProvider extends ChangeNotifier {
     }
   }
 
-  Future<bool> forwardIncentiveToAccounts(String requestId, {String notes = 'Forwarded to accounts team'}) async {
+  Future<bool> forwardIncentiveToAccounts(
+    String requestId, {
+    String notes = 'Forwarded to accounts team',
+  }) async {
     try {
       final payload = {
         'request_id': requestId,
@@ -631,7 +683,10 @@ class OperationsProvider extends ChangeNotifier {
       };
 
       try {
-        await ApiClient.instance.post(ApiEndpoints.walletWorkflow, data: payload);
+        await ApiClient.instance.post(
+          ApiEndpoints.walletWorkflow,
+          data: payload,
+        );
       } catch (e) {
         debugPrint('[ForwardIncentive] API call: $e');
       }
@@ -896,8 +951,11 @@ class OperationsProvider extends ChangeNotifier {
   // --- 4. ASM (Area Sales Manager) APIs ---
   Future<void> fetchAsmBdes({bool isRefresh = false}) async {
     final cleanRole = AuthProvider.instance.session.role.trim().toUpperCase();
-    if (cleanRole == 'BDE' || !['ASM', 'BDM', 'SM', 'ADMIN', 'MD'].contains(cleanRole)) {
-      debugPrint('[fetchAsmBdes] Skipping /api/asm/bdes because user role ($cleanRole) is not allowed');
+    if (cleanRole == 'BDE' ||
+        !['ASM', 'BDM', 'SM', 'ADMIN', 'MD'].contains(cleanRole)) {
+      debugPrint(
+        '[fetchAsmBdes] Skipping /api/asm/bdes because user role ($cleanRole) is not allowed',
+      );
       return;
     }
 
@@ -977,14 +1035,22 @@ class OperationsProvider extends ChangeNotifier {
         data: payload,
       );
 
-      debugPrint('🚀 [POST ${ApiEndpoints.asmCreateBde}] Status: ${response.statusCode}');
-      debugPrint('🚀 [POST ${ApiEndpoints.asmCreateBde}] Response Body: ${response.data}');
+      debugPrint(
+        '🚀 [POST ${ApiEndpoints.asmCreateBde}] Status: ${response.statusCode}',
+      );
+      debugPrint(
+        '🚀 [POST ${ApiEndpoints.asmCreateBde}] Response Body: ${response.data}',
+      );
       debugPrint('====================================================');
 
       String empId = 'BDE${(_asmBdes.length + 1).toString().padLeft(3, '0')}';
       String bdeId = 'bde_${DateTime.now().millisecondsSinceEpoch}';
       String message = 'BDE $name created successfully.';
-      String bdeTeam = team ?? (district.isNotEmpty ? '${district.substring(0, 3).toUpperCase()} Team' : 'Sales Team');
+      String bdeTeam =
+          team ??
+          (district.isNotEmpty
+              ? '${district.substring(0, 3).toUpperCase()} Team'
+              : 'Sales Team');
       String bdeReportsTo = reportsTo ?? 'ASM';
 
       if (response.data != null && response.data is Map) {
@@ -992,19 +1058,23 @@ class OperationsProvider extends ChangeNotifier {
         if (dataMap['success'] == false) {
           return {
             'success': false,
-            'message': dataMap['message']?.toString() ?? 'Failed to create BDE.',
+            'message':
+                dataMap['message']?.toString() ?? 'Failed to create BDE.',
           };
         }
-        if (dataMap['message'] != null && dataMap['message'].toString().isNotEmpty) {
+        if (dataMap['message'] != null &&
+            dataMap['message'].toString().isNotEmpty) {
           message = dataMap['message'].toString();
         }
         final resData = dataMap['data'];
         if (resData is Map) {
           if (resData['id'] != null) bdeId = resData['id'].toString();
           if (resData['_id'] != null) bdeId = resData['_id'].toString();
-          if (resData['employee_id'] != null) empId = resData['employee_id'].toString();
+          if (resData['employee_id'] != null)
+            empId = resData['employee_id'].toString();
           if (resData['team'] != null) bdeTeam = resData['team'].toString();
-          if (resData['reports_to'] != null) bdeReportsTo = resData['reports_to'].toString();
+          if (resData['reports_to'] != null)
+            bdeReportsTo = resData['reports_to'].toString();
         }
       }
 
@@ -1035,27 +1105,18 @@ class OperationsProvider extends ChangeNotifier {
       } catch (_) {}
 
       notifyListeners();
-      return {
-        'success': true,
-        'message': message,
-        'bde': newBde,
-      };
+      return {'success': true, 'message': message, 'bde': newBde};
     } on NetworkException catch (e) {
       debugPrint('[CreateBde] NetworkException: ${e.message}');
-      return {
-        'success': false,
-        'message': e.message,
-      };
+      return {'success': false, 'message': e.message};
     } catch (e) {
       debugPrint('[CreateBde] Error: $e');
-      final errStr = e.toString()
+      final errStr = e
+          .toString()
           .replaceAll('Exception: ', '')
           .replaceAll('ApiException: ', '')
           .replaceAll('[400] Bad Request: ', '');
-      return {
-        'success': false,
-        'message': errStr,
-      };
+      return {'success': false, 'message': errStr};
     }
   }
 
@@ -1073,7 +1134,11 @@ class OperationsProvider extends ChangeNotifier {
           if (decoded is List) {
             _bdePayoutRequests = decoded
                 .whereType<Map>()
-                .map((e) => SmPayoutRequestModel.fromJson(Map<String, dynamic>.from(e)))
+                .map(
+                  (e) => SmPayoutRequestModel.fromJson(
+                    Map<String, dynamic>.from(e),
+                  ),
+                )
                 .toList();
             notifyListeners();
           }
@@ -1094,10 +1159,12 @@ class OperationsProvider extends ChangeNotifier {
           if (raw is List) {
             for (final item in raw) {
               if (item is Map) {
-                combined.add(SmPayoutRequestModel.fromJson(
-                  Map<String, dynamic>.from(item),
-                  defaultType: 'Incentive',
-                ));
+                combined.add(
+                  SmPayoutRequestModel.fromJson(
+                    Map<String, dynamic>.from(item),
+                    defaultType: 'Incentive',
+                  ),
+                );
               }
             }
           }
@@ -1118,10 +1185,12 @@ class OperationsProvider extends ChangeNotifier {
           if (raw is List) {
             for (final item in raw) {
               if (item is Map) {
-                combined.add(SmPayoutRequestModel.fromJson(
-                  Map<String, dynamic>.from(item),
-                  defaultType: 'Salary',
-                ));
+                combined.add(
+                  SmPayoutRequestModel.fromJson(
+                    Map<String, dynamic>.from(item),
+                    defaultType: 'Salary',
+                  ),
+                );
               }
             }
           }
@@ -1150,16 +1219,23 @@ class OperationsProvider extends ChangeNotifier {
     }
   }
 
-  Future<bool> forwardBdeIncentiveToSm(String requestId, {String notes = 'Verified by ASM'}) async {
+  Future<bool> forwardBdeIncentiveToSm(
+    String requestId, {
+    String notes = 'Verified by ASM',
+  }) async {
     try {
       final payload = {
         'request_id': requestId,
+
         'action': 'forward_to_sm',
         'notes': notes,
       };
 
       try {
-        await ApiClient.instance.post(ApiEndpoints.walletWorkflow, data: payload);
+        await ApiClient.instance.post(
+          ApiEndpoints.walletWorkflow,
+          data: payload,
+        );
       } catch (e) {
         debugPrint('[ForwardBdeIncentiveToSm] API call: $e');
       }
@@ -1183,16 +1259,23 @@ class OperationsProvider extends ChangeNotifier {
     }
   }
 
-  Future<bool> forwardBdeSalaryToSm(String requestId, {String notes = 'Attendance and metrics verified by ASM'}) async {
+  Future<bool> forwardBdeSalaryToSm(
+    String requestId, {
+    String notes = 'Attendance and metrics verified by ASM',
+  }) async {
     try {
       final payload = {
         'request_id': requestId,
+
         'action': 'forward_to_sm',
         'notes': notes,
       };
 
       try {
-        await ApiClient.instance.post(ApiEndpoints.salaryWorkflow, data: payload);
+        await ApiClient.instance.post(
+          ApiEndpoints.salaryWorkflow,
+          data: payload,
+        );
       } catch (e) {
         debugPrint('[ForwardBdeSalaryToSm] API call: $e');
       }
@@ -1305,7 +1388,10 @@ class OperationsProvider extends ChangeNotifier {
     ];
   }
 
-  Future<void> fetchWalletApprovalRequests({String? status, bool isRefresh = false}) async {
+  Future<void> fetchWalletApprovalRequests({
+    String? status,
+    bool isRefresh = false,
+  }) async {
     if (_isLoadingWalletRequests) return;
     if (!isRefresh && _walletApprovalRequests.isNotEmpty) return;
 
@@ -1331,7 +1417,9 @@ class OperationsProvider extends ChangeNotifier {
       }
 
       final queryParams = <String, dynamic>{};
-      if (status != null && status.isNotEmpty && status.toLowerCase() != 'all') {
+      if (status != null &&
+          status.isNotEmpty &&
+          status.toLowerCase() != 'all') {
         queryParams['status'] = status;
       }
 
@@ -1352,7 +1440,10 @@ class OperationsProvider extends ChangeNotifier {
           final resp = WalletApprovalResponse.fromJson(map);
           _walletApprovalRequests = resp.data;
           _walletApprovalSummary = resp.summary;
-          await prefs.setString('cached_wallet_approval_requests', jsonEncode(map));
+          await prefs.setString(
+            'cached_wallet_approval_requests',
+            jsonEncode(map),
+          );
           notifyListeners();
           return;
         }
@@ -1371,35 +1462,64 @@ class OperationsProvider extends ChangeNotifier {
   }
 
   void addWalletApprovalRequest(WalletApprovalRequestItem item) {
-    _walletApprovalRequests.removeWhere((r) => r.id == item.id || r.requestId == item.requestId);
+    _walletApprovalRequests.removeWhere(
+      (r) => r.id == item.id || r.requestId == item.requestId,
+    );
     _walletApprovalRequests.insert(0, item);
     notifyListeners();
   }
 
-  Future<bool> forwardWalletRequestToSm(String requestId, {String remarks = 'ASM verified 4 closed admissions. Recommended.'}) async {
+  Future<bool> forwardWalletRequestToSm(
+    String requestId, {
+    String remarks = 'ASM verified admissions & recommended.',
+  }) async {
     try {
-      final idx = _walletApprovalRequests.indexWhere((r) => r.id == requestId || r.requestId == requestId);
-      final reqCode = (idx != -1 && _walletApprovalRequests[idx].requestId.isNotEmpty)
+      final idx = _walletApprovalRequests.indexWhere(
+        (r) => r.id == requestId || r.requestId == requestId,
+      );
+      final reqCode =
+          (idx != -1 && _walletApprovalRequests[idx].requestId.isNotEmpty)
           ? _walletApprovalRequests[idx].requestId
+          : requestId;
+      final mongoId = (idx != -1 && _walletApprovalRequests[idx].id.isNotEmpty)
+          ? _walletApprovalRequests[idx].id
           : requestId;
 
       final payload = {
         'request_id': reqCode,
+        'id': mongoId,
+        '_id': mongoId,
         'action': 'forward_to_sm',
         'remarks': remarks,
         'notes': remarks,
       };
       try {
-        await ApiClient.instance.post(ApiEndpoints.walletWorkflow, data: payload);
+        await ApiClient.instance.post(
+          ApiEndpoints.walletWorkflow,
+          data: payload,
+        );
       } catch (e) {
         debugPrint('[forwardWalletRequestToSm] API call: $e');
+        if (mongoId != reqCode) {
+          payload['request_id'] = mongoId;
+          try {
+            await ApiClient.instance.post(
+              ApiEndpoints.walletWorkflow,
+              data: payload,
+            );
+          } catch (_) {}
+        }
       }
 
       if (idx != -1) {
         final current = _walletApprovalRequests[idx];
         current.status = 'Forwarded to SM';
         current.statusLabel = 'Pending';
-        final exists = current.approvalHistory.any((h) => h.stage.toLowerCase().contains('sm') || h.action == 'FORWARD_TO_SM');
+        final exists = current.approvalHistory.any(
+          (h) =>
+              h.stage.toLowerCase().contains('sm') ||
+              h.action == 'FORWARD_TO_SM',
+        );
         if (!exists) {
           current.approvalHistory.add(
             WalletApprovalStage(
@@ -1423,12 +1543,19 @@ class OperationsProvider extends ChangeNotifier {
 
   Future<bool> forwardWalletRequestToAccounts(
     String requestId, {
-    String remarks = 'Verified admissions and eligibility. Forwarded to Accounts for sanction.',
+    String remarks =
+        'Verified admissions and eligibility. Forwarded to Accounts for sanction.',
   }) async {
     try {
-      final idx = _walletApprovalRequests.indexWhere((r) => r.id == requestId || r.requestId == requestId);
-      final reqCode = (idx != -1 && _walletApprovalRequests[idx].requestId.isNotEmpty)
+      final idx = _walletApprovalRequests.indexWhere(
+        (r) => r.id == requestId || r.requestId == requestId,
+      );
+      final reqCode =
+          (idx != -1 && _walletApprovalRequests[idx].requestId.isNotEmpty)
           ? _walletApprovalRequests[idx].requestId
+          : requestId;
+      final mongoId = (idx != -1 && _walletApprovalRequests[idx].id.isNotEmpty)
+          ? _walletApprovalRequests[idx].id
           : requestId;
 
       final payload = {
@@ -1439,17 +1566,28 @@ class OperationsProvider extends ChangeNotifier {
       };
 
       try {
-        final res = await ApiClient.instance.post(ApiEndpoints.walletWorkflow, data: payload);
+        final res = await ApiClient.instance.post(
+          ApiEndpoints.walletWorkflow,
+          data: payload,
+        );
         if (res.data != null && res.data is Map) {
-          final dataMap = res.data['data'] is Map ? Map<String, dynamic>.from(res.data['data']) : null;
+          final dataMap = res.data['data'] is Map
+              ? Map<String, dynamic>.from(res.data['data'])
+              : null;
           if (dataMap != null && idx != -1) {
             final current = _walletApprovalRequests[idx];
-            current.status = dataMap['status']?.toString() ?? 'Forwarded to Accounts';
-            current.statusLabel = dataMap['status_label']?.toString() ?? 'Pending';
+            current.status =
+                dataMap['status']?.toString() ?? 'Forwarded to Accounts';
+            current.statusLabel =
+                dataMap['status_label']?.toString() ?? 'Pending';
             if (dataMap['approval_history'] is List) {
               final newHistory = (dataMap['approval_history'] as List)
                   .whereType<Map>()
-                  .map((e) => WalletApprovalStage.fromJson(Map<String, dynamic>.from(e)))
+                  .map(
+                    (e) => WalletApprovalStage.fromJson(
+                      Map<String, dynamic>.from(e),
+                    ),
+                  )
                   .toList();
               current.approvalHistory = newHistory;
             }
@@ -1463,7 +1601,11 @@ class OperationsProvider extends ChangeNotifier {
         final current = _walletApprovalRequests[idx];
         current.status = 'Forwarded to Accounts';
         current.statusLabel = 'Pending';
-        final exists = current.approvalHistory.any((h) => h.stage.toLowerCase().contains('accounts') || h.action == 'FORWARD_TO_ACCOUNTS');
+        final exists = current.approvalHistory.any(
+          (h) =>
+              h.stage.toLowerCase().contains('accounts') ||
+              h.action == 'FORWARD_TO_ACCOUNTS',
+        );
         if (!exists) {
           current.approvalHistory.add(
             WalletApprovalStage(
@@ -1497,7 +1639,11 @@ class OperationsProvider extends ChangeNotifier {
     }
   }
 
-  Future<bool> disburseWalletRequest(String requestId, {required String transactionId, String notes = 'Disbursed to employee'}) async {
+  Future<bool> disburseWalletRequest(
+    String requestId, {
+    required String transactionId,
+    String notes = 'Disbursed to employee',
+  }) async {
     try {
       final payload = {
         'request_id': requestId,
@@ -1506,12 +1652,17 @@ class OperationsProvider extends ChangeNotifier {
         'notes': notes,
       };
       try {
-        await ApiClient.instance.post(ApiEndpoints.walletWorkflow, data: payload);
+        await ApiClient.instance.post(
+          ApiEndpoints.walletWorkflow,
+          data: payload,
+        );
       } catch (e) {
         debugPrint('[disburseWalletRequest] API call: $e');
       }
 
-      final idx = _walletApprovalRequests.indexWhere((r) => r.id == requestId || r.requestId == requestId);
+      final idx = _walletApprovalRequests.indexWhere(
+        (r) => r.id == requestId || r.requestId == requestId,
+      );
       if (idx != -1) {
         final current = _walletApprovalRequests[idx];
         current.status = 'Paid';
@@ -1581,7 +1732,8 @@ class OperationsProvider extends ChangeNotifier {
         availableBalance: 12000,
         status: 'Pending_ASM',
         statusLabel: 'Pending',
-        remarks: 'Monthly incentive withdrawal for target milestone achievement.',
+        remarks:
+            'Monthly incentive withdrawal for target milestone achievement.',
         approvalHistory: const [
           WalletApprovalStage(
             stage: 'Submitted to ASM',
@@ -1870,7 +2022,9 @@ class OperationsProvider extends ChangeNotifier {
     if (clean.startsWith('LD_')) {
       return 'LD-${clean.substring(3)}';
     }
-    if (clean.toUpperCase().startsWith('LD') && clean.length > 2 && RegExp(r'^\d+$').hasMatch(clean.substring(2))) {
+    if (clean.toUpperCase().startsWith('LD') &&
+        clean.length > 2 &&
+        RegExp(r'^\d+$').hasMatch(clean.substring(2))) {
       return 'LD-${clean.substring(2)}';
     }
     if (RegExp(r'^\d+$').hasMatch(clean)) {
@@ -1881,20 +2035,26 @@ class OperationsProvider extends ChangeNotifier {
 
   /// Resolves the canonical alphanumeric lead ID (e.g. "LD-1759") from given leadId or fallback.
   String resolveLeadId(String? leadId, String fallbackId) {
-    String candidate = (leadId != null && leadId.trim().isNotEmpty) ? leadId.trim() : fallbackId.trim();
+    String candidate = (leadId != null && leadId.trim().isNotEmpty)
+        ? leadId.trim()
+        : fallbackId.trim();
 
-    final matchedTask = _tasks.where((t) =>
-        t.id == candidate ||
-        t.leadId == candidate ||
-        t.leadIdentifier == candidate ||
-        t.id == fallbackId ||
-        t.leadId == fallbackId
-    ).firstOrNull;
+    final matchedTask = _tasks
+        .where(
+          (t) =>
+              t.id == candidate ||
+              t.leadId == candidate ||
+              t.leadIdentifier == candidate ||
+              t.id == fallbackId ||
+              t.leadId == fallbackId,
+        )
+        .firstOrNull;
 
     if (matchedTask != null) {
       if (matchedTask.leadId != null && matchedTask.leadId!.trim().isNotEmpty) {
         candidate = matchedTask.leadId!.trim();
-      } else if (matchedTask.leadIdentifier.isNotEmpty && !RegExp(r'^\d{7,}$').hasMatch(matchedTask.leadIdentifier)) {
+      } else if (matchedTask.leadIdentifier.isNotEmpty &&
+          !RegExp(r'^\d{7,}$').hasMatch(matchedTask.leadIdentifier)) {
         candidate = matchedTask.leadIdentifier;
       }
     }
@@ -1934,23 +2094,29 @@ class OperationsProvider extends ChangeNotifier {
         payload['attachment'] = proofPath;
       }
 
-      debugPrint('[saveFollowUp] Posting to /leads/$targetLeadId/followup: $payload');
+      debugPrint(
+        '[saveFollowUp] Posting to /leads/$targetLeadId/followup: $payload',
+      );
       await ApiClient.instance.post(
         ApiEndpoints.followUpLead(targetLeadId),
         data: payload,
       );
 
       // Update local state
-      final index = _tasks.indexWhere((t) => t.id == leadId || t.leadId == targetLeadId || t.id == targetLeadId);
+      final index = _tasks.indexWhere(
+        (t) =>
+            t.id == leadId || t.leadId == targetLeadId || t.id == targetLeadId,
+      );
       if (index != -1) {
         final currentTask = _tasks[index];
-        final updatedFollowUps = List<FollowUpItem>.from(
-          currentTask.followUps ?? [],
-        )..add(FollowUpItem(
-            dateTime: nextFollowupDate,
-            remark: remarks,
-            attachment: proofPath,
-          ));
+        final updatedFollowUps =
+            List<FollowUpItem>.from(currentTask.followUps ?? [])..add(
+              FollowUpItem(
+                dateTime: nextFollowupDate,
+                remark: remarks,
+                attachment: proofPath,
+              ),
+            );
 
         _tasks[index] = currentTask.copyWith(
           studentId: studentId.isNotEmpty ? studentId : currentTask.studentId,
@@ -2298,10 +2464,7 @@ class OperationsProvider extends ChangeNotifier {
           } else if (rawBalances is List) {
             for (final b in rawBalances) {
               if (b is Map) {
-                final type = (b['type'] ??
-                        b['name'] ??
-                        b['leave_type'] ??
-                        '')
+                final type = (b['type'] ?? b['name'] ?? b['leave_type'] ?? '')
                     .toString()
                     .toLowerCase();
                 final val =
@@ -2381,11 +2544,13 @@ class OperationsProvider extends ChangeNotifier {
               mappedLeaveType = 'Leave';
             }
 
-            final fromDate = DateTime.tryParse(
+            final fromDate =
+                DateTime.tryParse(
                   (item['start_date'] ?? item['from_date'] ?? '').toString(),
                 ) ??
                 DateTime.now();
-            final toDate = DateTime.tryParse(
+            final toDate =
+                DateTime.tryParse(
                   (item['end_date'] ?? item['to_date'] ?? '').toString(),
                 ) ??
                 fromDate;
@@ -2407,7 +2572,8 @@ class OperationsProvider extends ChangeNotifier {
               status = rawStatus.toString();
             }
 
-            final appliedDate = DateTime.tryParse(
+            final appliedDate =
+                DateTime.tryParse(
                   (item['applied_on'] ??
                           item['applied_date'] ??
                           item['created_at'] ??
@@ -2560,18 +2726,24 @@ class OperationsProvider extends ChangeNotifier {
         'remarks': remarks,
       };
 
-      debugPrint('[closeLead] Sending payload to /leads/$targetLeadId/close: $payload');
+      debugPrint(
+        '[closeLead] Sending payload to /leads/$targetLeadId/close: $payload',
+      );
       await ApiClient.instance.post(
         ApiEndpoints.closeLead(targetLeadId),
         data: payload,
       );
 
       // Update local state to reflect the change immediately in the UI.
-      final index = _tasks.indexWhere((t) => t.id == id || t.leadId == targetLeadId || t.id == targetLeadId);
+      final index = _tasks.indexWhere(
+        (t) => t.id == id || t.leadId == targetLeadId || t.id == targetLeadId,
+      );
       if (index != -1) {
         final currentTask = _tasks[index];
         _tasks[index] = currentTask.copyWith(
-          studentId: (studentId != null && studentId.isNotEmpty) ? studentId : currentTask.studentId,
+          studentId: (studentId != null && studentId.isNotEmpty)
+              ? studentId
+              : currentTask.studentId,
           status: 'Completed',
           leadStatus: 'Closed',
           completedDate: DateTime.now(),
@@ -2629,14 +2801,19 @@ class OperationsProvider extends ChangeNotifier {
           final payload = <String, dynamic>{
             'lead_id': targetLeadId,
             'student_id': studentId ?? 'STU-$targetLeadId',
-            'course': (course != null && course.isNotEmpty) ? course : 'Full-Stack Web Development',
+            'course': (course != null && course.isNotEmpty)
+                ? course
+                : 'Full-Stack Web Development',
             'payment': payment ?? 0,
-            'payment_verification': (paymentVerification != null && paymentVerification.isNotEmpty)
+            'payment_verification':
+                (paymentVerification != null && paymentVerification.isNotEmpty)
                 ? paymentVerification
                 : 'Verified',
             'remarks': remarks,
           };
-          debugPrint('[updateTaskStatus] Sending payload to /leads/$targetLeadId/close: $payload');
+          debugPrint(
+            '[updateTaskStatus] Sending payload to /leads/$targetLeadId/close: $payload',
+          );
           await ApiClient.instance.post(
             ApiEndpoints.closeLead(targetLeadId),
             data: payload,
@@ -2745,9 +2922,7 @@ class OperationsProvider extends ChangeNotifier {
   CourseModel? findCourseByName(String name) {
     final lower = name.trim().toLowerCase();
     try {
-      return _coursesList.firstWhere(
-        (c) => c.name.toLowerCase() == lower,
-      );
+      return _coursesList.firstWhere((c) => c.name.toLowerCase() == lower);
     } catch (_) {
       return null;
     }
@@ -2799,10 +2974,7 @@ class OperationsProvider extends ChangeNotifier {
               .map((c) => CourseModel.fromJson(Map<String, dynamic>.from(c)))
               .toList();
           _courses = _coursesList.map((c) => c.toJson()).toList();
-          await prefs.setString(
-            'cached_courses_list',
-            jsonEncode(_courses),
-          );
+          await prefs.setString('cached_courses_list', jsonEncode(_courses));
         }
       }
     } catch (e) {
@@ -2975,7 +3147,8 @@ class OperationsProvider extends ChangeNotifier {
 
   Future<void> fetchDistricts({bool isRefresh = false}) async {
     if (_isLoadingDistricts) return;
-    if (!isRefresh && _districtsList.isNotEmpty && _districts.isNotEmpty) return;
+    if (!isRefresh && _districtsList.isNotEmpty && _districts.isNotEmpty)
+      return;
 
     final prefs = await SharedPreferences.getInstance();
     if (_districtsList.isEmpty) {
@@ -2986,7 +3159,9 @@ class OperationsProvider extends ChangeNotifier {
           if (decoded is List) {
             _districtsList = decoded
                 .whereType<Map>()
-                .map((e) => DistrictModel.fromJson(Map<String, dynamic>.from(e)))
+                .map(
+                  (e) => DistrictModel.fromJson(Map<String, dynamic>.from(e)),
+                )
                 .toList();
             _districts = _districtsList.map((d) => d.toJson()).toList();
             notifyListeners();
@@ -3039,20 +3214,76 @@ class OperationsProvider extends ChangeNotifier {
 
   List<DistrictModel> _getDefaultDistricts() {
     return const [
-      DistrictModel(id: '6724b1b2c3d4e5f607182910', name: 'Thiruvananthapuram', zone: 'South Zone'),
-      DistrictModel(id: '6724b1b2c3d4e5f607182911', name: 'Kollam', zone: 'South Zone'),
-      DistrictModel(id: '6724b1b2c3d4e5f607182912', name: 'Pathanamthitta', zone: 'South Zone'),
-      DistrictModel(id: '6724b1b2c3d4e5f607182913', name: 'Alappuzha', zone: 'South Zone'),
-      DistrictModel(id: '6724b1b2c3d4e5f607182914', name: 'Kottayam', zone: 'South Zone'),
-      DistrictModel(id: '6724b1b2c3d4e5f607182915', name: 'Idukki', zone: 'Central Zone'),
-      DistrictModel(id: '6724b1b2c3d4e5f607182916', name: 'Ernakulam', zone: 'Central Zone'),
-      DistrictModel(id: '6724b1b2c3d4e5f607182917', name: 'Thrissur', zone: 'Central Zone'),
-      DistrictModel(id: '6724b1b2c3d4e5f607182918', name: 'Palakkad', zone: 'Central Zone'),
-      DistrictModel(id: '6724b1b2c3d4e5f607182919', name: 'Malappuram', zone: 'Central Zone'),
-      DistrictModel(id: '6724b1b2c3d4e5f607182920', name: 'Kozhikode', zone: 'North Zone'),
-      DistrictModel(id: '6724b1b2c3d4e5f607182921', name: 'Wayanad', zone: 'North Zone'),
-      DistrictModel(id: '6724b1b2c3d4e5f607182922', name: 'Kannur', zone: 'North Zone'),
-      DistrictModel(id: '6724b1b2c3d4e5f607182923', name: 'Kasaragod', zone: 'North Zone'),
+      DistrictModel(
+        id: '6724b1b2c3d4e5f607182910',
+        name: 'Thiruvananthapuram',
+        zone: 'South Zone',
+      ),
+      DistrictModel(
+        id: '6724b1b2c3d4e5f607182911',
+        name: 'Kollam',
+        zone: 'South Zone',
+      ),
+      DistrictModel(
+        id: '6724b1b2c3d4e5f607182912',
+        name: 'Pathanamthitta',
+        zone: 'South Zone',
+      ),
+      DistrictModel(
+        id: '6724b1b2c3d4e5f607182913',
+        name: 'Alappuzha',
+        zone: 'South Zone',
+      ),
+      DistrictModel(
+        id: '6724b1b2c3d4e5f607182914',
+        name: 'Kottayam',
+        zone: 'South Zone',
+      ),
+      DistrictModel(
+        id: '6724b1b2c3d4e5f607182915',
+        name: 'Idukki',
+        zone: 'Central Zone',
+      ),
+      DistrictModel(
+        id: '6724b1b2c3d4e5f607182916',
+        name: 'Ernakulam',
+        zone: 'Central Zone',
+      ),
+      DistrictModel(
+        id: '6724b1b2c3d4e5f607182917',
+        name: 'Thrissur',
+        zone: 'Central Zone',
+      ),
+      DistrictModel(
+        id: '6724b1b2c3d4e5f607182918',
+        name: 'Palakkad',
+        zone: 'Central Zone',
+      ),
+      DistrictModel(
+        id: '6724b1b2c3d4e5f607182919',
+        name: 'Malappuram',
+        zone: 'Central Zone',
+      ),
+      DistrictModel(
+        id: '6724b1b2c3d4e5f607182920',
+        name: 'Kozhikode',
+        zone: 'North Zone',
+      ),
+      DistrictModel(
+        id: '6724b1b2c3d4e5f607182921',
+        name: 'Wayanad',
+        zone: 'North Zone',
+      ),
+      DistrictModel(
+        id: '6724b1b2c3d4e5f607182922',
+        name: 'Kannur',
+        zone: 'North Zone',
+      ),
+      DistrictModel(
+        id: '6724b1b2c3d4e5f607182923',
+        name: 'Kasaragod',
+        zone: 'North Zone',
+      ),
     ];
   }
 
@@ -3066,13 +3297,21 @@ class OperationsProvider extends ChangeNotifier {
   List<String> getDistrictNamesByZone(String? zoneName) {
     if (zoneName != null && zoneName.isNotEmpty) {
       final matched = _districtsList
-          .where((d) => d.zone.toLowerCase().trim() == zoneName.toLowerCase().trim())
+          .where(
+            (d) => d.zone.toLowerCase().trim() == zoneName.toLowerCase().trim(),
+          )
           .map((d) => d.name)
           .toSet()
           .toList();
       if (matched.isNotEmpty) return matched;
       if (zoneName.contains('South')) {
-        return ['Thiruvananthapuram', 'Kollam', 'Pathanamthitta', 'Alappuzha', 'Kottayam'];
+        return [
+          'Thiruvananthapuram',
+          'Kollam',
+          'Pathanamthitta',
+          'Alappuzha',
+          'Kottayam',
+        ];
       } else if (zoneName.contains('North')) {
         return ['Kozhikode', 'Wayanad', 'Kannur', 'Kasaragod'];
       } else if (zoneName.contains('Central')) {
@@ -3087,9 +3326,20 @@ class OperationsProvider extends ChangeNotifier {
       return _districtsList.map((d) => d.name).toSet().toList();
     }
     return [
-      'Thiruvananthapuram', 'Kollam', 'Pathanamthitta', 'Alappuzha', 'Kottayam',
-      'Idukki', 'Ernakulam', 'Thrissur', 'Palakkad', 'Malappuram',
-      'Kozhikode', 'Wayanad', 'Kannur', 'Kasaragod',
+      'Thiruvananthapuram',
+      'Kollam',
+      'Pathanamthitta',
+      'Alappuzha',
+      'Kottayam',
+      'Idukki',
+      'Ernakulam',
+      'Thrissur',
+      'Palakkad',
+      'Malappuram',
+      'Kozhikode',
+      'Wayanad',
+      'Kannur',
+      'Kasaragod',
     ];
   }
 
@@ -3127,8 +3377,9 @@ class OperationsProvider extends ChangeNotifier {
             .toList();
 
         final rawEmployees = data['employees'];
-        final Map<String, dynamic> employeesMap =
-            (rawEmployees is Map) ? Map<String, dynamic>.from(rawEmployees) : {};
+        final Map<String, dynamic> employeesMap = (rawEmployees is Map)
+            ? Map<String, dynamic>.from(rawEmployees)
+            : {};
 
         if (employeesMap['BDE'] is List) {
           final List<dynamic> bdeList = employeesMap['BDE'] as List;
@@ -3199,12 +3450,17 @@ class OperationsProvider extends ChangeNotifier {
           } catch (_) {
             // Fallback to original
           }
-          return FollowUpItem(dateTime: formattedDate, remark: f.notes ?? '', attachment: f.attachment);
+          return FollowUpItem(
+            dateTime: formattedDate,
+            remark: f.notes ?? '',
+            attachment: f.attachment,
+          );
         }).toList() ??
         [];
 
     // API already scopes results via Bearer token; use session values as fallback.
-    final effectiveStudentId = (lead.studentId != null && lead.studentId!.trim().isNotEmpty)
+    final effectiveStudentId =
+        (lead.studentId != null && lead.studentId!.trim().isNotEmpty)
         ? lead.studentId!.trim()
         : 'STU-${actualLeadId.isNotEmpty ? actualLeadId.replaceAll("LD-", "").replaceAll("LD_", "") : lead.id}';
 
@@ -3221,7 +3477,9 @@ class OperationsProvider extends ChangeNotifier {
       assignedDate: lead.createdAt,
       assignedBdeEmail: currentUser.email,
       team: teamName,
-      district: lead.district?.name ?? (lead.districtName ?? currentUser.district ?? ''),
+      district:
+          lead.district?.name ??
+          (lead.districtName ?? currentUser.district ?? ''),
       zone: zoneName,
       creatorEmail: currentUser.email,
       status: lead.isCompleted ? 'Completed' : 'Pending',
@@ -3408,62 +3666,74 @@ class OperationsProvider extends ChangeNotifier {
     notifyListeners();
     try {
       // Map course_id back to name if not provided
-      final courseName = (interestedCourseName != null && interestedCourseName.isNotEmpty)
+      final courseName =
+          (interestedCourseName != null && interestedCourseName.isNotEmpty)
           ? interestedCourseName
           : (courseId != null
-              ? (_courses.firstWhere(
-                    (c) => c['id'] == courseId,
-                    orElse: () => {'name': 'Full-Stack Web Development'},
-                  )['name']?.toString() ??
-                  'Full-Stack Web Development')
-              : 'Full-Stack Web Development');
+                ? (_courses
+                          .firstWhere(
+                            (c) => c['id'] == courseId,
+                            orElse: () => {
+                              'name': 'Full-Stack Web Development',
+                            },
+                          )['name']
+                          ?.toString() ??
+                      'Full-Stack Web Development')
+                : 'Full-Stack Web Development');
 
       // Map district_id back to name if not provided
       final district = (districtName != null && districtName.isNotEmpty)
           ? districtName
           : (districtId != null
-              ? (_districts.firstWhere(
-                    (d) => d['id'] == districtId,
-                    orElse: () => {'name': 'Ernakulam'},
-                  )['name']?.toString() ??
-                  'Ernakulam')
-              : 'Ernakulam');
+                ? (_districts
+                          .firstWhere(
+                            (d) => d['id'] == districtId,
+                            orElse: () => {'name': 'Ernakulam'},
+                          )['name']
+                          ?.toString() ??
+                      'Ernakulam')
+                : 'Ernakulam');
 
       // Resolve lead source string
-      final String resolvedLeadSource = (leadSourceName != null && leadSourceName.isNotEmpty)
+      final String resolvedLeadSource =
+          (leadSourceName != null && leadSourceName.isNotEmpty)
           ? leadSourceName
           : (source == 1
-              ? 'Cold Call'
-              : source == 2
-                  ? 'Referral'
-                  : source == 3
-                      ? 'Website'
-                      : source == 4
-                          ? 'Advertisement'
-                          : source == 5
-                              ? 'Campus Drive / College Seminar'
-                              : 'Campus Drive / College Seminar');
+                ? 'Cold Call'
+                : source == 2
+                ? 'Referral'
+                : source == 3
+                ? 'Website'
+                : source == 4
+                ? 'Advertisement'
+                : source == 5
+                ? 'Campus Drive / College Seminar'
+                : 'Campus Drive / College Seminar');
 
       // Resolve admission status
-      final String resolvedAdmissionStatus = (admissionStatus != null && admissionStatus.isNotEmpty)
+      final String resolvedAdmissionStatus =
+          (admissionStatus != null && admissionStatus.isNotEmpty)
           ? admissionStatus
           : (status == 1
-              ? 'New'
-              : status == 4
-                  ? 'Admitted'
-                  : 'Closed');
+                ? 'New'
+                : status == 4
+                ? 'Admitted'
+                : 'Closed');
 
       // Resolve employee name
-      final String resolvedEmployee = (employeeName != null && employeeName.isNotEmpty)
+      final String resolvedEmployee =
+          (employeeName != null && employeeName.isNotEmpty)
           ? employeeName
           : (AuthProvider.instance.session.name.isNotEmpty
-              ? AuthProvider.instance.session.name
-              : (UserProfileProvider.instance.state.data?.name ?? ''));
+                ? AuthProvider.instance.session.name
+                : (UserProfileProvider.instance.state.data?.name ?? ''));
 
       final payload = {
         'name': name,
         'phone': phone,
-        'whatsapp_number': (whatsappNumber != null && whatsappNumber.isNotEmpty) ? whatsappNumber : phone,
+        'whatsapp_number': (whatsappNumber != null && whatsappNumber.isNotEmpty)
+            ? whatsappNumber
+            : phone,
         'email': email,
         'address': address,
         'place': (place != null && place.isNotEmpty) ? place : address,
@@ -3481,7 +3751,8 @@ class OperationsProvider extends ChangeNotifier {
         'admission_status': resolvedAdmissionStatus,
         'status': status ?? 1,
         if (resolvedEmployee.isNotEmpty) 'employee': resolvedEmployee,
-        if (assignedEmployeeId != null && assignedEmployeeId > 0) 'assigned_employee_id': assignedEmployeeId,
+        if (assignedEmployeeId != null && assignedEmployeeId > 0)
+          'assigned_employee_id': assignedEmployeeId,
         'notes': notes,
       };
 
@@ -3499,22 +3770,30 @@ class OperationsProvider extends ChangeNotifier {
           rawData = rawData['data'];
         }
         Map<String, dynamic> leadData = {};
-        if (rawData is Map && rawData.containsKey('lead') && rawData['lead'] is Map) {
+        if (rawData is Map &&
+            rawData.containsKey('lead') &&
+            rawData['lead'] is Map) {
           leadData = Map<String, dynamic>.from(rawData['lead'] as Map);
         } else if (rawData is Map) {
           leadData = Map<String, dynamic>.from(rawData);
         }
 
-        final rawLeadId = (leadData['lead_id'] ?? leadData['leadId'])?.toString().trim();
+        final rawLeadId = (leadData['lead_id'] ?? leadData['leadId'])
+            ?.toString()
+            .trim();
         final actualId = (rawLeadId != null && rawLeadId.isNotEmpty)
-            ? (rawLeadId.startsWith('LD_') ? 'LD-${rawLeadId.substring(3)}' : rawLeadId)
+            ? (rawLeadId.startsWith('LD_')
+                  ? 'LD-${rawLeadId.substring(3)}'
+                  : rawLeadId)
             : 'LD-${leadData['id'] ?? DateTime.now().millisecondsSinceEpoch.toString().substring(9)}';
 
         // Add to local list to reflect in UI immediately
         final newLead = TaskModel(
           id: actualId,
           leadId: actualId,
-          studentId: leadData['student_id']?.toString() ?? 'STU-${actualId.replaceAll("LD-", "").replaceAll("LD_", "")}',
+          studentId:
+              leadData['student_id']?.toString() ??
+              'STU-${actualId.replaceAll("LD-", "").replaceAll("LD_", "")}',
           studentName: name,
           location: address,
           course: courseName,
@@ -3529,7 +3808,9 @@ class OperationsProvider extends ChangeNotifier {
           leadStatus: resolvedAdmissionStatus,
           phone: phone,
           email: email,
-          whatsappNumber: (whatsappNumber != null && whatsappNumber.isNotEmpty) ? whatsappNumber : phone,
+          whatsappNumber: (whatsappNumber != null && whatsappNumber.isNotEmpty)
+              ? whatsappNumber
+              : phone,
           place: (place != null && place.isNotEmpty) ? place : address,
           age: age,
           qualification: qualification,
@@ -3589,11 +3870,7 @@ class OperationsProvider extends ChangeNotifier {
         final String message = data is Map && data['message'] != null
             ? data['message'].toString()
             : 'Institution details uploaded successfully!';
-        return {
-          'success': true,
-          'message': message,
-          'data': data,
-        };
+        return {'success': true, 'message': message, 'data': data};
       }
       return {
         'success': false,

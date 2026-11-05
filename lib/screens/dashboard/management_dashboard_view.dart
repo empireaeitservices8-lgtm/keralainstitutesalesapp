@@ -15,6 +15,7 @@ import '../../utils/helpers.dart';
 import 'create_asm_sheet.dart';
 import 'create_bde_sheet.dart';
 import 'requests_approvals_screen.dart';
+import '../asm/bde_details_screen.dart';
 
 class ManagementDashboardView extends StatelessWidget {
   final HomeDashboardModel data;
@@ -399,7 +400,8 @@ class ManagementDashboardView extends StatelessWidget {
       builder: (context, _) {
         final currentAtt = AttendanceProvider.instance.currentAttendance;
         final providerHomeAtt = AttendanceProvider.instance.todayHomeAttendance;
-        final effectiveAtt = providerHomeAtt ?? apiAttendance ?? data.attendance;
+        final effectiveAtt =
+            providerHomeAtt ?? apiAttendance ?? data.attendance;
 
         final bool hasProviderCheckIn = currentAtt.status != 'Absent';
         final bool hasProviderCheckOut = currentAtt.checkOutTime != null;
@@ -462,12 +464,14 @@ class ManagementDashboardView extends StatelessWidget {
             (currentAtt.statusText?.isNotEmpty == true
                 ? currentAtt.statusText!
                 : (checkedOut
-                    ? 'LOGGED OUT'
-                    : (checkedIn ? 'LOGGED IN' : 'NOT LOGGED IN')));
+                      ? 'LOGGED OUT'
+                      : (checkedIn ? 'LOGGED IN' : 'NOT LOGGED IN')));
 
         final String? effectiveDate = (providerHomeAtt?.date.isNotEmpty == true)
             ? providerHomeAtt!.date
-            : ((effectiveAtt?.date.isNotEmpty == true) ? effectiveAtt!.date : null);
+            : ((effectiveAtt?.date.isNotEmpty == true)
+                  ? effectiveAtt!.date
+                  : null);
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -7031,212 +7035,222 @@ class ManagementDashboardView extends StatelessWidget {
                   ),
                 ],
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Row(
-                        children: [
-                          CircleAvatar(
-                            radius: 18,
-                            backgroundColor: const Color(
-                              0xFF0F766E,
-                            ).withOpacity(0.12),
-                            child: Text(
-                              bde.name.isNotEmpty
-                                  ? bde.name.substring(0, 1).toUpperCase()
-                                  : 'B',
-                              style: const TextStyle(
-                                color: Color(0xFF0F766E),
-                                fontWeight: FontWeight.bold,
-                                fontSize: 13,
+              child: GestureDetector(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => BdeDetailsScreen(bde: bde),
+                    ),
+                  );
+                },
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          children: [
+                            CircleAvatar(
+                              radius: 18,
+                              backgroundColor: const Color(
+                                0xFF0F766E,
+                              ).withOpacity(0.12),
+                              child: Text(
+                                bde.name.isNotEmpty
+                                    ? bde.name.substring(0, 1).toUpperCase()
+                                    : 'B',
+                                style: const TextStyle(
+                                  color: Color(0xFF0F766E),
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 13,
+                                ),
                               ),
                             ),
-                          ),
-                          const SizedBox(width: 10),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Text(
-                                    bde.name,
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 13.5,
-                                      color: AppColors.textPrimary,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 6),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 6,
-                                      vertical: 1.5,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFFF1F5F9),
-                                      borderRadius: BorderRadius.circular(6),
-                                    ),
-                                    child: Text(
-                                      bde.employeeId,
+                            const SizedBox(width: 10),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Text(
+                                      bde.name,
                                       style: const TextStyle(
-                                        fontSize: 9.5,
                                         fontWeight: FontWeight.bold,
-                                        color: Color(0xFF475569),
+                                        fontSize: 13.5,
+                                        color: AppColors.textPrimary,
                                       ),
                                     ),
+                                    const SizedBox(width: 6),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 6,
+                                        vertical: 1.5,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFF1F5F9),
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      child: Text(
+                                        bde.employeeId,
+                                        style: const TextStyle(
+                                          fontSize: 9.5,
+                                          fontWeight: FontWeight.bold,
+                                          color: Color(0xFF475569),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  '${bde.zone.isNotEmpty ? '${bde.zone} • ' : ''}${bde.district} • ${bde.team}',
+                                  style: const TextStyle(
+                                    fontSize: 10.5,
+                                    color: AppColors.textSecondary,
                                   ),
-                                ],
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                '${bde.district} • ${bde.team}',
-                                style: const TextStyle(
-                                  fontSize: 10.5,
-                                  color: AppColors.textSecondary,
                                 ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 3,
+                              ],
+                            ),
+                          ],
                         ),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFECFDF5),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: const Color(0xFFA7F3D0)),
-                        ),
-                        child: Text(
-                          bde.status.toUpperCase(),
-                          style: const TextStyle(
-                            fontSize: 9.5,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF059669),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  // Performance Row: Leads Assigned, Admissions Closed, Conversion Rate
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Container(
+                        Container(
                           padding: const EdgeInsets.symmetric(
-                            vertical: 8,
-                            horizontal: 10,
+                            horizontal: 8,
+                            vertical: 3,
                           ),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFF8FAFC),
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(color: const Color(0xFFE2E8F0)),
+                            color: const Color(0xFFECFDF5),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: const Color(0xFFA7F3D0)),
                           ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text(
-                                'LEADS',
-                                style: TextStyle(
-                                  fontSize: 9,
-                                  fontWeight: FontWeight.w700,
-                                  color: Color(0xFF64748B),
-                                ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                '${bde.leadsAssigned}',
-                                style: const TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.bold,
-                                  color: Color(0xFF0F172A),
-                                ),
-                              ),
-                            ],
+                          child: Text(
+                            bde.status.toUpperCase(),
+                            style: const TextStyle(
+                              fontSize: 9.5,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF059669),
+                            ),
                           ),
                         ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            vertical: 8,
-                            horizontal: 10,
-                          ),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFF8FAFC),
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(color: const Color(0xFFE2E8F0)),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text(
-                                'ADMISSIONS',
-                                style: TextStyle(
-                                  fontSize: 9,
-                                  fontWeight: FontWeight.w700,
-                                  color: Color(0xFF64748B),
-                                ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                '${bde.admissionsClosed}',
-                                style: const TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.bold,
-                                  color: Color(0xFF0F172A),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            vertical: 8,
-                            horizontal: 10,
-                          ),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFF0FDF4),
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(color: const Color(0xFFBBF7D0)),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text(
-                                'CONVERSION',
-                                style: TextStyle(
-                                  fontSize: 9,
-                                  fontWeight: FontWeight.w700,
-                                  color: Color(0xFF16A34A),
-                                ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                bde.conversionRate,
-                                style: const TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.bold,
-                                  color: Color(0xFF15803D),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    // Performance Row: Leads Assigned, Admissions Closed, Conversion Rate
+                    // Row(
+                    //   children: [
+                    //     Expanded(
+                    //       child: Container(
+                    //         padding: const EdgeInsets.symmetric(
+                    //           vertical: 8,
+                    //           horizontal: 10,
+                    //         ),
+                    //         decoration: BoxDecoration(
+                    //           color: const Color(0xFFF8FAFC),
+                    //           borderRadius: BorderRadius.circular(10),
+                    //           border: Border.all(color: const Color(0xFFE2E8F0)),
+                    //         ),
+                    //         child: Column(
+                    //           crossAxisAlignment: CrossAxisAlignment.start,
+                    //           children: [
+                    //             const Text(
+                    //               'LEADS',
+                    //               style: TextStyle(
+                    //                 fontSize: 9,
+                    //                 fontWeight: FontWeight.w700,
+                    //                 color: Color(0xFF64748B),
+                    //               ),
+                    //             ),
+                    //             const SizedBox(height: 2),
+                    //             Text(
+                    //               '${bde.leadsAssigned}',
+                    //               style: const TextStyle(
+                    //                 fontSize: 13,
+                    //                 fontWeight: FontWeight.bold,
+                    //                 color: Color(0xFF0F172A),
+                    //               ),
+                    //             ),
+                    //           ],
+                    //         ),
+                    //       ),
+                    //     ),
+                    //     const SizedBox(width: 8),
+                    //     Expanded(
+                    //       child: Container(
+                    //         padding: const EdgeInsets.symmetric(
+                    //           vertical: 8,
+                    //           horizontal: 10,
+                    //         ),
+                    //         decoration: BoxDecoration(
+                    //           color: const Color(0xFFF8FAFC),
+                    //           borderRadius: BorderRadius.circular(10),
+                    //           border: Border.all(color: const Color(0xFFE2E8F0)),
+                    //         ),
+                    //         child: Column(
+                    //           crossAxisAlignment: CrossAxisAlignment.start,
+                    //           children: [
+                    //             const Text(
+                    //               'ADMISSIONS',
+                    //               style: TextStyle(
+                    //                 fontSize: 9,
+                    //                 fontWeight: FontWeight.w700,
+                    //                 color: Color(0xFF64748B),
+                    //               ),
+                    //             ),
+                    //             const SizedBox(height: 2),
+                    //             Text(
+                    //               '${bde.admissionsClosed}',
+                    //               style: const TextStyle(
+                    //                 fontSize: 13,
+                    //                 fontWeight: FontWeight.bold,
+                    //                 color: Color(0xFF0F172A),
+                    //               ),
+                    //             ),
+                    //           ],
+                    //         ),
+                    //       ),
+                    //     ),
+                    //     const SizedBox(width: 8),
+                    //     Expanded(
+                    //       child: Container(
+                    //         padding: const EdgeInsets.symmetric(
+                    //           vertical: 8,
+                    //           horizontal: 10,
+                    //         ),
+                    //         decoration: BoxDecoration(
+                    //           color: const Color(0xFFF0FDF4),
+                    //           borderRadius: BorderRadius.circular(10),
+                    //           border: Border.all(color: const Color(0xFFBBF7D0)),
+                    //         ),
+                    //         child: Column(
+                    //           crossAxisAlignment: CrossAxisAlignment.start,
+                    //           children: [
+                    //             const Text(
+                    //               'CONVERSION',
+                    //               style: TextStyle(
+                    //                 fontSize: 9,
+                    //                 fontWeight: FontWeight.w700,
+                    //                 color: Color(0xFF16A34A),
+                    //               ),
+                    //             ),
+                    //             const SizedBox(height: 2),
+                    //             Text(
+                    //               bde.conversionRate,
+                    //               style: const TextStyle(
+                    //                 fontSize: 13,
+                    //                 fontWeight: FontWeight.bold,
+                    //                 color: Color(0xFF15803D),
+                    //               ),
+                    //             ),
+                    //           ],
+                    //         ),
+                    //       ),
+                    //     ),
+                    //   ],
+                    // ),
+                  ],
+                ),
               ),
             );
           }),
