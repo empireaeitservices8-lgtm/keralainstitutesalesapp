@@ -140,72 +140,90 @@ class OperationsProvider extends ChangeNotifier {
     }
   }
 
-  Future<bool> createAsm({
+  Future<Map<String, dynamic>> createAsm({
     required String name,
     required String email,
     required String phone,
-    required String zone,
-    required List<String> districts,
+    required String teamCode,
+    required String password,
+    String? zone,
+    List<String>? districts,
     String? team,
-    String? teamCode,
-    String? password,
     int monthlyTarget = 45,
     int dailyTarget = 12,
   }) async {
     try {
-      final finalTeamCode = teamCode ?? _deriveTeamCode(districts, team);
-      final finalPassword = password != null && password.trim().isNotEmpty ? password.trim() : 'password123';
+      final finalTeamCode = teamCode.trim().toUpperCase();
+      final finalPassword = password.trim().isNotEmpty ? password.trim() : 'password123';
 
+      String cleanPhone = phone.trim().replaceAll(RegExp(r'[\s\-]'), '');
+      if (cleanPhone.startsWith('+91') && cleanPhone.length > 10) {
+        cleanPhone = cleanPhone.substring(3);
+      } else if (cleanPhone.startsWith('91') && cleanPhone.length == 12) {
+        cleanPhone = cleanPhone.substring(2);
+      }
+
+      // API expects strictly: name, email, contact_number, password, team_code
       final payload = {
-        'name': name,
-        'email': email,
-        'contact_number': phone,
+        'name': name.trim(),
+        'email': email.trim(),
+        'contact_number': cleanPhone,
         'password': finalPassword,
         'team_code': finalTeamCode,
-        'zone': zone,
-        'districts': districts,
-        'team': team ?? '${finalTeamCode} Team',
-        'designation': 'Area Sales Manager',
-        'monthly_target': monthlyTarget,
-        'daily_target': dailyTarget,
       };
+
+      debugPrint('====================================================');
+      debugPrint('[POST ${ApiEndpoints.smCreateAsm}] Payload: $payload');
 
       String asmId = 'asm_${DateTime.now().millisecondsSinceEpoch}';
       String employeeId = 'ASM${(_smAsms.length + 1).toString().padLeft(3, '0')}';
+      String message = 'ASM $name created successfully with team $finalTeamCode.';
 
-      try {
-        final response = await ApiClient.instance.post(
-          ApiEndpoints.smCreateAsm,
-          data: payload,
-        );
-        debugPrint('[CreateAsm] Server response: ${response.statusCode}');
-        if (response.data != null && response.data is Map) {
-          final resData = response.data['data'];
-          if (resData is Map) {
-            if (resData['employee_id'] != null) employeeId = resData['employee_id'].toString();
-            if (resData['id'] != null) asmId = resData['id'].toString();
-          }
+      final response = await ApiClient.instance.post(
+        ApiEndpoints.smCreateAsm,
+        data: payload,
+      );
+
+      debugPrint('[POST ${ApiEndpoints.smCreateAsm}] Status: ${response.statusCode}');
+      debugPrint('[POST ${ApiEndpoints.smCreateAsm}] Response Body: ${response.data}');
+      debugPrint('====================================================');
+
+      if (response.data != null && response.data is Map) {
+        final dataMap = response.data as Map;
+        if (dataMap['success'] == false) {
+          return {
+            'success': false,
+            'message': dataMap['message']?.toString() ?? 'Failed to create ASM.',
+          };
         }
-      } catch (e) {
-        debugPrint('[CreateAsm] API call handled locally: $e');
-        try {
-          await ApiClient.instance.post(
-            ApiEndpoints.smAsms,
-            data: payload,
-          );
-        } catch (_) {}
+        if (dataMap['message'] != null && dataMap['message'].toString().isNotEmpty) {
+          message = dataMap['message'].toString();
+        }
+        final resData = dataMap['data'];
+        if (resData is Map) {
+          if (resData['employee_id'] != null) employeeId = resData['employee_id'].toString();
+          if (resData['id'] != null) asmId = resData['id'].toString();
+          if (resData['_id'] != null) asmId = resData['_id'].toString();
+        }
       }
+
+      final assignedDistricts = (districts != null && districts.isNotEmpty)
+          ? districts
+          : getDefaultDistrictsForTeam(finalTeamCode);
+      final assignedZone = (zone != null && zone.isNotEmpty)
+          ? zone
+          : getDefaultZoneForTeam(finalTeamCode);
 
       final newAsm = SmAsmModel(
         id: asmId,
         employeeId: employeeId,
-        name: name,
-        email: email,
-        contactNumber: phone,
+        name: name.trim(),
+        email: email.trim(),
+        contactNumber: cleanPhone,
         designation: 'Area Sales Manager',
         team: team ?? '${finalTeamCode} Team',
-        districts: districts,
-        zone: zone,
+        districts: assignedDistricts,
+        zone: assignedZone,
         reportsTo: 'SM001',
         bdesCount: 0,
         status: 'active',
@@ -232,10 +250,86 @@ class OperationsProvider extends ChangeNotifier {
       } catch (_) {}
 
       notifyListeners();
-      return true;
+
+      // Refresh list from server
+      fetchSmAsms(isRefresh: true).catchError((_) {});
+
+      return {
+        'success': true,
+        'message': message,
+        'asm': newAsm,
+      };
+    } on NetworkException catch (e) {
+      debugPrint('[CreateAsm] NetworkException: ${e.message}');
+      return {
+        'success': false,
+        'message': e.message,
+      };
+    } on ApiException catch (e) {
+      debugPrint('[CreateAsm] ApiException: ${e.message}');
+      String errMsg = e.message;
+      if (e.details != null && e.details is Map) {
+        final m = e.details as Map;
+        if (m['message'] != null) errMsg = m['message'].toString();
+        if (m['errors'] is Map) {
+          final errs = (m['errors'] as Map).values.map((v) => v is List ? v.join(', ') : v.toString()).join('\n');
+          if (errs.isNotEmpty) errMsg = errs;
+        }
+      }
+      return {
+        'success': false,
+        'message': errMsg,
+      };
     } catch (e) {
       debugPrint('[CreateAsm] Error: $e');
-      return false;
+      final errStr = e.toString()
+          .replaceAll('Exception: ', '')
+          .replaceAll('ApiException: ', '')
+          .replaceAll('[400] Bad Request: ', '');
+      return {
+        'success': false,
+        'message': errStr,
+      };
+    }
+  }
+
+  List<String> getDefaultDistrictsForTeam(String code) {
+    switch (code.toUpperCase()) {
+      case 'TVM':
+        return ['Thiruvananthapuram', 'Kollam'];
+      case 'PTM':
+        return ['Pathanamthitta', 'Alappuzha'];
+      case 'KTM':
+        return ['Kottayam', 'Idukki'];
+      case 'EKM':
+        return ['Ernakulam'];
+      case 'PKD':
+        return ['Palakkad', 'Thrissur'];
+      case 'CLT':
+        return ['Kozhikode', 'Malappuram'];
+      case 'KZD':
+        return ['Kannur', 'Wayanad', 'Kasaragod'];
+      case 'OFFICE':
+      default:
+        return ['Ernakulam'];
+    }
+  }
+
+  String getDefaultZoneForTeam(String code) {
+    switch (code.toUpperCase()) {
+      case 'TVM':
+      case 'PTM':
+        return 'South Zone';
+      case 'KTM':
+      case 'EKM':
+      case 'PKD':
+        return 'Central Zone';
+      case 'CLT':
+      case 'KZD':
+        return 'North Zone';
+      case 'OFFICE':
+      default:
+        return 'Central Zone';
     }
   }
 

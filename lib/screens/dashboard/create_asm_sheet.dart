@@ -394,7 +394,15 @@ void showCreateAsmSheet(BuildContext context) {
                         return null;
                       },
                       onChanged: (val) {
-                        setModalState(() => selectedTeamCode = val);
+                        setModalState(() {
+                          selectedTeamCode = val;
+                          if (val != null) {
+                            selectedZone = OperationsProvider.instance.getDefaultZoneForTeam(val);
+                            selectedDistricts.clear();
+                            selectedDistricts.addAll(OperationsProvider.instance.getDefaultDistrictsForTeam(val));
+                            districtValidationError = null;
+                          }
+                        });
                       },
                     ),
                     const SizedBox(height: 18),
@@ -734,21 +742,19 @@ void showCreateAsmSheet(BuildContext context) {
                                   // Validate Form fields
                                   final isValid = formKey.currentState?.validate() ?? false;
 
-                                  // Validate District selection
-                                  if (selectedDistricts.isEmpty) {
-                                    setModalState(() {
-                                      districtValidationError = 'Please select at least one assigned district.';
-                                    });
-                                  } else {
-                                    setModalState(() {
-                                      districtValidationError = null;
-                                    });
-                                  }
-
-                                  if (!isValid || selectedDistricts.isEmpty) {
+                                  if (!isValid) {
                                     UiHelpers.showSnackBar(
                                       context,
                                       'Please fill in all required fields accurately.',
+                                      Colors.redAccent,
+                                    );
+                                    return;
+                                  }
+
+                                  if (selectedTeamCode == null || selectedTeamCode!.trim().isEmpty) {
+                                    UiHelpers.showSnackBar(
+                                      context,
+                                      'Please select a Team Code.',
                                       Colors.redAccent,
                                     );
                                     return;
@@ -758,36 +764,42 @@ void showCreateAsmSheet(BuildContext context) {
                                   final email = emailController.text.trim();
                                   final phone = phoneController.text.trim();
                                   final password = passwordController.text.trim();
-                                  final mTarget = int.parse(monthlyTargetController.text.trim());
-                                  final dTarget = int.parse(dailyTargetController.text.trim());
+                                  final mTarget = int.tryParse(monthlyTargetController.text.trim()) ?? 45;
+                                  final dTarget = int.tryParse(dailyTargetController.text.trim()) ?? 12;
 
                                   setModalState(() => isSubmitting = true);
 
-                                  final success = await OperationsProvider.instance.createAsm(
+                                  final res = await OperationsProvider.instance.createAsm(
                                     name: name,
                                     email: email,
                                     phone: phone,
                                     teamCode: selectedTeamCode!,
                                     password: password,
-                                    zone: selectedZone!,
+                                    zone: selectedZone,
                                     districts: selectedDistricts.toList(),
                                     monthlyTarget: mTarget,
                                     dailyTarget: dTarget,
                                   );
 
                                   if (ctx.mounted) {
+                                    final bool success = res['success'] == true;
+                                    final String message = res['message']?.toString() ??
+                                        (success
+                                            ? 'ASM $name created successfully!'
+                                            : 'Failed to create ASM. Please try again.');
+
                                     if (success) {
                                       Navigator.pop(ctx);
                                       UiHelpers.showSnackBar(
                                         context,
-                                        'ASM $name created & assigned to ${selectedDistricts.join(', ')}!',
+                                        message,
                                         Colors.green,
                                       );
                                     } else {
                                       setModalState(() => isSubmitting = false);
                                       UiHelpers.showSnackBar(
                                         context,
-                                        'Failed to create ASM. Please check credentials or network.',
+                                        message,
                                         Colors.redAccent,
                                       );
                                     }
