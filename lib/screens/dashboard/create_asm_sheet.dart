@@ -9,9 +9,6 @@ void showCreateAsmSheet(BuildContext context) {
   if (OperationsProvider.instance.zones.isEmpty) {
     OperationsProvider.instance.fetchZones();
   }
-  if (OperationsProvider.instance.districtsList.isEmpty) {
-    OperationsProvider.instance.fetchDistricts();
-  }
 
   final formKey = GlobalKey<FormState>();
 
@@ -24,10 +21,8 @@ void showCreateAsmSheet(BuildContext context) {
 
   String? selectedZone;
   String? selectedTeamCode;
-  final Set<String> selectedDistricts = {};
   bool isPasswordVisible = false;
   bool isSubmitting = false;
-  String? districtValidationError;
 
   final Map<String, String> defaultZoneTeamCode = {
     'South Zone': 'TVM',
@@ -35,7 +30,6 @@ void showCreateAsmSheet(BuildContext context) {
     'North Zone': 'CLT',
   };
 
-  final List<String> allDistricts = OperationsProvider.instance.allDistrictNames;
   final List<String> availableZones = OperationsProvider.instance.zoneNames;
 
   showModalBottomSheet(
@@ -398,9 +392,6 @@ void showCreateAsmSheet(BuildContext context) {
                           selectedTeamCode = val;
                           if (val != null) {
                             selectedZone = OperationsProvider.instance.getDefaultZoneForTeam(val);
-                            selectedDistricts.clear();
-                            selectedDistricts.addAll(OperationsProvider.instance.getDefaultDistrictsForTeam(val));
-                            districtValidationError = null;
                           }
                         });
                       },
@@ -477,109 +468,10 @@ void showCreateAsmSheet(BuildContext context) {
                             if (selectedTeamCode == null || selectedTeamCode!.isEmpty) {
                               selectedTeamCode = defaultZoneTeamCode[val];
                             }
-                            // Auto-populate default districts for this zone from API mapping
-                            selectedDistricts.clear();
-                            selectedDistricts.addAll(OperationsProvider.instance.getDistrictNamesByZone(val));
-                            districtValidationError = null;
                           });
                         }
                       },
                     ),
-                    const SizedBox(height: 12),
-
-                    // District Selection Helper
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text(
-                          'ASSIGNED DISTRICTS *',
-                          style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.textSecondary),
-                        ),
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 4,
-                          children: [
-                            if (selectedZone != null)
-                              GestureDetector(
-                                onTap: () {
-                                  setModalState(() {
-                                    selectedDistricts.addAll(OperationsProvider.instance.getDistrictNamesByZone(selectedZone));
-                                    districtValidationError = null;
-                                  });
-                                },
-                                child: Text(
-                                  'Select All $selectedZone',
-                                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF0F766E)),
-                                ),
-                              ),
-                            if (selectedDistricts.isNotEmpty)
-                              GestureDetector(
-                                onTap: () {
-                                  setModalState(() {
-                                    selectedDistricts.clear();
-                                  });
-                                },
-                                child: const Text(
-                                  'Clear All',
-                                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFFEF4444)),
-                                ),
-                              ),
-                          ],
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 6),
-
-                    Wrap(
-                      spacing: 6,
-                      runSpacing: 6,
-                      children: allDistricts.map((dist) {
-                        final isSel = selectedDistricts.contains(dist);
-                        final isZoneMatch = selectedZone != null &&
-                            OperationsProvider.instance.getDistrictNamesByZone(selectedZone).contains(dist);
-
-                        return FilterChip(
-                          label: Text(
-                            dist,
-                            style: TextStyle(
-                              fontSize: 11.5,
-                              color: isSel ? Colors.white : (isZoneMatch ? const Color(0xFF0F766E) : const Color(0xFF334155)),
-                              fontWeight: isSel ? FontWeight.bold : FontWeight.w500,
-                            ),
-                          ),
-                          selected: isSel,
-                          selectedColor: const Color(0xFF0F766E),
-                          backgroundColor: isZoneMatch ? const Color(0xFFF0FDFA) : const Color(0xFFF1F5F9),
-                          checkmarkColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(20),
-                            side: BorderSide(
-                              color: isSel
-                                  ? const Color(0xFF0F766E)
-                                  : (isZoneMatch ? const Color(0xFF99F6E4) : const Color(0xFFCBD5E1)),
-                            ),
-                          ),
-                          onSelected: (selected) {
-                            setModalState(() {
-                              if (selected) {
-                                selectedDistricts.add(dist);
-                                districtValidationError = null;
-                              } else {
-                                selectedDistricts.remove(dist);
-                              }
-                            });
-                          },
-                        );
-                      }).toList(),
-                    ),
-                    if (districtValidationError != null) ...[
-                      const SizedBox(height: 6),
-                      Text(
-                        districtValidationError!,
-                        style: const TextStyle(color: Color(0xFFDC2626), fontSize: 11, fontWeight: FontWeight.w600),
-                      ),
-                    ],
                     const SizedBox(height: 18),
 
                     // SECTION 4: Targets
@@ -776,7 +668,6 @@ void showCreateAsmSheet(BuildContext context) {
                                     teamCode: selectedTeamCode!,
                                     password: password,
                                     zone: selectedZone,
-                                    districts: selectedDistricts.toList(),
                                     monthlyTarget: mTarget,
                                     dailyTarget: dTarget,
                                   );
