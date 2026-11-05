@@ -838,200 +838,14 @@ class ManagementDashboardView extends StatelessWidget {
   }
 
   // --- SM DASHBOARD VIEW (SM COMMAND CENTER) ---
-  static final List<Map<String, dynamic>> _officeTelecallers = [
-    {
-      'id': 'TC_001',
-      'name': 'Sneha M.',
-      'phone': '+91 98471 22334',
-      'email': 'sneha.office@keralainstitute.org',
-      'shift': 'Morning Shift (9 AM - 5 PM)',
-      'calls_today': 65,
-      'leads_generated': 12,
-      'admissions': 2,
-      'base_salary': 18000,
-      'incentive_per_admission': 500,
-      'monthly_target': 30,
-    },
-    {
-      'id': 'TC_002',
-      'name': 'Priya K.',
-      'phone': '+91 94472 88990',
-      'email': 'priya.office@keralainstitute.org',
-      'shift': 'General Shift (10 AM - 6 PM)',
-      'calls_today': 58,
-      'leads_generated': 8,
-      'admissions': 1,
-      'base_salary': 18000,
-      'incentive_per_admission': 500,
-      'monthly_target': 30,
-    },
-    {
-      'id': 'TC_003',
-      'name': 'Arjun V.',
-      'phone': '+91 97455 11223',
-      'email': 'arjun.office@keralainstitute.org',
-      'shift': 'Evening Shift (11 AM - 7 PM)',
-      'calls_today': 72,
-      'leads_generated': 14,
-      'admissions': 3,
-      'base_salary': 20000,
-      'incentive_per_admission': 600,
-      'monthly_target': 35,
-    },
-  ];
+  static final List<Map<String, dynamic>> _officeTelecallers = [];
 
-  static final List<Map<String, dynamic>> _smRequests = [
-    {
-      'id': 'REQ_101',
-      'title': 'Anjali Krishna (ASM Ernakulam)',
-      'role': 'ASM',
-      'type': 'Monthly Incentive Approval',
-      'amount': '\u20B912,500',
-      'raw_amount': 12500,
-      'status': 'Pending Review',
-      'details': 'Central Zone target achievement bonus for October',
-      'date': 'Oct 31, 2026',
-    },
-    {
-      'id': 'REQ_102',
-      'title': 'Bipin Joseph (ASM Trivandrum)',
-      'role': 'ASM',
-      'type': 'Travel Allowance Reimbursement',
-      'amount': '\u20B94,200',
-      'raw_amount': 4200,
-      'status': 'Pending Review',
-      'details': 'South zone campus outreach travel allowance',
-      'date': 'Oct 30, 2026',
-    },
-    {
-      'id': 'REQ_103',
-      'title': 'Deepak S. (BDM Ernakulam Team A)',
-      'role': 'BDM',
-      'type': 'Quarterly Spot Bonus',
-      'amount': '\u20B98,000',
-      'raw_amount': 8000,
-      'status': 'Forwarded to Accounts',
-      'details': 'Top team closing spot bonus for 15 admissions',
-      'date': 'Oct 29, 2026',
-    },
-    {
-      'id': 'REQ_104',
-      'title': 'Manoj Kumar (ASM Kozhikode)',
-      'role': 'ASM',
-      'type': 'High School Campaign Budget',
-      'amount': '\u20B96,500',
-      'raw_amount': 6500,
-      'status': 'Pending Review',
-      'details': 'Wayanad career fair awareness campaign budget',
-      'date': 'Oct 28, 2026',
-    },
-    {
-      'id': 'REQ_105',
-      'title': 'Shine J. (ASM Kannur)',
-      'role': 'ASM',
-      'type': 'Top Territory Achievement Incentive',
-      'amount': '\u20B911,300',
-      'raw_amount': 11300,
-      'status': 'Forwarded to Accounts',
-      'details': 'North Zone target surpass performance incentive',
-      'date': 'Oct 28, 2026',
-    },
-    {
-      'id': 'REQ_106',
-      'title': 'Sneha M. (Office Telecaller Team)',
-      'role': 'Office Team',
-      'type': 'Telecaller Volume Incentive',
-      'amount': '\u20B94,500',
-      'raw_amount': 4500,
-      'status': 'Forwarded to Accounts',
-      'details': 'Direct phone closed 9 spot admissions',
-      'date': 'Oct 27, 2026',
-    },
-  ];
+  static final List<Map<String, dynamic>> _smRequests = [];
 
-  static final List<Map<String, dynamic>> _processedPayments = [
-    {
-      'id': 'PAY_901',
-      'recipient': 'Anjali Krishna (ASM)',
-      'type': 'Incentive Payout',
-      'amount': 14000,
-      'mode': 'NEFT Bank Transfer',
-      'transaction_id': 'TXN_KBL_9841284',
-      'status': 'Verified & Paid',
-      'date': '24 Oct 2026',
-    },
-    {
-      'id': 'PAY_902',
-      'recipient': 'Sneha M. (Telecaller)',
-      'type': 'Salary & Incentive',
-      'amount': 22500,
-      'mode': 'IMPS Transfer',
-      'transaction_id': 'TXN_SBI_1104829',
-      'status': 'Verified & Paid',
-      'date': '25 Oct 2026',
-    },
-  ];
+  static final List<Map<String, dynamic>> _processedPayments = [];
 
-  static Map<String, dynamic> _monthlyTargetData = {
-    'target_leads': 500,
-    'target_admissions': 80,
-    'total_monthly_leads': 248,
-    'team_follow_up': 142,
-    'pending_follow_ups': 38,
-    'completed_leads': 248,
-    'state_total_target': 350,
-  };
-  static final List<Map<String, dynamic>> _keralaRegions = [
-    {
-      'code': 'TVM',
-      'districts': 'Thiruvananthapuram \u2022 Kollam',
-      'leads': 42,
-      'admissions': 8,
-      'percentage': 72,
-    },
-    {
-      'code': 'PTM',
-      'districts': 'Pathanamthitta \u2022 Alappuzha',
-      'leads': 31,
-      'admissions': 5,
-      'percentage': 64,
-    },
-    {
-      'code': 'KTM',
-      'districts': 'Kottayam \u2022 Idukki',
-      'leads': 28,
-      'admissions': 4,
-      'percentage': 58,
-    },
-    {
-      'code': 'EKM',
-      'districts': 'Ernakulam \u2022 Thrissur',
-      'leads': 46,
-      'admissions': 7,
-      'percentage': 81,
-    },
-    {
-      'code': 'PKD',
-      'districts': 'Palakkad \u2022 Malappuram',
-      'leads': 35,
-      'admissions': 5,
-      'percentage': 69,
-    },
-    {
-      'code': 'CLT',
-      'districts': 'Kozhikode \u2022 Wayanad',
-      'leads': 38,
-      'admissions': 4,
-      'percentage': 62,
-    },
-    {
-      'code': 'KZD',
-      'districts': 'Kannur \u2022 Kasaragod',
-      'leads': 28,
-      'admissions': 3,
-      'percentage': 55,
-    },
-  ];
+  static Map<String, dynamic> _monthlyTargetData = {};
+  static final List<Map<String, dynamic>> _keralaRegions = [];
 
   Widget _buildSmOperationalCard({
     required String title,
@@ -2704,37 +2518,44 @@ class ManagementDashboardView extends StatelessWidget {
     BuildContext context, [
     OperationsProvider? provider,
   ]) {
-    final int dynamicTargetLeads = data.monthlyTargetLeads > 0
-        ? data.monthlyTargetLeads
-        : (provider?.customMonthlyTargetLeads ??
-              (provider != null && provider.smAsms.isNotEmpty
-                  ? provider.smAsms.fold(0, (sum, a) => sum + a.monthlyTarget)
-                  : (_monthlyTargetData['target_leads'] ?? 500)));
+    final int dynamicTargetLeads = (data.target != null && data.target!.monthlyTarget > 0)
+        ? data.target!.monthlyTarget
+        : (data.monthlyTargetLeads > 0
+            ? data.monthlyTargetLeads
+            : (data.rawJson?['targets']?['monthly_target'] != null
+                ? UiHelpers.parseInt(data.rawJson!['targets']['monthly_target'])
+                : (data.rawJson?['performance_bar']?['assigned_target'] != null
+                    ? UiHelpers.parseInt(data.rawJson!['performance_bar']['assigned_target'])
+                    : (provider?.customMonthlyTargetLeads ??
+                        (provider != null && provider.smAsms.isNotEmpty
+                            ? provider.smAsms.fold(0, (sum, a) => sum + a.monthlyTarget)
+                            : (_monthlyTargetData['target_leads'] ?? 0))))));
 
-    final int dynamicTargetAdmissions = data.monthlyTargetAdmissions > 0
-        ? data.monthlyTargetAdmissions
-        : (provider?.customMonthlyTargetAdmissions ??
-              (provider != null && provider.smAsms.isNotEmpty
-                  ? provider.smAsms.fold(0, (sum, a) => sum + a.monthlyAchieved)
-                  : (_monthlyTargetData['target_admissions'] ?? 80)));
+    final int dynamicTargetAdmissions =
+        (data.target != null && data.target!.targetAdmissions > 0)
+        ? data.target!.targetAdmissions
+        : (data.monthlyTargetAdmissions > 0
+              ? data.monthlyTargetAdmissions
+              : (provider?.customMonthlyTargetAdmissions ??
+                    (provider != null && provider.smAsms.isNotEmpty
+                        ? provider.smAsms.fold(
+                            0,
+                            (sum, a) => sum + a.monthlyAchieved,
+                          )
+                        : (_monthlyTargetData['target_admissions'] ?? 0))));
 
-    final int totalMonthlyLeads = data.totalMonthlyLeadsCount > 0
-        ? data.totalMonthlyLeadsCount
-        : (provider != null && provider.smAsms.isNotEmpty
-              ? provider.smAsms.fold(0, (sum, a) => sum + a.totalLeads)
-              : (_monthlyTargetData['total_monthly_leads'] ?? 248));
+    final int totalMonthlyLeads =
+        data.teamMetrics?.teamLeads ??
+        data.operationalOverview?.assignedLeads ??
+        data.totalMonthlyLeadsCount;
 
-    final int teamFollowUp = data.teamFollowUpCount > 0
-        ? data.teamFollowUpCount
-        : (provider != null && provider.smAsms.isNotEmpty
-              ? provider.smAsms.fold(0, (sum, a) => sum + a.completedLeads)
-              : (_monthlyTargetData['team_follow_up'] ?? 142));
+    final int teamFollowUp =
+        data.operationalOverview?.followUpLeads ?? data.teamFollowUpCount;
 
-    final int pendingFollowUps = data.pendingFollowUpsCount > 0
-        ? data.pendingFollowUpsCount
-        : (provider != null && provider.smAsms.isNotEmpty
-              ? provider.smAsms.fold(0, (sum, a) => sum + a.pendingLeads)
-              : (_monthlyTargetData['pending_follow_ups'] ?? 38));
+    final int pendingFollowUps =
+        data.teamMetrics?.visitsPending ??
+        data.tasks?.pending ??
+        data.pendingFollowUpsCount;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 24),
@@ -2811,7 +2632,7 @@ class ManagementDashboardView extends StatelessWidget {
                 child: _buildMetricTile(
                   title: 'MONTHLY TARGET',
                   value: '$dynamicTargetLeads',
-                  unit: 'Leads ($dynamicTargetAdmissions Adm.)',
+                  unit: dynamicTargetAdmissions > 0 ? 'Leads ($dynamicTargetAdmissions Adm.)' : 'Target Leads',
                   icon: Icons.flag_rounded,
                   color: const Color(0xFF0F766E),
                   bgColor: const Color(0xFFF0FDFA),
@@ -2827,7 +2648,8 @@ class ManagementDashboardView extends StatelessWidget {
                   icon: Icons.trending_up_rounded,
                   color: const Color(0xFF0284C7),
                   bgColor: const Color(0xFFF0F9FF),
-                  onTap: () => HomeProvider.instance.setCurrentIndex(1),
+                  onTap: null,
+                  // onTap: () => HomeProvider.instance.setCurrentIndex(1),
                 ),
               ),
             ],
@@ -2843,7 +2665,8 @@ class ManagementDashboardView extends StatelessWidget {
                   icon: Icons.phone_in_talk_rounded,
                   color: const Color(0xFF7C3AED),
                   bgColor: const Color(0xFFFAF5FF),
-                  onTap: () => HomeProvider.instance.setCurrentIndex(1),
+                  // onTap: () => HomeProvider.instance.setCurrentIndex(1),
+                  onTap: null,
                 ),
               ),
               const SizedBox(width: 10),
@@ -2855,7 +2678,8 @@ class ManagementDashboardView extends StatelessWidget {
                   icon: Icons.pending_actions_rounded,
                   color: const Color(0xFFD97706),
                   bgColor: const Color(0xFFFFFBEB),
-                  onTap: () => HomeProvider.instance.setCurrentIndex(1),
+                  // onTap: () => HomeProvider.instance.setCurrentIndex(1),
+                  onTap: null,
                 ),
               ),
             ],
@@ -3631,7 +3455,7 @@ class ManagementDashboardView extends StatelessWidget {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                'Office Team (Telecallers)',
+                                'Office Team',
                                 style: TextStyle(
                                   fontSize: 17,
                                   fontWeight: FontWeight.bold,
@@ -3658,45 +3482,45 @@ class ManagementDashboardView extends StatelessWidget {
                   ),
                   const SizedBox(height: 12),
                   // Summary Banner
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF5EEFD),
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: const Color(0xFFE9D5FF)),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceAround,
-                      children: [
-                        _buildOfficeStatItem(
-                          'CALLERS',
-                          '${_officeTelecallers.length}',
-                          const Color(0xFF7C3AED),
-                        ),
-                        _buildOfficeStatItem(
-                          'CALLS TODAY',
-                          '$totalCalls',
-                          const Color(0xFF0284C7),
-                        ),
-                        _buildOfficeStatItem(
-                          'LEADS',
-                          '$totalLeads',
-                          const Color(0xFF0F766E),
-                        ),
-                        _buildOfficeStatItem(
-                          'ADMISSIONS',
-                          '$totalAdmissions',
-                          const Color(0xFF16A34A),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 16),
+                  // Container(
+                  //   padding: const EdgeInsets.all(12),
+                  //   decoration: BoxDecoration(
+                  //     color: const Color(0xFFF5EEFD),
+                  //     borderRadius: BorderRadius.circular(16),
+                  //     border: Border.all(color: const Color(0xFFE9D5FF)),
+                  //   ),
+                  //   child: Row(
+                  //     mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  //     children: [
+                  //       _buildOfficeStatItem(
+                  //         'CALLERS',
+                  //         '${_officeTelecallers.length}',
+                  //         const Color(0xFF7C3AED),
+                  //       ),
+                  //       _buildOfficeStatItem(
+                  //         'CALLS TODAY',
+                  //         '$totalCalls',
+                  //         const Color(0xFF0284C7),
+                  //       ),
+                  //       _buildOfficeStatItem(
+                  //         'LEADS',
+                  //         '$totalLeads',
+                  //         const Color(0xFF0F766E),
+                  //       ),
+                  //       _buildOfficeStatItem(
+                  //         'ADMISSIONS',
+                  //         '$totalAdmissions',
+                  //         const Color(0xFF16A34A),
+                  //       ),
+                  //     ],
+                  //   ),
+                  // ),
+                  // const SizedBox(height: 16),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       const Text(
-                        'Telecaller Team Roster',
+                        'Office Team',
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.bold,
@@ -3723,7 +3547,7 @@ class ManagementDashboardView extends StatelessWidget {
                           size: 14,
                         ),
                         label: const Text(
-                          'Add Telecaller',
+                          'Add Member',
                           style: TextStyle(
                             color: Colors.white,
                             fontSize: 11,
@@ -4884,20 +4708,19 @@ class ManagementDashboardView extends StatelessWidget {
 
   // --- SM DASHBOARD VIEW MAIN ---
   Widget _buildSmDashboard(BuildContext context, OperationsProvider provider) {
-    final int totalLeads = data.totalMonthlyLeadsCount > 0
-        ? data.totalMonthlyLeadsCount
-        : (data.totalLeadsCount > 0
-              ? data.totalLeadsCount
-              : (data.teamMetrics?.teamLeads ?? 248));
-    final int totalAdmissions = data.admittedLeadsCount > 0
-        ? data.admittedLeadsCount
-        : (data.teamMetrics?.teamAdmissions ?? 36);
-    final int pendingRequests = provider.walletApprovalRequests.isNotEmpty
-        ? provider.walletApprovalRequests.where((r) => r.isPending).length
-        : _smRequests.where((r) => r['status'] == 'Pending Review').length;
-    final num incentives = data.walletBalance > 0
-        ? data.walletBalance
-        : (data.operationalOverview?.incentivesEarned ?? 42500);
+    final int totalLeads =
+        data.teamMetrics?.teamLeads ??
+        data.operationalOverview?.assignedLeads ??
+        data.totalMonthlyLeadsCount;
+    final int totalAdmissions =
+        data.teamMetrics?.teamAdmissions ??
+        data.operationalOverview?.closedLeads ??
+        data.admittedLeadsCount;
+    final int pendingRequests = provider.walletApprovalRequests
+        .where((r) => r.isPending)
+        .length;
+    final num incentives =
+        data.operationalOverview?.incentivesEarned ?? data.walletBalance;
 
     return SingleChildScrollView(
       physics: const AlwaysScrollableScrollPhysics(),
@@ -4951,7 +4774,8 @@ class ManagementDashboardView extends StatelessWidget {
                         icon: Icons.groups_outlined,
                         iconColor: const Color(0xFF0284C7),
                         iconBgColor: const Color(0xFFE0F2FE),
-                        onTap: () => HomeProvider.instance.setCurrentIndex(1),
+                        //onTap: () => HomeProvider.instance.setCurrentIndex(1),
+                        onTap: () {},
                       ),
                       _buildSmOperationalCard(
                         title: 'TOTAL ADMISSIONS',
@@ -4960,10 +4784,11 @@ class ManagementDashboardView extends StatelessWidget {
                         icon: Icons.school_outlined,
                         iconColor: const Color(0xFF16A34A),
                         iconBgColor: const Color(0xFFDCFCE7),
-                        onTap: () => HomeProvider.instance.setCurrentIndex(
-                          1,
-                          initialTaskTabIndex: 1,
-                        ),
+                        // onTap: () => HomeProvider.instance.setCurrentIndex(
+                        //   1,
+                        //   initialTaskTabIndex: 1,
+                        // ),
+                        onTap: () {},
                       ),
                       _buildSmOperationalCard(
                         title: 'PENDING ASM REQUESTS',
@@ -4972,7 +4797,8 @@ class ManagementDashboardView extends StatelessWidget {
                         icon: Icons.access_time_rounded,
                         iconColor: const Color(0xFFD97706),
                         iconBgColor: const Color(0xFFFEF3C7),
-                        onTap: () => _showRequestsAndApprovalsSheet(context),
+                        //onTap: () => _showRequestsAndApprovalsSheet(context),
+                        onTap: () {},
                       ),
                       _buildSmOperationalCard(
                         title: 'INCENTIVES',
@@ -5019,7 +4845,10 @@ class ManagementDashboardView extends StatelessWidget {
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               InkWell(
-                                onTap: () => showCreateAsmSheet(context),
+                                onTap: () => showCreateAsmSheet(
+                                  context,
+                                  teams: data.teams,
+                                ),
                                 borderRadius: BorderRadius.circular(20),
                                 child: Container(
                                   padding: const EdgeInsets.symmetric(
@@ -5223,31 +5052,23 @@ class ManagementDashboardView extends StatelessWidget {
                                   percentage: isDaily
                                       ? asm.dailyCompletionPercentage
                                       : asm.monthlyCompletionPercentage,
+                                  isOfficeTeam: asm.code.toUpperCase() == 'OFFICE' ||
+                                      asm.team.toLowerCase().contains('office'),
                                 ),
                               )
                             else
-                              ..._keralaRegions.map(
-                                (r) => _buildKeralaPerformanceRow(
-                                  code: (r['code'] ?? '').toString(),
-                                  districts: (r['districts'] ?? '').toString(),
-                                  leads: isDaily
-                                      ? (((r['leads'] as num?)?.toInt() ?? 0) ~/
-                                            4)
-                                      : r['leads'] as int,
-                                  admissions: isDaily
-                                      ? ((r['admissions'] as int) ~/ 4)
-                                      : r['admissions'] as int,
-                                  percentage: r['percentage'] as int,
+                              const Padding(
+                                padding: EdgeInsets.symmetric(vertical: 20),
+                                child: Center(
+                                  child: Text(
+                                    'No ASM teams found',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: AppColors.textSecondary,
+                                    ),
+                                  ),
                                 ),
                               ),
-                            _buildKeralaPerformanceRow(
-                              code: 'Office',
-                              districts: 'Tele-calling',
-                              leads: isDaily ? 8 : 24,
-                              admissions: isDaily ? 2 : 4,
-                              percentage: isDaily ? 65 : 70,
-                              isOfficeTeam: true,
-                            ),
                             // ➢ LAST PERCENTAGE BAR : Total performance vs total completed lead percentage
                             Container(
                               margin: const EdgeInsets.only(top: 14),
@@ -5297,9 +5118,7 @@ class ManagementDashboardView extends StatelessWidget {
                                                     CrossAxisAlignment.start,
                                                 children: [
                                                   Text(
-                                                    isDaily
-                                                        ? "Today's Daily Target vs Achieved Leads"
-                                                        : "Total Performance vs Completed Leads",
+                                                    "Total Performance",
                                                     maxLines: 1,
                                                     overflow:
                                                         TextOverflow.ellipsis,
@@ -5310,19 +5129,19 @@ class ManagementDashboardView extends StatelessWidget {
                                                       color: Color(0xFF0F172A),
                                                     ),
                                                   ),
-                                                  Text(
-                                                    isDaily
-                                                        ? "Real-time State Daily Target Realization"
-                                                        : "Overall State Monthly Target Conversion Ratio",
-                                                    maxLines: 1,
-                                                    overflow:
-                                                        TextOverflow.ellipsis,
-                                                    style: const TextStyle(
-                                                      fontSize: 9.5,
-                                                      color: AppColors
-                                                          .textSecondary,
-                                                    ),
-                                                  ),
+                                                  // Text(
+                                                  //   isDaily
+                                                  //       ? "Real-time State Daily Target Realization"
+                                                  //       : "Overall State Monthly Target Conversion Ratio",
+                                                  //   maxLines: 1,
+                                                  //   overflow:
+                                                  //       TextOverflow.ellipsis,
+                                                  //   style: const TextStyle(
+                                                  //     fontSize: 9.5,
+                                                  //     color: AppColors
+                                                  //         .textSecondary,
+                                                  //   ),
+                                                  // ),
                                                 ],
                                               ),
                                             ),
@@ -5336,32 +5155,27 @@ class ManagementDashboardView extends StatelessWidget {
                                           final int totalAchieved =
                                               asms.isNotEmpty
                                               ? (asms.fold(
-                                                      0,
-                                                      (sum, a) =>
-                                                          sum +
-                                                          (isDaily
-                                                              ? a.dailyAchieved
-                                                              : a.monthlyAchieved),
-                                                    ) +
-                                                    (isDaily ? 2 : 4))
-                                              : (isDaily ? 58 : 248);
+                                                  0,
+                                                  (sum, a) =>
+                                                      sum + (a.monthlyAchieved),
+                                                ))
+                                              : ((data
+                                                        .target
+                                                        ?.monthlyAchieved ??
+                                                    0));
                                           final int totalTarget =
-                                              asms.isNotEmpty
-                                              ? (asms.fold(
-                                                      0,
-                                                      (sum, a) =>
-                                                          sum +
-                                                          (isDaily
-                                                              ? a.dailyTarget
-                                                              : a.monthlyTarget),
-                                                    ) +
-                                                    (isDaily ? 8 : 24))
-                                              : (isDaily ? 85 : 350);
-                                          final int totalPct = totalTarget > 0
-                                              ? ((totalAchieved / totalTarget) *
+                                              (data.target != null && data.target!.monthlyTarget > 0)
+                                              ? data.target!.monthlyTarget
+                                              : (data.monthlyTargetLeads > 0
+                                                  ? data.monthlyTargetLeads
+                                                  : (asms.isNotEmpty
+                                                      ? asms.fold(0, (sum, a) => sum + a.monthlyTarget)
+                                                      : 0));
+                                          final int totalPct = totalTarget == 0
+                                              ? 0
+                                              : ((totalAchieved / totalTarget) *
                                                         100)
-                                                    .round()
-                                              : 70;
+                                                    .round();
 
                                           return Container(
                                             padding: const EdgeInsets.symmetric(
@@ -5376,7 +5190,7 @@ class ManagementDashboardView extends StatelessWidget {
                                                   BorderRadius.circular(12),
                                             ),
                                             child: Text(
-                                              '$totalPct% ${isDaily ? "DAILY PACE" : "ON TRACK"}',
+                                              '$totalPct% ${"ON TRACK"}',
                                               style: TextStyle(
                                                 fontSize: 9.5,
                                                 fontWeight: FontWeight.w800,
@@ -5396,31 +5210,40 @@ class ManagementDashboardView extends StatelessWidget {
                                       final asms = provider.smAsms;
                                       final int totalAchieved = asms.isNotEmpty
                                           ? (asms.fold(
-                                                  0,
-                                                  (sum, a) =>
-                                                      sum +
-                                                      (isDaily
-                                                          ? a.dailyAchieved
-                                                          : a.monthlyAchieved),
-                                                ) +
-                                                (isDaily ? 2 : 4))
-                                          : (isDaily ? 58 : 248);
-                                      final int totalTarget = asms.isNotEmpty
-                                          ? (asms.fold(
-                                                  0,
-                                                  (sum, a) =>
-                                                      sum +
-                                                      (isDaily
-                                                          ? a.dailyTarget
-                                                          : a.monthlyTarget),
-                                                ) +
-                                                (isDaily ? 8 : 24))
-                                          : (isDaily ? 85 : 350);
-                                      final int totalPct = totalTarget > 0
-                                          ? ((totalAchieved / totalTarget) *
+                                              0,
+                                              (sum, a) =>
+                                                  sum +
+                                                  (isDaily
+                                                      ? a.dailyAchieved
+                                                      : a.monthlyAchieved),
+                                            ))
+                                          : (isDaily
+                                                ? (data.target?.dailyAchieved ??
+                                                      0)
+                                                : (data
+                                                          .target
+                                                          ?.monthlyAchieved ??
+                                                      0));
+                                      final int totalTarget = isDaily
+                                          ? ((data.target != null && data.target!.dailyTarget > 0)
+                                              ? data.target!.dailyTarget
+                                              : (asms.isNotEmpty
+                                                  ? asms.fold(0, (sum, a) => sum + a.dailyTarget)
+                                                  : 0))
+                                          : ((data.target != null && data.target!.monthlyTarget > 0)
+                                              ? data.target!.monthlyTarget
+                                              : (data.monthlyTargetLeads > 0
+                                                  ? data.monthlyTargetLeads
+                                                  : (asms.isNotEmpty
+                                                      ? asms.fold(0, (sum, a) => sum + a.monthlyTarget)
+                                                      : 0)));
+
+                                      final int totalPct = totalTarget == 0
+                                          ? 0
+                                          : ((totalAchieved / totalTarget) *
                                                     100)
-                                                .round()
-                                          : 70;
+                                                .round();
+
                                       final double progressVal = totalTarget > 0
                                           ? (totalAchieved / totalTarget).clamp(
                                               0.0,
@@ -5601,7 +5424,7 @@ class ManagementDashboardView extends StatelessWidget {
                         label: const FittedBox(
                           fit: BoxFit.scaleDown,
                           child: Text(
-                            'Office Team (Telecallers)',
+                            'Office Team ',
                             style: TextStyle(
                               color: Colors.white,
                               fontSize: 11.5,

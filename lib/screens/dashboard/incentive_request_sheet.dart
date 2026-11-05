@@ -12,16 +12,15 @@ void showIncentiveRequestSheet(BuildContext context, {double? currentBalance}) {
   final formKey = GlobalKey<FormState>();
 
   final amountController = TextEditingController();
-  final upiController = TextEditingController(text: 'rahul@okaxis');
-  final bankNameController = TextEditingController(text: 'State Bank of India');
-  final accountNumController = TextEditingController(text: '123456789012');
-  final ifscController = TextEditingController(text: 'SBIN0001234');
-  final remarksController = TextEditingController(
-    text: 'Incentive withdrawal for October admissions',
-  );
+  final upiController = TextEditingController();
+  final bankNameController = TextEditingController();
+  final accountNumController = TextEditingController();
+  final ifscController = TextEditingController();
+  final remarksController = TextEditingController();
 
   bool isSubmitting = false;
-  final balance = currentBalance ??
+  final balance =
+      currentBalance ??
       WalletProvider.instance.state.data?.balance ??
       HomeProvider.instance.state.data?.walletBalance.toDouble() ??
       0.0;
@@ -74,7 +73,9 @@ void showIncentiveRequestSheet(BuildContext context, {double? currentBalance}) {
                             Container(
                               padding: const EdgeInsets.all(10),
                               decoration: BoxDecoration(
-                                color: const Color(0xFF0F766E).withOpacity(0.12),
+                                color: const Color(
+                                  0xFF0F766E,
+                                ).withOpacity(0.12),
                                 shape: BoxShape.circle,
                               ),
                               child: const Icon(
@@ -97,7 +98,7 @@ void showIncentiveRequestSheet(BuildContext context, {double? currentBalance}) {
                                 ),
                                 SizedBox(height: 2),
                                 Text(
-                                  'Submit claim directly to Area Sales Manager',
+                                  'Submit claim',
                                   style: TextStyle(
                                     fontSize: 11.5,
                                     color: AppColors.textSecondary,
@@ -109,7 +110,10 @@ void showIncentiveRequestSheet(BuildContext context, {double? currentBalance}) {
                         ),
                         IconButton(
                           onPressed: () => Navigator.pop(context),
-                          icon: const Icon(Icons.close_rounded, color: AppColors.textSecondary),
+                          icon: const Icon(
+                            Icons.close_rounded,
+                            color: AppColors.textSecondary,
+                          ),
                         ),
                       ],
                     ),
@@ -118,7 +122,10 @@ void showIncentiveRequestSheet(BuildContext context, {double? currentBalance}) {
 
                     // Balance Banner
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
                       decoration: BoxDecoration(
                         gradient: const LinearGradient(
                           colors: [Color(0xFF042F2E), Color(0xFF0F766E)],
@@ -152,28 +159,28 @@ void showIncentiveRequestSheet(BuildContext context, {double? currentBalance}) {
                               ),
                             ],
                           ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.15),
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: const Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(Icons.verified_user_rounded, color: Colors.tealAccent, size: 14),
-                                SizedBox(width: 4),
-                                Text(
-                                  'ASM Verified',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
+                          // Container(
+                          //   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          //   decoration: BoxDecoration(
+                          //     color: Colors.white.withOpacity(0.15),
+                          //     borderRadius: BorderRadius.circular(20),
+                          //   ),
+                          //   child: const Row(
+                          //     mainAxisSize: MainAxisSize.min,
+                          //     children: [
+                          //       Icon(Icons.verified_user_rounded, color: Colors.tealAccent, size: 14),
+                          //       SizedBox(width: 4),
+                          //       Text(
+                          //         'ASM Verified',
+                          //         style: TextStyle(
+                          //           color: Colors.white,
+                          //           fontSize: 11,
+                          //           fontWeight: FontWeight.bold,
+                          //         ),
+                          //       ),
+                          //     ],
+                          //   ),
+                          // ),
                         ],
                       ),
                     ),
@@ -192,7 +199,9 @@ void showIncentiveRequestSheet(BuildContext context, {double? currentBalance}) {
                     const SizedBox(height: 6),
                     TextFormField(
                       controller: amountController,
-                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
                       style: const TextStyle(
                         color: AppColors.textPrimary,
                         fontSize: 16,
@@ -200,22 +209,39 @@ void showIncentiveRequestSheet(BuildContext context, {double? currentBalance}) {
                       ),
                       decoration: InputDecoration(
                         hintText: '3000',
-                        hintStyle: TextStyle(color: Colors.grey.shade400, fontWeight: FontWeight.normal),
-                        prefixIcon: const Icon(Icons.currency_rupee_rounded, color: Color(0xFF0F766E), size: 20),
+                        hintStyle: TextStyle(
+                          color: Colors.grey.shade400,
+                          fontWeight: FontWeight.normal,
+                        ),
+                        prefixIcon: const Icon(
+                          Icons.currency_rupee_rounded,
+                          color: Color(0xFF0F766E),
+                          size: 20,
+                        ),
                         filled: true,
                         fillColor: const Color(0xFFF8FAFC),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 12,
+                        ),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                          borderSide: const BorderSide(
+                            color: Color(0xFFE2E8F0),
+                          ),
                         ),
                         enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                          borderSide: const BorderSide(
+                            color: Color(0xFFE2E8F0),
+                          ),
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(color: Color(0xFF0F766E), width: 1.5),
+                          borderSide: const BorderSide(
+                            color: Color(0xFF0F766E),
+                            width: 1.5,
+                          ),
                         ),
                       ),
                       validator: (val) {
@@ -269,24 +295,41 @@ void showIncentiveRequestSheet(BuildContext context, {double? currentBalance}) {
                     const SizedBox(height: 6),
                     TextFormField(
                       controller: upiController,
-                      style: const TextStyle(color: AppColors.textPrimary, fontSize: 13.5),
+                      style: const TextStyle(
+                        color: AppColors.textPrimary,
+                        fontSize: 13.5,
+                      ),
                       decoration: InputDecoration(
                         hintText: 'e.g. rahul@okaxis',
-                        prefixIcon: const Icon(Icons.alternate_email_rounded, color: Color(0xFF0F766E), size: 18),
+                        prefixIcon: const Icon(
+                          Icons.alternate_email_rounded,
+                          color: Color(0xFF0F766E),
+                          size: 18,
+                        ),
                         filled: true,
                         fillColor: const Color(0xFFF8FAFC),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 11,
+                        ),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                          borderSide: const BorderSide(
+                            color: Color(0xFFE2E8F0),
+                          ),
                         ),
                         enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                          borderSide: const BorderSide(
+                            color: Color(0xFFE2E8F0),
+                          ),
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(color: Color(0xFF0F766E), width: 1.5),
+                          borderSide: const BorderSide(
+                            color: Color(0xFF0F766E),
+                            width: 1.5,
+                          ),
                         ),
                       ),
                     ),
@@ -312,24 +355,41 @@ void showIncentiveRequestSheet(BuildContext context, {double? currentBalance}) {
                               const SizedBox(height: 6),
                               TextFormField(
                                 controller: bankNameController,
-                                style: const TextStyle(color: AppColors.textPrimary, fontSize: 13),
+                                style: const TextStyle(
+                                  color: AppColors.textPrimary,
+                                  fontSize: 13,
+                                ),
                                 decoration: InputDecoration(
                                   hintText: 'e.g. State Bank of India',
-                                  prefixIcon: const Icon(Icons.account_balance_rounded, color: Color(0xFF0F766E), size: 18),
+                                  prefixIcon: const Icon(
+                                    Icons.account_balance_rounded,
+                                    color: Color(0xFF0F766E),
+                                    size: 18,
+                                  ),
                                   filled: true,
                                   fillColor: const Color(0xFFF8FAFC),
-                                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+                                  contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 11,
+                                  ),
                                   border: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(12),
-                                    borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                                    borderSide: const BorderSide(
+                                      color: Color(0xFFE2E8F0),
+                                    ),
                                   ),
                                   enabledBorder: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(12),
-                                    borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                                    borderSide: const BorderSide(
+                                      color: Color(0xFFE2E8F0),
+                                    ),
                                   ),
                                   focusedBorder: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(12),
-                                    borderSide: const BorderSide(color: Color(0xFF0F766E), width: 1.5),
+                                    borderSide: const BorderSide(
+                                      color: Color(0xFF0F766E),
+                                      width: 1.5,
+                                    ),
                                   ),
                                 ),
                               ),
@@ -353,25 +413,43 @@ void showIncentiveRequestSheet(BuildContext context, {double? currentBalance}) {
                               const SizedBox(height: 6),
                               TextFormField(
                                 controller: ifscController,
-                                textCapitalization: TextCapitalization.characters,
-                                style: const TextStyle(color: AppColors.textPrimary, fontSize: 13),
+                                textCapitalization:
+                                    TextCapitalization.characters,
+                                style: const TextStyle(
+                                  color: AppColors.textPrimary,
+                                  fontSize: 13,
+                                ),
                                 decoration: InputDecoration(
                                   hintText: 'SBIN0001234',
-                                  prefixIcon: const Icon(Icons.pin_rounded, color: Color(0xFF0F766E), size: 18),
+                                  prefixIcon: const Icon(
+                                    Icons.pin_rounded,
+                                    color: Color(0xFF0F766E),
+                                    size: 18,
+                                  ),
                                   filled: true,
                                   fillColor: const Color(0xFFF8FAFC),
-                                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+                                  contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 11,
+                                  ),
                                   border: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(12),
-                                    borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                                    borderSide: const BorderSide(
+                                      color: Color(0xFFE2E8F0),
+                                    ),
                                   ),
                                   enabledBorder: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(12),
-                                    borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                                    borderSide: const BorderSide(
+                                      color: Color(0xFFE2E8F0),
+                                    ),
                                   ),
                                   focusedBorder: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(12),
-                                    borderSide: const BorderSide(color: Color(0xFF0F766E), width: 1.5),
+                                    borderSide: const BorderSide(
+                                      color: Color(0xFF0F766E),
+                                      width: 1.5,
+                                    ),
                                   ),
                                 ),
                               ),
@@ -396,24 +474,41 @@ void showIncentiveRequestSheet(BuildContext context, {double? currentBalance}) {
                     TextFormField(
                       controller: accountNumController,
                       keyboardType: TextInputType.number,
-                      style: const TextStyle(color: AppColors.textPrimary, fontSize: 13.5),
+                      style: const TextStyle(
+                        color: AppColors.textPrimary,
+                        fontSize: 13.5,
+                      ),
                       decoration: InputDecoration(
                         hintText: 'e.g. 123456789012',
-                        prefixIcon: const Icon(Icons.credit_card_rounded, color: Color(0xFF0F766E), size: 18),
+                        prefixIcon: const Icon(
+                          Icons.credit_card_rounded,
+                          color: Color(0xFF0F766E),
+                          size: 18,
+                        ),
                         filled: true,
                         fillColor: const Color(0xFFF8FAFC),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 11,
+                        ),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                          borderSide: const BorderSide(
+                            color: Color(0xFFE2E8F0),
+                          ),
                         ),
                         enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                          borderSide: const BorderSide(
+                            color: Color(0xFFE2E8F0),
+                          ),
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(color: Color(0xFF0F766E), width: 1.5),
+                          borderSide: const BorderSide(
+                            color: Color(0xFF0F766E),
+                            width: 1.5,
+                          ),
                         ),
                       ),
                     ),
@@ -433,27 +528,44 @@ void showIncentiveRequestSheet(BuildContext context, {double? currentBalance}) {
                     TextFormField(
                       controller: remarksController,
                       maxLines: 2,
-                      style: const TextStyle(color: AppColors.textPrimary, fontSize: 13.5),
+                      style: const TextStyle(
+                        color: AppColors.textPrimary,
+                        fontSize: 13.5,
+                      ),
                       decoration: InputDecoration(
-                        hintText: 'Incentive withdrawal for October admissions',
+                        hintText: 'Incentive withdrawal',
                         prefixIcon: const Padding(
                           padding: EdgeInsets.only(bottom: 24),
-                          child: Icon(Icons.notes_rounded, color: Color(0xFF0F766E), size: 20),
+                          child: Icon(
+                            Icons.notes_rounded,
+                            color: Color(0xFF0F766E),
+                            size: 20,
+                          ),
                         ),
                         filled: true,
                         fillColor: const Color(0xFFF8FAFC),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 12,
+                        ),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                          borderSide: const BorderSide(
+                            color: Color(0xFFE2E8F0),
+                          ),
                         ),
                         enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                          borderSide: const BorderSide(
+                            color: Color(0xFFE2E8F0),
+                          ),
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(color: Color(0xFF0F766E), width: 1.5),
+                          borderSide: const BorderSide(
+                            color: Color(0xFF0F766E),
+                            width: 1.5,
+                          ),
                         ),
                       ),
                       validator: (val) {
@@ -477,7 +589,9 @@ void showIncentiveRequestSheet(BuildContext context, {double? currentBalance}) {
                                 if (!formKey.currentState!.validate()) return;
 
                                 setModalState(() => isSubmitting = true);
-                                final amt = double.parse(amountController.text.trim());
+                                final amt = double.parse(
+                                  amountController.text.trim(),
+                                );
                                 final remarks = remarksController.text.trim();
                                 final upi = upiController.text.trim();
                                 final bank = bankNameController.text.trim();
@@ -485,50 +599,64 @@ void showIncentiveRequestSheet(BuildContext context, {double? currentBalance}) {
                                 final ifsc = ifscController.text.trim();
 
                                 try {
-                                  final result = await WalletProvider.instance.submitWithdraw(
-                                    amount: amt,
-                                    remarks: remarks,
-                                    upiId: upi.isNotEmpty ? upi : null,
-                                    bankName: bank.isNotEmpty ? bank : null,
-                                    accountNumber: acc.isNotEmpty ? acc : null,
-                                    ifscCode: ifsc.isNotEmpty ? ifsc : null,
-                                  );
+                                  final result = await WalletProvider.instance
+                                      .submitWithdraw(
+                                        amount: amt,
+                                        remarks: remarks,
+                                        upiId: upi.isNotEmpty ? upi : null,
+                                        bankName: bank.isNotEmpty ? bank : null,
+                                        accountNumber: acc.isNotEmpty
+                                            ? acc
+                                            : null,
+                                        ifscCode: ifsc.isNotEmpty ? ifsc : null,
+                                      );
 
                                   if (result.success) {
                                     // Also insert into OperationsProvider wallet requests so ASM sees it immediately
-                                    final session = AuthProvider.instance.session;
-                                    OperationsProvider.instance.addWalletApprovalRequest(
-                                      WalletApprovalRequestItem(
-                                        id: result.requestId ?? 'WDR-${DateTime.now().millisecondsSinceEpoch % 10000}',
-                                        requestId: result.requestId ?? 'WDR-${DateTime.now().millisecondsSinceEpoch % 10000}',
-                                        employee: session.name.isNotEmpty ? session.name : 'BDE Employee',
-                                        employeeId: session.email,
-                                        designation: 'Business Development Executive',
-                                        team: session.team != null && session.team.toString().isNotEmpty
-                                            ? session.team.toString()
-                                            : 'Kerala Team',
-                                        asmName: result.asmName ?? 'Anoop Menon',
-                                        amount: amt,
-                                        availableBalance: result.remainingBalance ?? 0,
-                                        status: result.status ?? 'Submitted to ASM',
-                                        statusLabel: result.status ?? 'Submitted to ASM',
-                                        remarks: remarks,
-                                        approvalHistory: [
-                                          WalletApprovalStage(
-                                            stage: 'Step 1 - Submitted to ASM',
-                                            actionBy: session.name.isNotEmpty ? session.name : 'BDE Employee',
-                                            role: 'BDE',
-                                            action: 'SUBMITTED',
-                                            actionAt: DateTime.now().toIso8601String(),
+                                    final session =
+                                        AuthProvider.instance.session;
+                                    OperationsProvider.instance
+                                        .addWalletApprovalRequest(
+                                          WalletApprovalRequestItem(
+                                            id: result.requestId!,
+                                            requestId: result.requestId!,
+                                            employee: session.name,
+                                            employeeId: session.email,
+                                            designation: "ASM",
+                                            team:
+                                                session.team != null &&
+                                                    session.team
+                                                        .toString()
+                                                        .isNotEmpty
+                                                ? session.team.toString()
+                                                : 'Kerala Team',
+                                            asmName: result.asmName,
+                                            amount: amt,
+                                            availableBalance:
+                                                result.remainingBalance ?? 0,
+                                            status: result.status!,
+                                            statusLabel: result.status!,
                                             remarks: remarks,
+                                            approvalHistory: [
+                                              WalletApprovalStage(
+                                                stage: 'Step 1 - Submit',
+                                                actionBy: session.name,
+                                                role: 'ASM',
+                                                action: 'SUBMITTED',
+                                                actionAt: DateTime.now()
+                                                    .toIso8601String(),
+                                                remarks: remarks,
+                                              ),
+                                            ],
+                                            createdAt: DateTime.now()
+                                                .toIso8601String(),
                                           ),
-                                        ],
-                                        createdAt: DateTime.now().toIso8601String(),
-                                      ),
-                                    );
+                                        );
 
                                     // Refresh HomeProvider
-                                    HomeProvider.instance.fetchHomeData(isRefresh: true);
+                                    HomeProvider.instance.fetchHomeData(
+                                      isRefresh: true,
+                                    );
 
                                     setModalState(() => isSubmitting = false);
                                     if (context.mounted) {
@@ -549,10 +677,19 @@ void showIncentiveRequestSheet(BuildContext context, {double? currentBalance}) {
                                   setModalState(() => isSubmitting = false);
                                   String msg = e.toString();
                                   if (msg.contains('ApiException:')) {
-                                    msg = msg.replaceAll(RegExp(r'ApiException:\s*\[\d+\]\s*'), '').trim();
+                                    msg = msg
+                                        .replaceAll(
+                                          RegExp(r'ApiException:\s*\[\d+\]\s*'),
+                                          '',
+                                        )
+                                        .trim();
                                   }
                                   if (context.mounted) {
-                                    UiHelpers.showSnackBar(context, msg, Colors.redAccent);
+                                    UiHelpers.showSnackBar(
+                                      context,
+                                      msg,
+                                      Colors.redAccent,
+                                    );
                                   }
                                 }
                               },
@@ -567,7 +704,7 @@ void showIncentiveRequestSheet(BuildContext context, {double? currentBalance}) {
                               )
                             : const Icon(Icons.send_rounded, size: 18),
                         label: Text(
-                          isSubmitting ? 'Submitting Claim...' : 'Submit Request to ASM',
+                          isSubmitting ? 'Submitting Claim...' : 'Submit',
                           style: const TextStyle(
                             fontSize: 14.5,
                             fontWeight: FontWeight.bold,
@@ -654,16 +791,27 @@ void _showSuccessDialog(BuildContext context, WithdrawResult result) {
                     if (result.requestId != null)
                       _buildInfoRow('Request ID', result.requestId!),
                     const Divider(height: 14, color: Color(0xFFE2E8F0)),
-                    _buildInfoRow('Amount', '\u20B9${result.amount?.toInt() ?? 0}'),
+                    _buildInfoRow(
+                      'Amount',
+                      '\u20B9${result.amount?.toInt() ?? 0}',
+                    ),
                     const Divider(height: 14, color: Color(0xFFE2E8F0)),
-                    _buildInfoRow('Status', result.status ?? 'Submitted to ASM', isBadge: true),
-                    if (result.asmName != null && result.asmName!.isNotEmpty) ...[
+                    _buildInfoRow(
+                      'Status',
+                      result.status ?? 'Submitted ',
+                      isBadge: true,
+                    ),
+                    if (result.asmName != null &&
+                        result.asmName!.isNotEmpty) ...[
                       const Divider(height: 14, color: Color(0xFFE2E8F0)),
-                      _buildInfoRow('ASM Assigned', result.asmName!),
+                      _buildInfoRow('Assigned', result.asmName!),
                     ],
                     if (result.remainingBalance != null) ...[
                       const Divider(height: 14, color: Color(0xFFE2E8F0)),
-                      _buildInfoRow('Remaining Balance', '\u20B9${NumberFormat('#,##,###').format(result.remainingBalance!.toInt())}'),
+                      _buildInfoRow(
+                        'Remaining Balance',
+                        '\u20B9${NumberFormat('#,##,###').format(result.remainingBalance!.toInt())}',
+                      ),
                     ],
                   ],
                 ),
@@ -737,4 +885,3 @@ Widget _buildInfoRow(String label, String value, {bool isBadge = false}) {
     ],
   );
 }
-

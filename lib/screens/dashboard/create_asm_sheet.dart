@@ -1,14 +1,33 @@
+import '../../models/home_dashboard_model.dart';
+import '../../providers/home_provider.dart';
 import 'package:flutter/material.dart';
 import '../../constants/colors.dart';
 import '../../models/zone_model.dart';
 import '../../providers/operations_provider.dart';
 import '../../utils/helpers.dart';
 
-void showCreateAsmSheet(BuildContext context) {
+void showCreateAsmSheet(BuildContext context, {List<HomeTeamItem>? teams}) {
   // Ensure zones and districts are loaded from API
   if (OperationsProvider.instance.zones.isEmpty) {
     OperationsProvider.instance.fetchZones();
   }
+
+    final List<HomeTeamItem> effectiveTeams = (teams != null && teams.isNotEmpty)
+      ? teams
+      : (HomeProvider.instance.state.data?.teams ?? const <HomeTeamItem>[]);
+
+  final List<HomeTeamItem> fallbackTeams = const [
+    HomeTeamItem(teamName: 'TVM', district: 'Thiruvananthapuram, Kollam'),
+    HomeTeamItem(teamName: 'PTM', district: 'Pathanamthitta, Alappuzha'),
+    HomeTeamItem(teamName: 'KTM', district: 'Kottayam, Idukki'),
+    HomeTeamItem(teamName: 'EKM', district: 'Ernakulam'),
+    HomeTeamItem(teamName: 'PKD', district: 'Thrissur, Palakkad'),
+    HomeTeamItem(teamName: 'CLT', district: 'Malappuram, Kozhikode, Wayanad'),
+    HomeTeamItem(teamName: 'KZD', district: 'Kannur, Kasaragod'),
+    HomeTeamItem(teamName: 'Office Team', district: 'Direct Admissions, Re-admissions'),
+  ];
+
+  final List<HomeTeamItem> finalTeams = effectiveTeams.isNotEmpty ? effectiveTeams : fallbackTeams;
 
   final formKey = GlobalKey<FormState>();
 
@@ -16,6 +35,9 @@ void showCreateAsmSheet(BuildContext context) {
   final emailController = TextEditingController();
   final phoneController = TextEditingController();
   final passwordController = TextEditingController();
+  final asmIdController = TextEditingController();
+  final salaryController = TextEditingController();
+  final incentiveController = TextEditingController();
   final monthlyTargetController = TextEditingController();
   final dailyTargetController = TextEditingController();
 
@@ -219,6 +241,76 @@ void showCreateAsmSheet(BuildContext context) {
                     ),
                     const SizedBox(height: 18),
 
+                    // ASM ID
+                    TextFormField(
+                      controller: asmIdController,
+                      textInputAction: TextInputAction.next,
+                      keyboardType: TextInputType.text,
+                      decoration: InputDecoration(
+                        labelText: 'ASM ID (optional)',
+                        hintText: 'e.g. ASM004 (auto-assigned if blank)',
+                        hintStyle: const TextStyle(fontSize: 13, color: Color(0xFF94A3B8)),
+                        prefixIcon: const Icon(Icons.badge_outlined, size: 20, color: Color(0xFF0F766E)),
+                        filled: true,
+                        fillColor: const Color(0xFFF8FAFC),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFCBD5E1))),
+                        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+                        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF0F766E), width: 1.5)),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Salary & Incentive (side by side)
+                    LayoutBuilder(
+                      builder: (context, constraints) {
+                        final isCompact = constraints.maxWidth < 340;
+                        Widget salaryField() => TextFormField(
+                          controller: salaryController,
+                          textInputAction: TextInputAction.next,
+                          keyboardType: TextInputType.number,
+                          decoration: InputDecoration(
+                            labelText: 'Salary (₹)',
+                            hintText: 'e.g. 25000',
+                            hintStyle: const TextStyle(fontSize: 13, color: Color(0xFF94A3B8)),
+                            prefixIcon: const Icon(Icons.currency_rupee_rounded, size: 20, color: Color(0xFF0F766E)),
+                            filled: true,
+                            fillColor: const Color(0xFFF8FAFC),
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFCBD5E1))),
+                            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+                            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF0F766E), width: 1.5)),
+                          ),
+                        );
+                        Widget incentiveField() => TextFormField(
+                          controller: incentiveController,
+                          textInputAction: TextInputAction.next,
+                          keyboardType: TextInputType.number,
+                          decoration: InputDecoration(
+                            labelText: 'Incentive (₹)',
+                            hintText: 'e.g. 1000',
+                            hintStyle: const TextStyle(fontSize: 13, color: Color(0xFF94A3B8)),
+                            prefixIcon: const Icon(Icons.card_giftcard_rounded, size: 20, color: Color(0xFF0F766E)),
+                            filled: true,
+                            fillColor: const Color(0xFFF8FAFC),
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFCBD5E1))),
+                            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+                            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF0F766E), width: 1.5)),
+                          ),
+                        );
+                        if (isCompact) {
+                          return Column(children: [salaryField(), const SizedBox(height: 12), incentiveField()]);
+                        }
+                        return Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                          Expanded(child: salaryField()),
+                          const SizedBox(width: 12),
+                          Expanded(child: incentiveField()),
+                        ]);
+                      },
+                    ),
+                    const SizedBox(height: 18),
+
                     // SECTION 2: Security & Team
                     _buildSectionHeader('2. SECURITY & TEAM CODE'),
                     const SizedBox(height: 10),
@@ -282,98 +374,23 @@ void showCreateAsmSheet(BuildContext context) {
                         enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
                         focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF0F766E), width: 1.5)),
                       ),
-                      items: const [
-                        DropdownMenuItem(
-                          value: 'TVM',
+                      items: finalTeams.map((team) {
+                        return DropdownMenuItem<String>(
+                          value: team.teamName,
                           child: Text(
-                            'TVM Team (Thiruvananthapuram & South)',
+                            team.dropdownDisplay,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: TextStyle(fontSize: 13),
+                            style: const TextStyle(fontSize: 13),
                           ),
-                        ),
-                        DropdownMenuItem(
-                          value: 'PTM',
-                          child: Text(
-                            'PTM Team (Pathanamthitta)',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(fontSize: 13),
-                          ),
-                        ),
-                        DropdownMenuItem(
-                          value: 'KTM',
-                          child: Text(
-                            'KTM Team (Kottayam & Idukki)',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(fontSize: 13),
-                          ),
-                        ),
-                        DropdownMenuItem(
-                          value: 'EKM',
-                          child: Text(
-                            'EKM Team (Ernakulam Hub)',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(fontSize: 13),
-                          ),
-                        ),
-                        DropdownMenuItem(
-                          value: 'PKD',
-                          child: Text(
-                            'PKD Team (Palakkad & Thrissur)',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(fontSize: 13),
-                          ),
-                        ),
-                        DropdownMenuItem(
-                          value: 'CLT',
-                          child: Text(
-                            'CLT Team (Kozhikode & Malappuram)',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(fontSize: 13),
-                          ),
-                        ),
-                        DropdownMenuItem(
-                          value: 'KZD',
-                          child: Text(
-                            'KZD Team (Kannur, Wayanad & Kasaragod)',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(fontSize: 13),
-                          ),
-                        ),
-                        DropdownMenuItem(
-                          value: 'OFFICE',
-                          child: Text(
-                            'OFFICE Team (Central Operations)',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(fontSize: 13),
-                          ),
-                        ),
-                      ],
+                        );
+                      }).toList(),
                       selectedItemBuilder: (BuildContext context) {
-                        final labelMap = {
-                          'TVM': 'TVM Team (Thiruvananthapuram & South)',
-                          'PTM': 'PTM Team (Pathanamthitta)',
-                          'KTM': 'KTM Team (Kottayam & Idukki)',
-                          'EKM': 'EKM Team (Ernakulam Hub)',
-                          'PKD': 'PKD Team (Palakkad & Thrissur)',
-                          'CLT': 'CLT Team (Kozhikode & Malappuram)',
-                          'KZD': 'KZD Team (Kannur, Wayanad & Kasaragod)',
-                          'OFFICE': 'OFFICE Team (Central Operations)',
-                        };
-                        return [
-                          'TVM', 'PTM', 'KTM', 'EKM', 'PKD', 'CLT', 'KZD', 'OFFICE'
-                        ].map((code) {
+                        return finalTeams.map((team) {
                           return Align(
                             alignment: Alignment.centerLeft,
                             child: Text(
-                              labelMap[code] ?? code,
+                              team.dropdownDisplay,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: const TextStyle(fontSize: 13, color: Color(0xFF0F172A)),
@@ -656,6 +673,9 @@ void showCreateAsmSheet(BuildContext context) {
                                   final email = emailController.text.trim();
                                   final phone = phoneController.text.trim();
                                   final password = passwordController.text.trim();
+                                  final asmId = asmIdController.text.trim();
+                                  final salary = int.tryParse(salaryController.text.trim()) ?? 0;
+                                  final incentive = int.tryParse(incentiveController.text.trim()) ?? 0;
                                   final mTarget = int.tryParse(monthlyTargetController.text.trim()) ?? 45;
                                   final dTarget = int.tryParse(dailyTargetController.text.trim()) ?? 12;
 
@@ -670,6 +690,9 @@ void showCreateAsmSheet(BuildContext context) {
                                     zone: selectedZone,
                                     monthlyTarget: mTarget,
                                     dailyTarget: dTarget,
+                                    asmId: asmId.isNotEmpty ? asmId : null,
+                                    salary: salary,
+                                    incentive: incentive,
                                   );
 
                                   if (ctx.mounted) {
@@ -681,6 +704,7 @@ void showCreateAsmSheet(BuildContext context) {
 
                                     if (success) {
                                       Navigator.pop(ctx);
+                                      HomeProvider.instance.setCurrentIndex(0);
                                       UiHelpers.showSnackBar(
                                         context,
                                         message,

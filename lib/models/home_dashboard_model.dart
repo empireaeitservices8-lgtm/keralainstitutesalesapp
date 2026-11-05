@@ -13,6 +13,8 @@ class HomeDashboardModel {
   final HomeTeamMetrics? teamMetrics;
   final Map<String, List<HomeBdeStatus>>? teamSubordinateStatus;
   final List<HomeTerritoryReport>? territoryReport;
+  final List<HomeTeamItem> teams;
+  final HomeScope? scope;
 
   // Rich API objects directly from /api/home
   final HomeTasksData? tasks;
@@ -36,6 +38,8 @@ class HomeDashboardModel {
     this.teamMetrics,
     this.teamSubordinateStatus,
     this.territoryReport,
+    this.teams = const [],
+    this.scope,
     this.tasks,
     this.leaves,
     this.wallet,
@@ -58,6 +62,8 @@ class HomeDashboardModel {
     HomeTeamMetrics? teamMetrics,
     Map<String, List<HomeBdeStatus>>? teamSubordinateStatus,
     List<HomeTerritoryReport>? territoryReport,
+    List<HomeTeamItem>? teams,
+    HomeScope? scope,
     HomeTasksData? tasks,
     HomeLeavesData? leaves,
     HomeWalletData? wallet,
@@ -79,6 +85,8 @@ class HomeDashboardModel {
       teamMetrics: teamMetrics ?? this.teamMetrics,
       teamSubordinateStatus: teamSubordinateStatus ?? this.teamSubordinateStatus,
       territoryReport: territoryReport ?? this.territoryReport,
+      teams: teams ?? this.teams,
+      scope: scope ?? this.scope,
       tasks: tasks ?? this.tasks,
       leaves: leaves ?? this.leaves,
       wallet: wallet ?? this.wallet,
@@ -150,9 +158,24 @@ class HomeDashboardModel {
 
   // Monthly Target & Follow-ups getters for SM & management directly from Home API
   int get monthlyTargetLeads {
-    if (target != null && target!.targetLeads > 0) return target!.targetLeads;
     if (target != null && target!.monthlyTarget > 0) return target!.monthlyTarget;
+    if (target != null && target!.targetLeads > 0) return target!.targetLeads;
     if (rawJson != null) {
+      if (rawJson!['targets'] is Map) {
+        final t = rawJson!['targets'] as Map;
+        final v = UiHelpers.parseInt(t['monthly_target'] ?? t['monthly_assigned_target'] ?? t['target']);
+        if (v > 0) return v;
+      }
+      if (rawJson!['performance_bar'] is Map) {
+        final p = rawJson!['performance_bar'] as Map;
+        final v = UiHelpers.parseInt(p['assigned_target']);
+        if (v > 0) return v;
+      }
+      if (rawJson!['eod_sync'] is Map) {
+        final e = rawJson!['eod_sync'] as Map;
+        final v = UiHelpers.parseInt(e['total_tasks']);
+        if (v > 0) return v;
+      }
       final val = UiHelpers.parseInt(rawJson!['monthly_target'] ?? rawJson!['target_leads'] ?? rawJson!['target']);
       if (val > 0) return val;
     }
@@ -295,9 +318,10 @@ class HomeDashboardModel {
     }
 
     // 8. Target data (specifically checking monthly_target & target from /api/home)
-    dynamic rawTarget = json['monthly_target'] ??
+    dynamic rawTarget = json['targets'] ??
+        json['performance_bar'] ??
+        json['monthly_target'] ??
         json['target'] ??
-        json['targets'] ??
         json['target_leads'] ??
         json['team_target'] ??
         (json['team'] is Map
@@ -439,6 +463,16 @@ class HomeDashboardModel {
       );
     }
 
+    final teamsList = (json['teams'] as List<dynamic>?)
+            ?.whereType<Map>()
+            .map((e) => HomeTeamItem.fromJson(Map<String, dynamic>.from(e)))
+            .toList() ??
+        const <HomeTeamItem>[];
+
+    final scopeObj = json['scope'] is Map
+        ? HomeScope.fromJson(Map<String, dynamic>.from(json['scope'] as Map))
+        : null;
+
     return HomeDashboardModel(
       user: userObj,
       designationId: desId,
@@ -461,6 +495,8 @@ class HomeDashboardModel {
       team: teamData,
       target: targetData,
       followUps: followUpsData,
+      teams: teamsList,
+      scope: scopeObj,
       rawJson: json,
     );
   }
@@ -480,6 +516,8 @@ class HomeDashboardModel {
       (k, v) => MapEntry(k, v.map((e) => e.toJson()).toList()),
     ),
     'territory_report': territoryReport?.map((e) => e.toJson()).toList(),
+    'teams': teams.map((e) => e.toJson()).toList(),
+    if (scope != null) 'scope': scope!.toJson(),
     if (tasks != null) 'tasks': tasks!.toJson(),
     if (leaves != null) 'leaves': leaves!.toJson(),
     if (wallet != null) 'wallet': wallet!.toJson(),
@@ -1152,7 +1190,7 @@ class HomeTargetData {
           (dailyTarget > 0 ? ((dailyAchieved / dailyTarget) * 100).clamp(0.0, 100.0) : 0.0);
 
       int mTarget = UiHelpers.parseInt(
-        json['monthly_target'] ?? json['target'] ?? json['target_leads'],
+        json['monthly_target'] ?? json['monthly_assigned_target'] ?? json['assigned_target'] ?? json['target'] ?? json['target_leads'],
       );
       final int monthlyAchieved = UiHelpers.parseInt(json['monthly_achieved'] ?? json['achieved']);
       final int monthlyRemaining = json['monthly_remaining'] != null
@@ -1296,5 +1334,58 @@ class HomeFollowUpsData {
     'total': total,
     'completed': completed,
     'pending': pending,
+  };
+}
+
+
+class HomeTeamItem {
+  final String teamName;
+  final String district;
+
+  const HomeTeamItem({
+    required this.teamName,
+    required this.district,
+  });
+
+  String get dropdownDisplay => teamName.isNotEmpty && district.isNotEmpty
+      ? '$teamName:$district'
+      : (teamName.isNotEmpty ? teamName : district);
+
+  factory HomeTeamItem.fromJson(Map<String, dynamic> json) => HomeTeamItem(
+    teamName: (json['team_name'] ?? json['name'] ?? json['team'] ?? '').toString(),
+    district: (json['district'] ?? json['districts'] ?? '').toString(),
+  );
+
+  Map<String, dynamic> toJson() => {
+    'team_name': teamName,
+    'district': district,
+  };
+}
+
+class HomeScope {
+  final String role;
+  final int visibleEmployees;
+  final int visibleBdes;
+  final int visibleAsms;
+
+  const HomeScope({
+    this.role = '',
+    this.visibleEmployees = 0,
+    this.visibleBdes = 0,
+    this.visibleAsms = 0,
+  });
+
+  factory HomeScope.fromJson(Map<String, dynamic> json) => HomeScope(
+    role: (json['role'] ?? '').toString(),
+    visibleEmployees: UiHelpers.parseInt(json['visible_employees']),
+    visibleBdes: UiHelpers.parseInt(json['visible_bdes']),
+    visibleAsms: UiHelpers.parseInt(json['visible_asms']),
+  );
+
+  Map<String, dynamic> toJson() => {
+    'role': role,
+    'visible_employees': visibleEmployees,
+    'visible_bdes': visibleBdes,
+    'visible_asms': visibleAsms,
   };
 }

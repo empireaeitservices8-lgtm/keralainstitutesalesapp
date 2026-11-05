@@ -124,7 +124,7 @@ class OperationsProvider extends ChangeNotifier {
         if (raw is Map && raw['data'] is List) {
           raw = raw['data'];
         }
-        if (raw is List && raw.isNotEmpty) {
+        if (raw is List) {
           _smAsms = raw
               .whereType<Map>()
               .map((e) => SmAsmModel.fromJson(Map<String, dynamic>.from(e)))
@@ -140,9 +140,6 @@ class OperationsProvider extends ChangeNotifier {
     } catch (e) {
       debugPrint('Error fetching /api/sm/asms: $e');
     } finally {
-      if (_smAsms.isEmpty) {
-        _smAsms = _getDefaultAsmList();
-      }
       _isLoadingSmAsms = false;
       notifyListeners();
     }
@@ -157,8 +154,11 @@ class OperationsProvider extends ChangeNotifier {
     String? zone,
     List<String>? districts,
     String? team,
-    int monthlyTarget = 45,
-    int dailyTarget = 12,
+    int monthlyTarget = 100,
+    int dailyTarget = 10,
+    String? asmId,
+    int salary = 0,
+    int incentive = 0,
   }) async {
     try {
       final finalTeamCode = teamCode;
@@ -173,45 +173,30 @@ class OperationsProvider extends ChangeNotifier {
         cleanPhone = cleanPhone.substring(2);
       }
 
-      // API expects strictly: name, email, contact_number, password, team_code
-      final payload = {
+      // Full payload including all fields
+      final payload = <String, dynamic>{
         'name': name.trim(),
         'email': email.trim(),
         'contact_number': cleanPhone,
         'password': finalPassword,
         'team_code': finalTeamCode,
+        if (asmId != null && asmId.isNotEmpty) 'employee_id': asmId,
+        if (salary > 0) 'salary': salary,
+        if (incentive > 0) 'incentive': incentive,
+        if (monthlyTarget > 0) 'monthly_target': monthlyTarget,
+        if (dailyTarget > 0) 'daily_target': dailyTarget,
+        if (zone != null && zone.isNotEmpty) 'zone': zone,
       };
 
       debugPrint('====================================================');
       debugPrint('[POST ${ApiEndpoints.smCreateAsm}] Payload: $payload');
 
-      String asmId = 'asm_${DateTime.now().millisecondsSinceEpoch}';
-      String employeeId =
-          'ASM${(_smAsms.length + 1).toString().padLeft(3, '0')}';
+      String resolvedAsmId = asmId ?? 'asm_${DateTime.now().millisecondsSinceEpoch}';
+      String resolvedEmployeeId = asmId ?? 'ASM${(_smAsms.length + 1).toString().padLeft(3, '0')}';
 
       String message =
           'ASM $name created successfully with team $finalTeamCode.';
 
-      try {
-        final response = await ApiClient.instance.post(
-          ApiEndpoints.smCreateAsm,
-          data: payload,
-        );
-        debugPrint('[CreateAsm] Server response: ${response.statusCode}');
-        if (response.data != null && response.data is Map) {
-          final resData = response.data['data'];
-          if (resData is Map) {
-            if (resData['employee_id'] != null)
-              employeeId = resData['employee_id'].toString();
-            if (resData['id'] != null) asmId = resData['id'].toString();
-          }
-        }
-      } catch (e) {
-        debugPrint('[CreateAsm] API call handled locally: $e');
-        try {
-          await ApiClient.instance.post(ApiEndpoints.smAsms, data: payload);
-        } catch (_) {}
-      }
       final response = await ApiClient.instance.post(
         ApiEndpoints.smCreateAsm,
         data: payload,
@@ -240,10 +225,11 @@ class OperationsProvider extends ChangeNotifier {
         }
         final resData = dataMap['data'];
         if (resData is Map) {
-          if (resData['employee_id'] != null)
-            employeeId = resData['employee_id'].toString();
-          if (resData['id'] != null) asmId = resData['id'].toString();
-          if (resData['_id'] != null) asmId = resData['_id'].toString();
+          if (resData['employee_id'] != null) {
+            resolvedEmployeeId = resData['employee_id'].toString();
+          }
+          if (resData['id'] != null) resolvedAsmId = resData['id'].toString();
+          if (resData['_id'] != null) resolvedAsmId = resData['_id'].toString();
         }
       }
 
@@ -255,13 +241,13 @@ class OperationsProvider extends ChangeNotifier {
           : getDefaultZoneForTeam(finalTeamCode);
 
       final newAsm = SmAsmModel(
-        id: asmId,
-        employeeId: employeeId,
+        id: resolvedAsmId,
+        employeeId: resolvedEmployeeId,
         name: name.trim(),
         email: email.trim(),
         contactNumber: cleanPhone,
         designation: 'Area Sales Manager',
-        team: team ?? '${finalTeamCode} Team',
+        team: team ?? '$finalTeamCode Team',
         districts: assignedDistricts,
         zone: assignedZone,
         reportsTo: 'SM001',

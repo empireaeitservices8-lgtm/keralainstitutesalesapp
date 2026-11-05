@@ -77,8 +77,9 @@ class _BdeDetailsScreenState extends State<BdeDetailsScreen> {
       );
       return;
     }
-    final formattedNumber =
-        digitsOnly.length == 10 ? '91$digitsOnly' : digitsOnly;
+    final formattedNumber = digitsOnly.length == 10
+        ? '91$digitsOnly'
+        : digitsOnly;
     final Uri url = Uri.parse('https://wa.me/$formattedNumber');
     if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
       if (mounted) {
@@ -265,20 +266,25 @@ class _BdeDetailsScreenState extends State<BdeDetailsScreen> {
 
         // Filter leads/tasks matching this BDE
         final assignedTasks = provider.rawTasks.where((t) {
-          final matchEmail = bde.email.isNotEmpty &&
+          final matchEmail =
+              bde.email.isNotEmpty &&
               t.assignedBdeEmail.toLowerCase() == bde.email.toLowerCase();
-          final matchName = bde.name.isNotEmpty &&
+          final matchName =
+              bde.name.isNotEmpty &&
               (t.employee?.toLowerCase() == bde.name.toLowerCase());
-          final matchEmpId = bde.employeeId.isNotEmpty &&
+          final matchEmpId =
+              bde.employeeId.isNotEmpty &&
               (t.employee?.toLowerCase() == bde.employeeId.toLowerCase());
           return matchEmail || matchName || matchEmpId;
         }).toList();
 
         // Filter wallet/incentive requests from /api/wallet/requests for this BDE
         final bdeWalletRequests = provider.walletApprovalRequests.where((r) {
-          final matchEmpId = bde.employeeId.isNotEmpty &&
+          final matchEmpId =
+              bde.employeeId.isNotEmpty &&
               r.employeeId.toLowerCase() == bde.employeeId.toLowerCase();
-          final matchName = bde.name.isNotEmpty &&
+          final matchName =
+              bde.name.isNotEmpty &&
               (r.employee.toLowerCase() == bde.name.toLowerCase() ||
                   r.employee.toLowerCase().contains(bde.name.toLowerCase()) ||
                   bde.name.toLowerCase().contains(r.employee.toLowerCase()));
@@ -321,50 +327,6 @@ class _BdeDetailsScreenState extends State<BdeDetailsScreen> {
                 ),
               ],
             ),
-            actions: [
-              IconButton(
-                icon: const Icon(
-                  Icons.refresh_rounded,
-                  color: Color(0xFF0F766E),
-                  size: 22,
-                ),
-                tooltip: 'Refresh BDE Details',
-                onPressed: () async {
-                  await provider.fetchAsmBdes(isRefresh: true);
-                  await provider.fetchWalletApprovalRequests(isRefresh: true);
-                },
-              ),
-              IconButton(
-                icon: const Icon(
-                  Icons.share_outlined,
-                  color: Color(0xFF0F766E),
-                  size: 20,
-                ),
-                tooltip: 'Share Profile Details',
-                onPressed: () {
-                  final shareText = '''
-BDE Executive Profile:
-Name: ${bde.name}
-Employee ID: ${bde.employeeId}
-Designation: ${bde.designation}
-District: ${bde.district}
-Zone: ${bde.zone}
-Team: ${bde.team}
-Reports To: ${bde.reportsTo}
-Salary: ${bde.formattedSalary}
-Incentive: ${bde.formattedIncentive}
-Email: ${bde.email}
-Phone: ${bde.contactNumber}
-Total Leads: ${bde.totalLeads}
-Admissions: ${bde.admissions}
-Conversion Rate: ${bde.displayConversionRate}
-Status: ${bde.status}
-''';
-                  _copyToClipboard(shareText, 'Executive details');
-                },
-              ),
-              const SizedBox(width: 4),
-            ],
           ),
           body: RefreshIndicator(
             color: const Color(0xFF0F766E),
@@ -446,8 +408,9 @@ Status: ${bde.status}
                       _buildActionInfoRow(
                         icon: Icons.email_outlined,
                         label: 'Email Address',
-                        value:
-                            bde.email.isNotEmpty ? bde.email : 'Not Provided',
+                        value: bde.email.isNotEmpty
+                            ? bde.email
+                            : 'Not Provided',
                         actionIcon: Icons.send_outlined,
                         actionTooltip: 'Send Email',
                         onTapAction: bde.email.isNotEmpty
@@ -471,9 +434,9 @@ Status: ${bde.status}
                             : null,
                         onCopy: bde.contactNumber.isNotEmpty
                             ? () => _copyToClipboard(
-                                  bde.contactNumber,
-                                  'Contact number',
-                                )
+                                bde.contactNumber,
+                                'Contact number',
+                              )
                             : null,
                       ),
                       const Divider(height: 16, color: Color(0xFFF1F5F9)),
@@ -485,20 +448,12 @@ Status: ${bde.status}
                             : 'Not Set',
                         onCopy: bde.employeeId.isNotEmpty
                             ? () => _copyToClipboard(
-                                  bde.employeeId,
-                                  'Employee ID',
-                                )
+                                bde.employeeId,
+                                'Employee ID',
+                              )
                             : null,
                       ),
-                      const Divider(height: 16, color: Color(0xFFF1F5F9)),
-                      _buildActionInfoRow(
-                        icon: Icons.fingerprint_outlined,
-                        label: 'System ID',
-                        value: bde.id.isNotEmpty ? bde.id : 'N/A',
-                        onCopy: bde.id.isNotEmpty
-                            ? () => _copyToClipboard(bde.id, 'System ID')
-                            : null,
-                      ),
+
                       const Divider(height: 16, color: Color(0xFFF1F5F9)),
                       _buildInfoRow(
                         icon: Icons.check_circle_outline_rounded,
@@ -888,7 +843,9 @@ Status: ${bde.status}
               value: ratio,
               minHeight: 7,
               backgroundColor: const Color(0xFFF1F5F9),
-              valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF0F766E)),
+              valueColor: const AlwaysStoppedAnimation<Color>(
+                Color(0xFF0F766E),
+              ),
             ),
           ),
           const SizedBox(height: 6),
@@ -1174,10 +1131,7 @@ Status: ${bde.status}
                   Text(
                     'No wallet incentive requests found for this executive.',
                     textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 10.5,
-                      color: Color(0xFF94A3B8),
-                    ),
+                    style: TextStyle(fontSize: 10.5, color: Color(0xFF94A3B8)),
                   ),
                 ],
               ),
@@ -1236,7 +1190,9 @@ Status: ${bde.status}
                                   vertical: 2.5,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFF0F766E).withOpacity(0.1),
+                                  color: const Color(
+                                    0xFF0F766E,
+                                  ).withOpacity(0.1),
                                   borderRadius: BorderRadius.circular(6),
                                 ),
                                 child: Text(
@@ -1427,8 +1383,8 @@ Status: ${bde.status}
                                 req.isPaid
                                     ? 'Incentive Disbursed & Settled'
                                     : req.isForwardedToSm
-                                        ? 'Forwarded to SM • Awaiting Review'
-                                        : 'In Review Queue • ${req.status}',
+                                    ? 'Forwarded to SM • Awaiting Review'
+                                    : 'In Review Queue • ${req.status}',
                                 style: TextStyle(
                                   fontSize: 11,
                                   fontWeight: FontWeight.bold,
@@ -1671,10 +1627,7 @@ Status: ${bde.status}
               ),
               const SizedBox(width: 6),
               Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 7,
-                  vertical: 2,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                 decoration: BoxDecoration(
                   color: const Color(0xFF0F766E).withOpacity(0.12),
                   borderRadius: BorderRadius.circular(10),
@@ -1720,10 +1673,7 @@ Status: ${bde.status}
                   Text(
                     'There are currently no matching leads cached for this BDE.',
                     textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 10.5,
-                      color: Color(0xFF94A3B8),
-                    ),
+                    style: TextStyle(fontSize: 10.5, color: Color(0xFF94A3B8)),
                   ),
                 ],
               ),
@@ -1747,8 +1697,9 @@ Status: ${bde.status}
                     children: [
                       CircleAvatar(
                         radius: 16,
-                        backgroundColor:
-                            const Color(0xFF0F766E).withOpacity(0.12),
+                        backgroundColor: const Color(
+                          0xFF0F766E,
+                        ).withOpacity(0.12),
                         child: Text(
                           task.studentName.isNotEmpty
                               ? task.studentName.substring(0, 1).toUpperCase()
