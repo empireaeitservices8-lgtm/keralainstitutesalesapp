@@ -14,6 +14,8 @@ import '../../screens/checkout_success_screen.dart';
 import '../../screens/attendance_history_screen.dart';
 import '../../screens/employee_dashboard_screen.dart';
 import '../../screens/dashboard/requests_approvals_screen.dart';
+import '../../screens/asm/bde_details_screen.dart';
+import '../../models/asm_bde_model.dart';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 String? currentRouteName;
@@ -69,6 +71,12 @@ Route<dynamic>? generateRoute(RouteSettings settings) {
       return MaterialPageRoute(builder: (_) => const AttendanceHistoryScreen());
     case RequestsApprovalsScreen.path:
       return MaterialPageRoute(builder: (_) => const RequestsApprovalsScreen());
+    case BdeDetailsScreen.path:
+      final bde = settings.arguments as AsmBdeModel?;
+      if (bde != null) {
+        return MaterialPageRoute(builder: (_) => BdeDetailsScreen(bde: bde));
+      }
+      return null;
     case EmployeeDashboardScreen.path:
       final args = settings.arguments is Map ? settings.arguments as Map : {};
       final rawEmpId = args['employeeId'];
