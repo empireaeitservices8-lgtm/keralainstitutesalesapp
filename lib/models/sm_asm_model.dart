@@ -57,6 +57,9 @@ class SmAsmModel {
   final int pendingLeads;
   final int completionPercentage;
 
+  final int salary;
+  final int incentive;
+
   final SmAsmTargetMetrics? dailyTargets;
   final SmAsmTargetMetrics? monthlyTargets;
   final SmAsmTargetMetrics? overallTargets;
@@ -86,10 +89,15 @@ class SmAsmModel {
     required this.completedLeads,
     required this.pendingLeads,
     required this.completionPercentage,
+    this.salary = 0,
+    this.incentive = 0,
     this.dailyTargets,
     this.monthlyTargets,
     this.overallTargets,
   });
+
+  String get formattedSalary => salary > 0 ? '\u20B9$salary' : 'Not set';
+  String get formattedIncentive => incentive > 0 ? '\u20B9$incentive' : 'Not set';
 
   String get code {
     final clean = team.replaceAll('Team', '').trim();
@@ -130,6 +138,77 @@ class SmAsmModel {
     if (period == 'Today' || period == 'Daily') return dailyPending;
     if (period == 'Overall') return pendingLeads;
     return monthlyPending;
+  }
+
+  SmAsmModel copyWith({
+    String? id,
+    String? employeeId,
+    String? name,
+    String? email,
+    String? contactNumber,
+    String? designation,
+    String? team,
+    List<String>? districts,
+    String? zone,
+    String? reportsTo,
+    int? bdesCount,
+    String? status,
+    int? dailyTarget,
+    int? dailyAchieved,
+    int? dailyPending,
+    int? dailyCompletionPercentage,
+    int? monthlyTarget,
+    int? monthlyAchieved,
+    int? monthlyPending,
+    int? monthlyCompletionPercentage,
+    int? totalLeads,
+    int? completedLeads,
+    int? pendingLeads,
+    int? completionPercentage,
+    int? salary,
+    int? incentive,
+    SmAsmTargetMetrics? dailyTargets,
+    SmAsmTargetMetrics? monthlyTargets,
+    SmAsmTargetMetrics? overallTargets,
+  }) {
+    final dTarget = dailyTarget ?? this.dailyTarget;
+    final dAchieved = dailyAchieved ?? this.dailyAchieved;
+    final mTarget = monthlyTarget ?? this.monthlyTarget;
+    final mAchieved = monthlyAchieved ?? this.monthlyAchieved;
+
+    return SmAsmModel(
+      id: id ?? this.id,
+      employeeId: employeeId ?? this.employeeId,
+      name: name ?? this.name,
+      email: email ?? this.email,
+      contactNumber: contactNumber ?? this.contactNumber,
+      designation: designation ?? this.designation,
+      team: team ?? this.team,
+      districts: districts ?? this.districts,
+      zone: zone ?? this.zone,
+      reportsTo: reportsTo ?? this.reportsTo,
+      bdesCount: bdesCount ?? this.bdesCount,
+      status: status ?? this.status,
+      dailyTarget: dTarget,
+      dailyAchieved: dAchieved,
+      dailyPending: dailyPending ?? (dTarget - dAchieved > 0 ? dTarget - dAchieved : 0),
+      dailyCompletionPercentage: dailyCompletionPercentage ??
+          (dTarget > 0 ? ((dAchieved / dTarget) * 100).toInt() : 0),
+      monthlyTarget: mTarget,
+      monthlyAchieved: mAchieved,
+      monthlyPending: monthlyPending ?? (mTarget - mAchieved > 0 ? mTarget - mAchieved : 0),
+      monthlyCompletionPercentage: monthlyCompletionPercentage ??
+          (mTarget > 0 ? ((mAchieved / mTarget) * 100).toInt() : 0),
+      totalLeads: totalLeads ?? this.totalLeads,
+      completedLeads: completedLeads ?? this.completedLeads,
+      pendingLeads: pendingLeads ?? this.pendingLeads,
+      completionPercentage: completionPercentage ?? this.completionPercentage,
+      salary: salary ?? this.salary,
+      incentive: incentive ?? this.incentive,
+      dailyTargets: dailyTargets ?? this.dailyTargets,
+      monthlyTargets: monthlyTargets ?? this.monthlyTargets,
+      overallTargets: overallTargets ?? this.overallTargets,
+    );
   }
 
   factory SmAsmModel.fromJson(Map<String, dynamic> json) {
@@ -185,6 +264,8 @@ class SmAsmModel {
       completedLeads: cLeads,
       pendingLeads: UiHelpers.parseInt(json['pending_leads'] ?? (tLeads - cLeads)),
       completionPercentage: oPct > 0 ? oPct : (tLeads > 0 ? ((cLeads / tLeads) * 100).toInt() : 0),
+      salary: UiHelpers.parseInt(json['salary'] ?? json['base_salary']),
+      incentive: UiHelpers.parseInt(json['incentive'] ?? json['incentives']),
       dailyTargets: targetsMap?['daily'] is Map
           ? SmAsmTargetMetrics.fromJson(Map<String, dynamic>.from(targetsMap!['daily'] as Map))
           : null,
@@ -222,6 +303,8 @@ class SmAsmModel {
     'completed_leads': completedLeads,
     'pending_leads': pendingLeads,
     'completion_percentage': completionPercentage,
+    'salary': salary,
+    'incentive': incentive,
     'targets': {
       if (dailyTargets != null) 'daily': dailyTargets!.toJson(),
       if (monthlyTargets != null) 'monthly': monthlyTargets!.toJson(),

@@ -282,14 +282,6 @@ class _AttendanceScreenState extends State<AttendanceScreen>
 
   Future<void> _handleCheckIn() async {
     final provider = AttendanceProvider.instance;
-    if (!provider.isSelfieCaptured) {
-      UiHelpers.showSnackBar(
-        context,
-        'Please capture live selfie first.',
-        Colors.orangeAccent,
-      );
-      return;
-    }
 
     double lat = 10.0159;
     double lng = 76.3419;
@@ -354,11 +346,11 @@ class _AttendanceScreenState extends State<AttendanceScreen>
 
     try {
       final success = await AttendanceProvider.instance.checkIn(
-        selfiePath: provider.selfiePath,
+        selfiePath: provider.isSelfieCaptured ? provider.selfiePath : '',
         lat: lat,
         lng: lng,
         deviceInfo: deviceInfo,
-        sourceMode: 'selfie',
+        sourceMode: provider.isSelfieCaptured ? 'selfie' : 'direct',
       );
 
       if (mounted) {
@@ -387,14 +379,6 @@ class _AttendanceScreenState extends State<AttendanceScreen>
 
   Future<void> _handleCheckOut() async {
     final provider = AttendanceProvider.instance;
-    if (!provider.isSelfieCaptured) {
-      UiHelpers.showSnackBar(
-        context,
-        'Please capture live checkout selfie first.',
-        Colors.orangeAccent,
-      );
-      return;
-    }
 
     double lat = 10.0159;
     double lng = 76.3419;
@@ -457,7 +441,7 @@ class _AttendanceScreenState extends State<AttendanceScreen>
 
     try {
       final success = await AttendanceProvider.instance.checkOut(
-        selfiePath: provider.selfiePath,
+        selfiePath: provider.isSelfieCaptured ? provider.selfiePath : '',
         lat: lat,
         lng: lng,
       );

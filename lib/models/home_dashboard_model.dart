@@ -191,6 +191,59 @@ class HomeDashboardModel {
     return 0;
   }
 
+  int get dailyTargetLeads {
+    if (target != null && target!.dailyTarget > 0) return target!.dailyTarget;
+    if (rawJson != null) {
+      if (rawJson!['targets'] is Map) {
+        final t = rawJson!['targets'] as Map;
+        if (t['daily'] is Map) {
+          final d = t['daily'] as Map;
+          final v = UiHelpers.parseInt(
+            d['daily_target'] ?? d['target_leads'] ?? d['total_leads'] ?? d['target'] ?? d['leads'],
+          );
+          if (v > 0) return v;
+        }
+        final v = UiHelpers.parseInt(t['daily_target'] ?? t['daily_assigned_target'] ?? t['daily']);
+        if (v > 0) return v;
+      }
+      if (rawJson!['performance_bar'] is Map) {
+        final p = rawJson!['performance_bar'] as Map;
+        final v = UiHelpers.parseInt(p['daily_target'] ?? p['daily_assigned_target']);
+        if (v > 0) return v;
+      }
+      if (rawJson!['user'] is Map) {
+        final u = rawJson!['user'] as Map;
+        final v = UiHelpers.parseInt(u['daily_target'] ?? u['daily_target_leads']);
+        if (v > 0) return v;
+      }
+      final val = UiHelpers.parseInt(rawJson!['daily_target'] ?? rawJson!['daily_target_leads']);
+      if (val > 0) return val;
+    }
+    return 0;
+  }
+
+  int get dailyAchievedLeads {
+    if (target != null && target!.dailyAchieved > 0) return target!.dailyAchieved;
+    if (rawJson != null) {
+      if (rawJson!['targets'] is Map) {
+        final t = rawJson!['targets'] as Map;
+        if (t['daily'] is Map) {
+          final d = t['daily'] as Map;
+          final v = UiHelpers.parseInt(
+            d['daily_achieved'] ?? d['completed_leads'] ?? d['achieved'] ?? d['completed'],
+          );
+          if (v > 0) return v;
+        }
+        final v = UiHelpers.parseInt(t['daily_achieved']);
+        if (v > 0) return v;
+      }
+      final val = UiHelpers.parseInt(rawJson!['daily_achieved'] ?? rawJson!['today_leads']);
+      if (val > 0) return val;
+    }
+    if (leads != null && leads!.today > 0) return leads!.today;
+    return 0;
+  }
+
   int get totalMonthlyLeadsCount {
     if (leads != null && leads!.total > 0) return leads!.total;
     if (rawJson != null) {
@@ -1181,8 +1234,17 @@ class HomeTargetData {
       );
     }
     if (json is Map) {
-      final int dailyTarget = UiHelpers.parseInt(json['daily_target'] ?? json['daily']);
-      final int dailyAchieved = UiHelpers.parseInt(json['daily_achieved']);
+      int dailyTarget = UiHelpers.parseInt(json['daily_target'] ?? json['daily']);
+      int dailyAchieved = UiHelpers.parseInt(json['daily_achieved']);
+      if (json['daily'] is Map) {
+        final d = json['daily'] as Map;
+        dailyTarget = UiHelpers.parseInt(
+          d['daily_target'] ?? d['target_leads'] ?? d['total_leads'] ?? d['target'] ?? d['leads'] ?? dailyTarget,
+        );
+        dailyAchieved = UiHelpers.parseInt(
+          d['daily_achieved'] ?? d['completed_leads'] ?? d['achieved'] ?? d['completed'] ?? dailyAchieved,
+        );
+      }
       final int dailyRemaining = json['daily_remaining'] != null
           ? UiHelpers.parseInt(json['daily_remaining'])
           : (dailyTarget - dailyAchieved).clamp(0, 999999);
@@ -1192,12 +1254,7 @@ class HomeTargetData {
       int mTarget = UiHelpers.parseInt(
         json['monthly_target'] ?? json['monthly_assigned_target'] ?? json['assigned_target'] ?? json['target'] ?? json['target_leads'],
       );
-      final int monthlyAchieved = UiHelpers.parseInt(json['monthly_achieved'] ?? json['achieved']);
-      final int monthlyRemaining = json['monthly_remaining'] != null
-          ? UiHelpers.parseInt(json['monthly_remaining'])
-          : (mTarget - monthlyAchieved).clamp(0, 999999);
-      final double monthlyPercentage = (json['monthly_percentage'] as num?)?.toDouble() ??
-          (mTarget > 0 ? ((monthlyAchieved / mTarget) * 100).clamp(0.0, 100.0) : 0.0);
+      int monthlyAchieved = UiHelpers.parseInt(json['monthly_achieved'] ?? json['achieved']);
       final String period = (json['period'] ?? '').toString();
 
       int leads = UiHelpers.parseInt(
@@ -1224,11 +1281,20 @@ class HomeTargetData {
         admissions = UiHelpers.parseInt(
           m['target_admissions'] ?? m['admissions'] ?? admissions,
         );
+        monthlyAchieved = UiHelpers.parseInt(
+          m['monthly_achieved'] ?? m['completed_leads'] ?? m['achieved'] ?? m['completed'] ?? monthlyAchieved,
+        );
         mTarget = leads;
       } else if (json['monthly'] is num) {
         mTarget = (json['monthly'] as num).toInt();
         if (leads == 0) leads = mTarget;
       }
+
+      final int monthlyRemaining = json['monthly_remaining'] != null
+          ? UiHelpers.parseInt(json['monthly_remaining'])
+          : (mTarget - monthlyAchieved).clamp(0, 999999);
+      final double monthlyPercentage = (json['monthly_percentage'] as num?)?.toDouble() ??
+          (mTarget > 0 ? ((monthlyAchieved / mTarget) * 100).clamp(0.0, 100.0) : 0.0);
 
       return HomeTargetData(
         targetLeads: leads > 0 ? leads : mTarget,

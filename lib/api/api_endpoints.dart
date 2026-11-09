@@ -11,6 +11,8 @@ class ApiEndpoints {
   static const String logout = '/logout';
   static const String refreshToken = '/auth/refresh-token';
   static const String changePassword = '/set-password';
+  static const String forgotPassword = '/forgot-password';
+  static const String deleteAccount = '/delete-account';
 
   /// Features (Placeholder endpoint maps, can be adapted/configured)
   static const String userProfile = '/profile';
@@ -47,6 +49,7 @@ class ApiEndpoints {
   static const String walletRequests = '/wallet/requests';
   static const String asmCreateBde = '/asm/create-bde';
   static const String asmBdes = '/asm/bdes';
+  static const String asmDistricts = '/asm/districts';
   static String asmBdeById(String id) => '/asm/bdes/$id';
 
   /// Returns the close endpoint for a specific lead: POST /leads/{id}/close

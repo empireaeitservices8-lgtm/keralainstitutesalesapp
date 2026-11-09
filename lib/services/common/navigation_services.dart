@@ -8,6 +8,7 @@ import '../../screens/incentive_screen.dart';
 import '../../screens/profile_screen.dart';
 import '../../screens/eod_screen.dart';
 import '../../screens/set_password_screen.dart';
+import '../../screens/forgot_password_screen.dart';
 import '../../screens/training_videos_screen.dart';
 import '../../screens/leave_screen.dart';
 import '../../screens/checkout_success_screen.dart';
@@ -15,7 +16,9 @@ import '../../screens/attendance_history_screen.dart';
 import '../../screens/employee_dashboard_screen.dart';
 import '../../screens/dashboard/requests_approvals_screen.dart';
 import '../../screens/asm/bde_details_screen.dart';
+import '../../screens/sm/asm_details_screen.dart';
 import '../../models/asm_bde_model.dart';
+import '../../models/sm_asm_model.dart';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 String? currentRouteName;
@@ -49,6 +52,8 @@ Route<dynamic>? generateRoute(RouteSettings settings) {
       return MaterialPageRoute(builder: (_) => const LoginScreen());
     case SetPasswordScreen.path:
       return MaterialPageRoute(builder: (_) => const SetPasswordScreen());
+    case ForgotPasswordScreen.path:
+      return MaterialPageRoute(builder: (_) => const ForgotPasswordScreen());
     case DashboardScreen.path:
       return MaterialPageRoute(builder: (_) => const DashboardScreen());
     case AttendanceScreen.path:
@@ -75,6 +80,12 @@ Route<dynamic>? generateRoute(RouteSettings settings) {
       final bde = settings.arguments as AsmBdeModel?;
       if (bde != null) {
         return MaterialPageRoute(builder: (_) => BdeDetailsScreen(bde: bde));
+      }
+      return null;
+    case AsmDetailsScreen.path:
+      final asm = settings.arguments as SmAsmModel?;
+      if (asm != null) {
+        return MaterialPageRoute(builder: (_) => AsmDetailsScreen(asm: asm));
       }
       return null;
     case EmployeeDashboardScreen.path:

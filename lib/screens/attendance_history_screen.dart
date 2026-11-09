@@ -43,21 +43,29 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen>
       final keys = prefs.getKeys();
       final map = <String, String>{};
       for (final k in keys) {
-        if (k.startsWith('attendance_selfie_in_')) {
-          final date = k.replaceFirst('attendance_selfie_in_', '');
+        if (k.startsWith('attendance_selfie_out_for_in_')) {
+          final suffix = k.replaceFirst('attendance_selfie_out_for_in_', '');
           final val = prefs.getString(k);
-          if (val != null && val.isNotEmpty) map['in_' + date] = val;
+          if (val != null && val.isNotEmpty) map['out_for_in_$suffix'] = val;
+        } else if (k.startsWith('attendance_selfie_in_')) {
+          final suffix = k.replaceFirst('attendance_selfie_in_', '');
+          final val = prefs.getString(k);
+          if (val != null && val.isNotEmpty) map['in_$suffix'] = val;
         } else if (k.startsWith('attendance_selfie_out_')) {
-          final date = k.replaceFirst('attendance_selfie_out_', '');
+          final suffix = k.replaceFirst('attendance_selfie_out_', '');
           final val = prefs.getString(k);
-          if (val != null && val.isNotEmpty) map['out_' + date] = val;
+          if (val != null && val.isNotEmpty) map['out_$suffix'] = val;
         }
       }
       final todayStr = DateFormat('yyyy-MM-dd').format(DateTime.now());
       final todayIn = prefs.getString('attendance_checkin_selfie');
-      if (todayIn != null && todayIn.isNotEmpty) map['in_' + todayStr] = todayIn;
+      if (todayIn != null && todayIn.isNotEmpty) {
+        map.putIfAbsent('in_$todayStr', () => todayIn);
+      }
       final todayOut = prefs.getString('attendance_checkout_selfie');
-      if (todayOut != null && todayOut.isNotEmpty) map['out_' + todayStr] = todayOut;
+      if (todayOut != null && todayOut.isNotEmpty) {
+        map.putIfAbsent('out_$todayStr', () => todayOut);
+      }
 
       if (mounted) {
         setState(() {
@@ -86,6 +94,7 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen>
   Future<void> _refreshData() async {
     final List<Future<void>> futures = [
       AttendanceProvider.instance.loadTodayAttendance(isRefresh: true),
+      _loadLocalSelfies(),
     ];
     if (_tabController.index == 1 || _historyLoaded) {
       futures.add(
@@ -226,7 +235,11 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen>
       itemCount: records.length,
       itemBuilder: (context, index) {
         final record = records[records.length - 1 - index];
-        return _buildAttendanceCard(record);
+        return _buildAttendanceCard(
+          record,
+          isLatestSession: index == 0,
+          totalSessionsForDay: records.length,
+        );
       },
     );
   }
@@ -318,7 +331,109 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen>
     return DateTime.tryParse(str);
   }
 
-  Widget _buildAttendanceCard(dynamic record) {
+  Map<String, String> _resolveSessionSelfies(
+    Map<String, dynamic> sRec,
+    String dateStr,
+    String inTimeFormatted,
+    String outTimeFormatted, {
+    required bool allowDateFallback,
+    required bool isLatestSession,
+  }) {
+    String inSelfie = '';
+    String outSelfie = '';
+
+    final mediaList = sRec['media'] as List<dynamic>?;
+    if (mediaList != null) {
+      for (var m in mediaList) {
+        if (m is Map) {
+          final typeText = m['type_text']?.toString().toLowerCase();
+          final filePath = (m['file_path'] ?? m['url'] ?? m['path'])?.toString();
+          if (typeText == 'check-in' || typeText == 'check_in') {
+            inSelfie = filePath ?? '';
+          } else if (typeText == 'check-out' || typeText == 'check_out') {
+            outSelfie = filePath ?? '';
+          }
+        }
+      }
+    }
+
+    if (inSelfie.isEmpty) {
+      inSelfie = (sRec['check_in_selfie'] ??
+              sRec['checkin_selfie'] ??
+              sRec['selfie'] ??
+              sRec['check_in_photo'] ??
+              sRec['check_in_image'] ??
+              sRec['image'] ??
+              sRec['photo'] ??
+              '')
+          .toString();
+      if (inSelfie == 'null') inSelfie = '';
+    }
+
+    if (outSelfie.isEmpty) {
+      outSelfie = (sRec['check_out_selfie'] ??
+              sRec['checkout_selfie'] ??
+              sRec['check_out_photo'] ??
+              sRec['check_out_image'] ??
+              '')
+          .toString();
+      if (outSelfie == 'null') outSelfie = '';
+    }
+
+    final todayStr = DateFormat('yyyy-MM-dd').format(DateTime.now());
+    final effectiveDate = (dateStr.isNotEmpty && dateStr != 'null')
+        ? dateStr
+        : todayStr;
+    final isToday = effectiveDate == todayStr;
+    final provAttendance = AttendanceProvider.instance.currentAttendance;
+
+    // 1. Time-specific lookup for check-in
+    if (inSelfie.isEmpty && inTimeFormatted != '--:--' && inTimeFormatted.isNotEmpty) {
+      final keyTime = inTimeFormatted.toUpperCase();
+      inSelfie = _cachedSelfies['in_${effectiveDate}_$keyTime'] ?? '';
+    }
+
+    // 2. Fallback for check-in if allowed
+    if (inSelfie.isEmpty && allowDateFallback) {
+      if (isToday && isLatestSession && provAttendance.checkInSelfie.isNotEmpty) {
+        inSelfie = provAttendance.checkInSelfie;
+      } else {
+        inSelfie = _cachedSelfies['in_$effectiveDate'] ?? '';
+      }
+    }
+
+    // Check-out selfie handling:
+    // If the session has not checked out yet, NEVER show a check-out selfie!
+    if (outTimeFormatted == '--:--' || outTimeFormatted.isEmpty) {
+      outSelfie = '';
+    } else {
+      // 1. Time-specific lookup for check-out
+      final outKeyTime = outTimeFormatted.toUpperCase();
+      final inKeyTime = inTimeFormatted.toUpperCase();
+      outSelfie = _cachedSelfies['out_${effectiveDate}_$outKeyTime'] ??
+          _cachedSelfies['out_for_in_${effectiveDate}_$inKeyTime'] ??
+          outSelfie;
+
+      // 2. Fallback for check-out if allowed
+      if (outSelfie.isEmpty && allowDateFallback) {
+        if (isToday &&
+            isLatestSession &&
+            (provAttendance.checkOutSelfie ?? '').isNotEmpty) {
+          outSelfie = provAttendance.checkOutSelfie!;
+        } else {
+          outSelfie = _cachedSelfies['out_$effectiveDate'] ?? '';
+        }
+      }
+    }
+
+    return {'in': inSelfie, 'out': outSelfie};
+  }
+
+  Widget _buildAttendanceCard(
+    dynamic record, {
+    bool isLatestSession = true,
+    int totalSessionsForDay = 1,
+  }) {
     if (record is! Map) return const SizedBox.shrink();
     Map<String, dynamic> rec = Map<String, dynamic>.from(record);
 
@@ -446,64 +561,17 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen>
       checkOut: sessionsList.length > 1 ? null : dtOut,
     );
 
-    // Parse image paths
-    String checkInSelfie = '';
-    String checkOutSelfie = '';
-    final mediaList = rec['media'] as List<dynamic>?;
-    if (mediaList != null) {
-      for (var m in mediaList) {
-        if (m is Map) {
-          final typeText = m['type_text']?.toString().toLowerCase();
-          final filePath = (m['file_path'] ?? m['url'] ?? m['path'])?.toString();
-          if (typeText == 'check-in' || typeText == 'check_in') {
-            checkInSelfie = filePath ?? '';
-          } else if (typeText == 'check-out' || typeText == 'check_out') {
-            checkOutSelfie = filePath ?? '';
-          }
-        }
-      }
-    }
-
-    if (checkInSelfie.isEmpty) {
-      checkInSelfie = (rec['check_in_selfie'] ??
-              rec['checkin_selfie'] ??
-              rec['selfie'] ??
-              rec['check_in_photo'] ??
-              rec['check_in_image'] ??
-              rec['image'] ??
-              rec['photo'] ??
-              '')
-          .toString();
-      if (checkInSelfie == 'null') checkInSelfie = '';
-    }
-    if (checkOutSelfie.isEmpty) {
-      checkOutSelfie = (rec['check_out_selfie'] ??
-              rec['checkout_selfie'] ??
-              rec['check_out_photo'] ??
-              rec['check_out_image'] ??
-              '')
-          .toString();
-      if (checkOutSelfie == 'null') checkOutSelfie = '';
-    }
-
-    final todayStr = DateFormat('yyyy-MM-dd').format(DateTime.now());
-    final isToday = dateStr == todayStr || rec['date'] == todayStr;
-    final provAttendance = AttendanceProvider.instance.currentAttendance;
-
-    if (checkInSelfie.isEmpty) {
-      if (isToday && provAttendance.checkInSelfie.isNotEmpty) {
-        checkInSelfie = provAttendance.checkInSelfie;
-      } else {
-        checkInSelfie = _cachedSelfies['in_' + dateStr] ?? _cachedSelfies['in_' + (rec['date']?.toString() ?? '')] ?? '';
-      }
-    }
-    if (checkOutSelfie.isEmpty) {
-      if (isToday && (provAttendance.checkOutSelfie ?? '').isNotEmpty) {
-        checkOutSelfie = provAttendance.checkOutSelfie!;
-      } else {
-        checkOutSelfie = _cachedSelfies['out_' + dateStr] ?? _cachedSelfies['out_' + (rec['date']?.toString() ?? '')] ?? '';
-      }
-    }
+    // Resolve selfies for single-session card
+    final resolvedSelfies = _resolveSessionSelfies(
+      rec,
+      dateStr,
+      formattedCheckIn,
+      formattedCheckOut,
+      allowDateFallback: totalSessionsForDay <= 1,
+      isLatestSession: isLatestSession,
+    );
+    final String checkInSelfie = resolvedSelfies['in'] ?? '';
+    final String checkOutSelfie = resolvedSelfies['out'] ?? '';
 
     Color badgeColor = Colors.orange;
     final upperStatus = statusText.toUpperCase();
@@ -625,6 +693,17 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen>
                           checkOut: sDtOut,
                         );
 
+                  final sSelfies = _resolveSessionSelfies(
+                    s,
+                    dateStr,
+                    sInStr,
+                    sOutStr,
+                    allowDateFallback: false,
+                    isLatestSession: i == sessionsList.length - 1 && isLatestSession,
+                  );
+                  final sCheckInSelfie = sSelfies['in'] ?? '';
+                  final sCheckOutSelfie = sSelfies['out'] ?? '';
+
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -676,11 +755,10 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen>
                                     fontWeight: FontWeight.w700,
                                   ),
                                 ),
-                                if (i == sessionsList.length - 1 &&
-                                    checkInSelfie.isNotEmpty) ...[
+                                if (sCheckInSelfie.isNotEmpty) ...[
                                   const SizedBox(height: 8),
                                   _buildSelfieThumbnail(
-                                    checkInSelfie,
+                                    sCheckInSelfie,
                                     'Check-In selfie',
                                   ),
                                 ],
@@ -715,11 +793,10 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen>
                                     fontWeight: FontWeight.w700,
                                   ),
                                 ),
-                                if (i == sessionsList.length - 1 &&
-                                    checkOutSelfie.isNotEmpty) ...[
+                                if (sCheckOutSelfie.isNotEmpty) ...[
                                   const SizedBox(height: 8),
                                   _buildSelfieThumbnail(
-                                    checkOutSelfie,
+                                    sCheckOutSelfie,
                                     'Check-Out selfie',
                                   ),
                                 ],

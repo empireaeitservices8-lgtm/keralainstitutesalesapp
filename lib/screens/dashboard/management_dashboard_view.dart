@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../../api/api_client.dart';
 import '../../api/api_endpoints.dart';
 import '../../constants/colors.dart';
+import '../../models/asm_bde_model.dart';
 import '../../models/home_dashboard_model.dart';
 import '../../models/office_telecaller_model.dart';
 import '../../models/performance_task.dart';
@@ -15,6 +16,7 @@ import '../../utils/helpers.dart';
 import 'create_asm_sheet.dart';
 import 'create_bde_sheet.dart';
 import 'requests_approvals_screen.dart';
+import '../sm/asm_details_screen.dart';
 import '../asm/bde_details_screen.dart';
 
 class ManagementDashboardView extends StatelessWidget {
@@ -944,57 +946,174 @@ class ManagementDashboardView extends StatelessWidget {
     required int admissions,
     required int percentage,
     bool isOfficeTeam = false,
+    String? name,
+    VoidCallback? onTap,
   }) {
+    final String displayLabel = (name != null && name.trim().isNotEmpty)
+        ? '$name • $districts'
+        : districts;
     if (isOfficeTeam) {
-      return Container(
-        margin: const EdgeInsets.only(top: 8),
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
-        decoration: BoxDecoration(
-          color: const Color(0xFFF5EEFD),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: const Color(0xFFE9D5FF)),
+      return InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          margin: const EdgeInsets.only(top: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF5EEFD),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: const Color(0xFFE9D5FF)),
+          ),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final isNarrow = constraints.maxWidth < 360;
+              return Row(
+                children: [
+                  const Icon(
+                    Icons.corporate_fare_rounded,
+                    color: Color(0xFF7C3AED),
+                    size: 14,
+                  ),
+                  const SizedBox(width: 4),
+                  const Text(
+                    'Office Team',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 10,
+                      color: Color(0xFF7C3AED),
+                    ),
+                  ),
+                  Container(
+                    height: 12,
+                    width: 1,
+                    color: const Color(0xFFDDD6FE),
+                    margin: const EdgeInsets.symmetric(horizontal: 4),
+                  ),
+                  Expanded(
+                    child: Text(
+                      displayLabel,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF6B21A8),
+                      ),
+                    ),
+                  ),
+                  Container(
+                    height: 12,
+                    width: 1,
+                    color: const Color(0xFFDDD6FE),
+                    margin: const EdgeInsets.symmetric(horizontal: 4),
+                  ),
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      isNarrow
+                          ? '$admissions/$leads L'
+                          : '$admissions/$leads Leads',
+                      style: const TextStyle(
+                        fontSize: 9,
+                        color: Color(0xFF7C3AED),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  Container(
+                    height: 12,
+                    width: 1,
+                    color: const Color(0xFFDDD6FE),
+                    margin: const EdgeInsets.symmetric(horizontal: 4),
+                  ),
+                  SizedBox(
+                    width: isNarrow ? 44 : 52,
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(4),
+                            child: LinearProgressIndicator(
+                              value: percentage / 100.0,
+                              minHeight: 4,
+                              backgroundColor: const Color(0xFFDDD6FE),
+                              valueColor: const AlwaysStoppedAnimation<Color>(
+                                Color(0xFF7C3AED),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 3),
+                        Text(
+                          '$percentage%',
+                          style: const TextStyle(
+                            fontSize: 8.5,
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFF6B21A8),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (onTap != null) ...[
+                    const SizedBox(width: 2),
+                    const Icon(
+                      Icons.chevron_right_rounded,
+                      size: 14,
+                      color: Color(0xFF7C3AED),
+                    ),
+                  ],
+                ],
+              );
+            },
+          ),
         ),
+      );
+    }
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 6.0),
         child: LayoutBuilder(
           builder: (context, constraints) {
             final isNarrow = constraints.maxWidth < 360;
             return Row(
               children: [
-                const Icon(
-                  Icons.corporate_fare_rounded,
-                  color: Color(0xFF7C3AED),
-                  size: 14,
-                ),
-                const SizedBox(width: 4),
-                const Text(
-                  'Office Team',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w800,
-                    fontSize: 10,
-                    color: Color(0xFF7C3AED),
-                  ),
-                ),
-                Container(
-                  height: 12,
-                  width: 1,
-                  color: const Color(0xFFDDD6FE),
-                  margin: const EdgeInsets.symmetric(horizontal: 4),
-                ),
-                Expanded(
+                SizedBox(
+                  width: 28,
                   child: Text(
-                    districts,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                    code,
                     style: const TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF6B21A8),
+                      fontWeight: FontWeight.w800,
+                      fontSize: 10.5,
+                      color: Color(0xFF0F172A),
                     ),
                   ),
                 ),
                 Container(
                   height: 12,
                   width: 1,
-                  color: const Color(0xFFDDD6FE),
+                  color: const Color(0xFFE2E8F0),
+                  margin: const EdgeInsets.symmetric(horizontal: 4),
+                ),
+                Expanded(
+                  child: Text(
+                    displayLabel,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF1E293B),
+                    ),
+                  ),
+                ),
+                Container(
+                  height: 12,
+                  width: 1,
+                  color: const Color(0xFFE2E8F0),
                   margin: const EdgeInsets.symmetric(horizontal: 4),
                 ),
                 FittedBox(
@@ -1005,7 +1124,7 @@ class ManagementDashboardView extends StatelessWidget {
                         : '$admissions/$leads Leads',
                     style: const TextStyle(
                       fontSize: 9,
-                      color: Color(0xFF7C3AED),
+                      color: AppColors.textSecondary,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -1013,7 +1132,7 @@ class ManagementDashboardView extends StatelessWidget {
                 Container(
                   height: 12,
                   width: 1,
-                  color: const Color(0xFFDDD6FE),
+                  color: const Color(0xFFE2E8F0),
                   margin: const EdgeInsets.symmetric(horizontal: 4),
                 ),
                 SizedBox(
@@ -1026,9 +1145,9 @@ class ManagementDashboardView extends StatelessWidget {
                           child: LinearProgressIndicator(
                             value: percentage / 100.0,
                             minHeight: 4,
-                            backgroundColor: const Color(0xFFDDD6FE),
+                            backgroundColor: const Color(0xFFE2E8F0),
                             valueColor: const AlwaysStoppedAnimation<Color>(
-                              Color(0xFF7C3AED),
+                              Color(0xFF0EA5E9),
                             ),
                           ),
                         ),
@@ -1039,112 +1158,24 @@ class ManagementDashboardView extends StatelessWidget {
                         style: const TextStyle(
                           fontSize: 8.5,
                           fontWeight: FontWeight.w800,
-                          color: Color(0xFF6B21A8),
+                          color: Color(0xFF0F172A),
                         ),
                       ),
                     ],
                   ),
                 ),
+                if (onTap != null) ...[
+                  const SizedBox(width: 2),
+                  const Icon(
+                    Icons.chevron_right_rounded,
+                    size: 14,
+                    color: Color(0xFF94A3B8),
+                  ),
+                ],
               ],
             );
           },
         ),
-      );
-    }
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6.0),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final isNarrow = constraints.maxWidth < 360;
-          return Row(
-            children: [
-              SizedBox(
-                width: 28,
-                child: Text(
-                  code,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w800,
-                    fontSize: 10.5,
-                    color: Color(0xFF0F172A),
-                  ),
-                ),
-              ),
-              Container(
-                height: 12,
-                width: 1,
-                color: const Color(0xFFE2E8F0),
-                margin: const EdgeInsets.symmetric(horizontal: 4),
-              ),
-              Expanded(
-                child: Text(
-                  districts,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 10.5,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF1E293B),
-                  ),
-                ),
-              ),
-              Container(
-                height: 12,
-                width: 1,
-                color: const Color(0xFFE2E8F0),
-                margin: const EdgeInsets.symmetric(horizontal: 4),
-              ),
-              FittedBox(
-                fit: BoxFit.scaleDown,
-                child: Text(
-                  isNarrow
-                      ? '$admissions/$leads L'
-                      : '$admissions/$leads Leads',
-                  style: const TextStyle(
-                    fontSize: 9,
-                    color: AppColors.textSecondary,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-              Container(
-                height: 12,
-                width: 1,
-                color: const Color(0xFFE2E8F0),
-                margin: const EdgeInsets.symmetric(horizontal: 4),
-              ),
-              SizedBox(
-                width: isNarrow ? 44 : 52,
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(4),
-                        child: LinearProgressIndicator(
-                          value: percentage / 100.0,
-                          minHeight: 4,
-                          backgroundColor: const Color(0xFFE2E8F0),
-                          valueColor: const AlwaysStoppedAnimation<Color>(
-                            Color(0xFF0EA5E9),
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 3),
-                    Text(
-                      '$percentage%',
-                      style: const TextStyle(
-                        fontSize: 8.5,
-                        fontWeight: FontWeight.w800,
-                        color: Color(0xFF0F172A),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          );
-        },
       ),
     );
   }
@@ -1154,97 +1185,36 @@ class ManagementDashboardView extends StatelessWidget {
     bool isForBde = false,
   }) {
     final asms = OperationsProvider.instance.smAsms;
-    final bdes = OperationsProvider.instance.asmBdes;
+    final bdes = _resolveAsmBdes(OperationsProvider.instance);
 
     final List<Map<String, String>> employeeOptions = isForBde
-        ? (bdes.isNotEmpty
-              ? bdes.map((b) {
-                  final label = b.district.isNotEmpty
-                      ? '${b.name} (${b.district})'
-                      : (b.employeeId.isNotEmpty
-                            ? '${b.name} (${b.employeeId})'
-                            : b.name);
-                  return {
-                    'value': label,
-                    'label': label,
-                    'id': b.id,
-                    'name': b.name,
-                    'code': b.employeeId,
-                  };
-                }).toList()
-              : const [
-                  {
-                    'value': 'BDE Rahul (Ernakulam)',
-                    'label': 'BDE Rahul (Ernakulam)',
-                    'id': 'bde1',
-                    'name': 'Rahul',
-                    'code': 'BDE001',
-                  },
-                  {
-                    'value': 'BDE Priya (Kottayam)',
-                    'label': 'BDE Priya (Kottayam)',
-                    'id': 'bde2',
-                    'name': 'Priya',
-                    'code': 'BDE002',
-                  },
-                ])
-        : (asms.isNotEmpty
-              ? asms.map((a) {
-                  final label = a.districtsDisplay.isNotEmpty
-                      ? '${a.name} (${a.districtsDisplay})'
-                      : (a.code.isNotEmpty ? '${a.name} (${a.code})' : a.name);
-                  return {
-                    'value': label,
-                    'label': label,
-                    'id': a.id,
-                    'name': a.name,
-                    'code': a.code,
-                  };
-                }).toList()
-              : const [
-                  {
-                    'value': 'Anjali Krishna (Ernakulam)',
-                    'label': 'Anjali Krishna (Ernakulam)',
-                    'id': 'asm1',
-                    'name': 'Anjali Krishna',
-                    'code': 'ASM001',
-                  },
-                  {
-                    'value': 'Bipin Joseph (Trivandrum)',
-                    'label': 'Bipin Joseph (Trivandrum)',
-                    'id': 'asm2',
-                    'name': 'Bipin Joseph',
-                    'code': 'ASM002',
-                  },
-                  {
-                    'value': 'Manoj Kumar (Kozhikode)',
-                    'label': 'Manoj Kumar (Kozhikode)',
-                    'id': 'asm3',
-                    'name': 'Manoj Kumar',
-                    'code': 'ASM003',
-                  },
-                  {
-                    'value': 'Ramesh P. (Thrissur)',
-                    'label': 'Ramesh P. (Thrissur)',
-                    'id': 'asm4',
-                    'name': 'Ramesh P.',
-                    'code': 'ASM004',
-                  },
-                  {
-                    'value': 'Deepa S. (Kollam)',
-                    'label': 'Deepa S. (Kollam)',
-                    'id': 'asm5',
-                    'name': 'Deepa S.',
-                    'code': 'ASM005',
-                  },
-                  {
-                    'value': 'Shine J. (Kannur)',
-                    'label': 'Shine J. (Kannur)',
-                    'id': 'asm6',
-                    'name': 'Shine J.',
-                    'code': 'ASM006',
-                  },
-                ]);
+        ? bdes.map((b) {
+            final label = b.district.isNotEmpty
+                ? '${b.name} (${b.district})'
+                : (b.employeeId.isNotEmpty
+                      ? '${b.name} (${b.employeeId})'
+                      : b.name);
+            return {
+              'value': label,
+              'label': label,
+              'id': b.id,
+              'name': b.name,
+              'code': b.employeeId,
+            };
+          }).toList()
+        : asms.map((a) {
+            final empCode = a.employeeId.isNotEmpty ? a.employeeId : a.code;
+            final label = a.districtsDisplay.isNotEmpty
+                ? '${a.name} (${a.districtsDisplay})'
+                : (empCode.isNotEmpty ? '${a.name} ($empCode)' : a.name);
+            return {
+              'value': label,
+              'label': label,
+              'id': a.id,
+              'name': a.name,
+              'code': empCode,
+            };
+          }).toList();
 
     // Deduplicate options by value to avoid any duplicate assertion
     final seen = <String>{};
@@ -1808,22 +1778,68 @@ class ManagementDashboardView extends StatelessWidget {
 
                                 // Fire API if available in background
                                 try {
+                                  final isDailyFreq =
+                                      selectedFrequency.toLowerCase() ==
+                                      'daily';
+                                  final isMonthlyFreq =
+                                      selectedFrequency.toLowerCase() ==
+                                      'monthly';
+
+                                  final Map<String, dynamic> taskPayload = {
+                                    'employee': empName,
+                                    'employee_id': empCode,
+                                    'title': template,
+                                    'task_template': template,
+                                    'target': target,
+                                    'target_count': target,
+                                    'metric_type': selectedMetric.toLowerCase(),
+                                    'frequency': selectedFrequency
+                                        .toLowerCase(),
+                                  };
+
+                                  if (isDailyFreq) {
+                                    taskPayload['daily_target'] = target;
+                                  } else if (isMonthlyFreq) {
+                                    taskPayload['monthly_target'] = target;
+                                  }
+
                                   await ApiClient.instance.post(
                                     ApiEndpoints.performanceTasks,
-                                    data: {
-                                      'employee': empName,
-                                      'employee_id': empCode,
-                                      'title': template,
-                                      'task_template': template,
-                                      'target': target,
-                                      'metric_type': selectedMetric
-                                          .toLowerCase(),
-                                      'frequency': selectedFrequency
-                                          .toLowerCase(),
-                                    },
+                                    data: taskPayload,
                                   );
+
+                                  // If assigning to an ASM or BDE, also sync targets directly
+                                  if (!isForBde && empCode.isNotEmpty) {
+                                    OperationsProvider.instance
+                                        .updateAsmTargets(
+                                          employeeId: empCode,
+                                          dailyTarget: isDailyFreq
+                                              ? target
+                                              : null,
+                                          monthlyTarget: isMonthlyFreq
+                                              ? target
+                                              : null,
+                                        )
+                                        .catchError((_) {});
+                                  } else if (isForBde && empCode.isNotEmpty) {
+                                    OperationsProvider.instance
+                                        .updateBdeTargets(
+                                          employeeId: empCode,
+                                          bdeName: empName,
+                                          dailyTarget: isDailyFreq
+                                              ? target
+                                              : null,
+                                          monthlyTarget: isMonthlyFreq
+                                              ? target
+                                              : null,
+                                        )
+                                        .catchError((_) {});
+                                  }
                                 } catch (e) {
                                   debugPrint('[AssignTask] API call: $e');
+                                  setModalState(() => isSubmitting = false);
+                                  UiHelpers.showToast(e.toString(), isError: true, context: ctx);
+                                  return;
                                 }
 
                                 if (context.mounted) {
@@ -2108,333 +2124,6 @@ class ManagementDashboardView extends StatelessWidget {
       context,
       MaterialPageRoute(builder: (_) => const RequestsApprovalsScreen()),
     );
-    if (!context.mounted) return;
-    // Sync with OperationsProvider smPayoutRequests
-    final providerRequests = OperationsProvider.instance.smPayoutRequests;
-    for (final pr in providerRequests) {
-      final exists = _smRequests.any((r) => r['id'] == pr.id);
-      if (!exists) {
-        _smRequests.insert(0, {
-          'id': pr.id,
-          'title': '${pr.employeeName} (${pr.employeeId})',
-          'role': pr.designation,
-          'type': '${pr.type} Approval',
-          'amount': pr.formattedAmount,
-          'raw_amount': pr.amount,
-          'status': pr.status == 'Pending_SM' ? 'Pending Review' : pr.status,
-          'details': pr.notes ?? '${pr.type} request awaiting SM verification',
-          'date': pr.submittedAt ?? 'Today',
-        });
-      }
-    }
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (ctx) {
-        return StatefulBuilder(
-          builder: (context, setModalState) {
-            return Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: const BoxDecoration(
-                              color: Color(0xFFF3E8FF),
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(
-                              Icons.receipt_long_rounded,
-                              color: Color(0xFF7C3AED),
-                              size: 20,
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          const Text(
-                            'Requests & Approvals',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: Color(0xFF0F172A),
-                            ),
-                          ),
-                        ],
-                      ),
-                      IconButton(
-                        onPressed: () => Navigator.pop(ctx),
-                        icon: const Icon(Icons.close_rounded),
-                      ),
-                    ],
-                  ),
-                  Text(
-                    '${_smRequests.where((r) => r['status'] == 'Pending Review').length} requests awaiting your review & forward',
-                    style: const TextStyle(
-                      color: AppColors.textSecondary,
-                      fontSize: 12,
-                    ),
-                  ),
-                  const Divider(color: Color(0xFFE2E8F0), height: 24),
-                  Flexible(
-                    child: ListView.separated(
-                      shrinkWrap: true,
-                      itemCount: _smRequests.length,
-                      separatorBuilder: (context, index) =>
-                          const Divider(color: Color(0xFFE2E8F0), height: 16),
-                      itemBuilder: (context, index) {
-                        final req = _smRequests[index];
-                        final isPending = req['status'] == 'Pending Review';
-                        final isForwarded =
-                            req['status'] == 'Forwarded to Accounts';
-                        final isPaid = req['status'] == 'Paid & Verified';
-
-                        return Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              crossAxisAlignment: CrossAxisAlignment.center,
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.all(8),
-                                  decoration: BoxDecoration(
-                                    color: isForwarded
-                                        ? const Color(0xFFF3E8FF)
-                                        : isPaid
-                                        ? Colors.green.shade50
-                                        : const Color(0xFFFEF3C7),
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                  child: Icon(
-                                    isForwarded
-                                        ? Icons.forward_to_inbox_rounded
-                                        : isPaid
-                                        ? Icons.check_circle_rounded
-                                        : Icons.receipt_long_rounded,
-                                    color: isForwarded
-                                        ? const Color(0xFF7C3AED)
-                                        : isPaid
-                                        ? Colors.green
-                                        : const Color(0xFFD97706),
-                                    size: 18,
-                                  ),
-                                ),
-                                const SizedBox(width: 10),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Row(
-                                        children: [
-                                          Text(
-                                            (req['title'] ?? '').toString(),
-                                            style: const TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 12,
-                                              color: Color(0xFF0F172A),
-                                            ),
-                                          ),
-                                          const SizedBox(width: 6),
-                                          Container(
-                                            padding: const EdgeInsets.symmetric(
-                                              horizontal: 5,
-                                              vertical: 1,
-                                            ),
-                                            decoration: BoxDecoration(
-                                              color: const Color(0xFFF1F5F9),
-                                              borderRadius:
-                                                  BorderRadius.circular(4),
-                                            ),
-                                            child: Text(
-                                              (req['role'] ?? '').toString(),
-                                              style: const TextStyle(
-                                                fontSize: 8.5,
-                                                fontWeight: FontWeight.bold,
-                                                color: Color(0xFF475569),
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                      const SizedBox(height: 2),
-                                      Text(
-                                        '${req['type']} \u2022 ${req['amount']}',
-                                        style: const TextStyle(
-                                          color: Color(0xFF0F766E),
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.w700,
-                                        ),
-                                      ),
-                                      Text(
-                                        (req['details'] ?? '').toString(),
-                                        style: const TextStyle(
-                                          color: AppColors.textSecondary,
-                                          fontSize: 10,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                if (isPending) ...[
-                                  IconButton(
-                                    tooltip: 'Approve Directly',
-                                    icon: const Icon(
-                                      Icons.check_circle_rounded,
-                                      color: Colors.green,
-                                      size: 22,
-                                    ),
-                                    onPressed: () {
-                                      setModalState(() {
-                                        req['status'] = 'Approved by SM';
-                                      });
-                                      UiHelpers.showSnackBar(
-                                        ctx,
-                                        'Request approved by SM!',
-                                        Colors.green,
-                                      );
-                                    },
-                                  ),
-                                  IconButton(
-                                    tooltip: 'Reject',
-                                    icon: const Icon(
-                                      Icons.cancel_rounded,
-                                      color: Colors.redAccent,
-                                      size: 22,
-                                    ),
-                                    onPressed: () {
-                                      setModalState(() {
-                                        req['status'] = 'Rejected by SM';
-                                      });
-                                      UiHelpers.showSnackBar(
-                                        ctx,
-                                        'Request rejected',
-                                        Colors.redAccent,
-                                      );
-                                    },
-                                  ),
-                                ] else if (isForwarded)
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 8,
-                                      vertical: 4,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFFF3E8FF),
-                                      borderRadius: BorderRadius.circular(10),
-                                      border: Border.all(
-                                        color: const Color(0xFFE9D5FF),
-                                      ),
-                                    ),
-                                    child: const Text(
-                                      'Forwarded to Accounts',
-                                      style: TextStyle(
-                                        color: Color(0xFF7C3AED),
-                                        fontSize: 9.5,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  )
-                                else if (isPaid)
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 8,
-                                      vertical: 4,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: Colors.green.shade50,
-                                      borderRadius: BorderRadius.circular(10),
-                                    ),
-                                    child: const Text(
-                                      'Paid & Verified',
-                                      style: TextStyle(
-                                        color: Colors.green,
-                                        fontSize: 9.5,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ),
-                              ],
-                            ),
-                            if (isPending) ...[
-                              const SizedBox(height: 6),
-                              Align(
-                                alignment: Alignment.centerRight,
-                                child: ElevatedButton.icon(
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: const Color(0xFF7C3AED),
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 12,
-                                      vertical: 6,
-                                    ),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(10),
-                                    ),
-                                    visualDensity: VisualDensity.compact,
-                                  ),
-                                  onPressed: () async {
-                                    final reqId = req['id']?.toString() ?? '';
-                                    final reqType =
-                                        req['type']?.toString() ?? '';
-                                    final isSalary = reqType
-                                        .toLowerCase()
-                                        .contains('salary');
-
-                                    if (isSalary) {
-                                      await OperationsProvider.instance
-                                          .forwardSalaryToAccounts(reqId);
-                                    } else {
-                                      await OperationsProvider.instance
-                                          .forwardIncentiveToAccounts(reqId);
-                                    }
-
-                                    setModalState(() {
-                                      req['status'] = 'Forwarded to Accounts';
-                                    });
-                                    UiHelpers.showSnackBar(
-                                      ctx,
-                                      'Request for ${req['title']} forwarded to Accounts for payment verification!',
-                                      Colors.purple,
-                                    );
-                                  },
-                                  icon: const Icon(
-                                    Icons.forward_to_inbox_rounded,
-                                    color: Colors.white,
-                                    size: 14,
-                                  ),
-                                  label: const Text(
-                                    'Forward to Accounts',
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 10.5,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ],
-                        );
-                      },
-                    ),
-                  ),
-                ],
-              ),
-            );
-          },
-        );
-      },
-    );
   }
 
   Widget _buildMetricTile({
@@ -2518,18 +2207,28 @@ class ManagementDashboardView extends StatelessWidget {
     BuildContext context, [
     OperationsProvider? provider,
   ]) {
-    final int dynamicTargetLeads = (data.target != null && data.target!.monthlyTarget > 0)
+    final int dynamicTargetLeads =
+        (data.target != null && data.target!.monthlyTarget > 0)
         ? data.target!.monthlyTarget
         : (data.monthlyTargetLeads > 0
-            ? data.monthlyTargetLeads
-            : (data.rawJson?['targets']?['monthly_target'] != null
-                ? UiHelpers.parseInt(data.rawJson!['targets']['monthly_target'])
-                : (data.rawJson?['performance_bar']?['assigned_target'] != null
-                    ? UiHelpers.parseInt(data.rawJson!['performance_bar']['assigned_target'])
-                    : (provider?.customMonthlyTargetLeads ??
-                        (provider != null && provider.smAsms.isNotEmpty
-                            ? provider.smAsms.fold(0, (sum, a) => sum + a.monthlyTarget)
-                            : (_monthlyTargetData['target_leads'] ?? 0))))));
+              ? data.monthlyTargetLeads
+              : (data.rawJson?['targets']?['monthly_target'] != null
+                    ? UiHelpers.parseInt(
+                        data.rawJson!['targets']['monthly_target'],
+                      )
+                    : (data.rawJson?['performance_bar']?['assigned_target'] !=
+                              null
+                          ? UiHelpers.parseInt(
+                              data.rawJson!['performance_bar']['assigned_target'],
+                            )
+                          : (provider?.customMonthlyTargetLeads ??
+                                (provider != null && provider.smAsms.isNotEmpty
+                                    ? provider.smAsms.fold(
+                                        0,
+                                        (sum, a) => sum + a.monthlyTarget,
+                                      )
+                                    : (_monthlyTargetData['target_leads'] ??
+                                          0))))));
 
     final int dynamicTargetAdmissions =
         (data.target != null && data.target!.targetAdmissions > 0)
@@ -2632,7 +2331,9 @@ class ManagementDashboardView extends StatelessWidget {
                 child: _buildMetricTile(
                   title: 'MONTHLY TARGET',
                   value: '$dynamicTargetLeads',
-                  unit: dynamicTargetAdmissions > 0 ? 'Leads ($dynamicTargetAdmissions Adm.)' : 'Target Leads',
+                  unit: dynamicTargetAdmissions > 0
+                      ? 'Leads ($dynamicTargetAdmissions Adm.)'
+                      : 'Target Leads',
                   icon: Icons.flag_rounded,
                   color: const Color(0xFF0F766E),
                   bgColor: const Color(0xFFF0FDFA),
@@ -2734,7 +2435,7 @@ class ManagementDashboardView extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Add Telecaller',
+                          'Add Member',
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
@@ -2818,7 +2519,7 @@ class ManagementDashboardView extends StatelessWidget {
                           ),
                           validator: (val) {
                             if (val == null || val.trim().isEmpty) {
-                              return 'Please enter telecaller name';
+                              return 'Please enter member name';
                             }
                             return null;
                           },
@@ -3179,13 +2880,7 @@ class ManagementDashboardView extends StatelessWidget {
                             }
                           } else {
                             setDialogState(() => isSubmitting = false);
-                            if (context.mounted) {
-                              UiHelpers.showSnackBar(
-                                context,
-                                message,
-                                Colors.redAccent,
-                              );
-                            }
+                            UiHelpers.showToast(message, isError: true);
                           }
                         },
                   child: isSubmitting
@@ -3198,7 +2893,7 @@ class ManagementDashboardView extends StatelessWidget {
                           ),
                         )
                       : const Text(
-                          'Add Telecaller',
+                          'Add Member',
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 13,
@@ -3381,28 +3076,7 @@ class ManagementDashboardView extends StatelessWidget {
   }
 
   void _showManageOfficeTeamSheet(BuildContext context) {
-    // Sync with OperationsProvider officeTelecallers
-    final providerCallers = OperationsProvider.instance.officeTelecallers;
-    for (final pc in providerCallers) {
-      final exists = _officeTelecallers.any(
-        (tc) => tc['id'] == pc.id || tc['id'] == pc.employeeId,
-      );
-      if (!exists) {
-        _officeTelecallers.insert(0, {
-          'id': pc.id,
-          'name': pc.name,
-          'phone': pc.contactNumber,
-          'email': pc.email,
-          'shift': pc.shift,
-          'calls_today': pc.callsToday,
-          'leads_generated': pc.leadsAssigned,
-          'admissions': pc.admissionsClosed,
-          'base_salary': pc.baseSalary,
-          'incentive_per_admission': pc.incentivePerAdmission,
-          'monthly_target': pc.monthlyTarget,
-        });
-      }
-    }
+    OperationsProvider.instance.fetchOfficeTelecallers(isRefresh: true);
 
     showModalBottomSheet(
       context: context,
@@ -3412,368 +3086,376 @@ class ManagementDashboardView extends StatelessWidget {
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (ctx) {
-        return StatefulBuilder(
-          builder: (context, setModalState) {
-            int totalCalls = _officeTelecallers.fold(
-              0,
-              (sum, item) => sum + ((item['calls_today'] as int?) ?? 0),
-            );
-            int totalLeads = _officeTelecallers.fold(
-              0,
-              (sum, item) => sum + ((item['leads_generated'] as int?) ?? 0),
-            );
-            int totalAdmissions = _officeTelecallers.fold(
-              0,
-              (sum, item) => sum + ((item['admissions'] as int?) ?? 0),
-            );
+        return ListenableBuilder(
+          listenable: OperationsProvider.instance,
+          builder: (context, _) {
+            return StatefulBuilder(
+              builder: (context, setModalState) {
+                final provider = OperationsProvider.instance;
+                _officeTelecallers.clear();
+                for (final pc in provider.officeTelecallers) {
+                  _officeTelecallers.add({
+                    'id': pc.id,
+                    'employee_id': pc.employeeId,
+                    'name': pc.name,
+                    'phone': pc.contactNumber,
+                    'email': pc.email,
+                    'district': pc.district,
+                    'shift': pc.shift,
+                    'calls_today': pc.callsToday,
+                    'leads_generated': pc.leadsAssigned,
+                    'admissions': pc.admissionsClosed,
+                    'base_salary': pc.baseSalary,
+                    'incentive_per_admission': pc.incentivePerAdmission,
+                    'monthly_target': pc.monthlyTarget,
+                  });
+                }
 
-            return Container(
-              height: MediaQuery.of(context).size.height * 0.85,
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                return Container(
+                  height: MediaQuery.of(context).size.height * 0.85,
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: const BoxDecoration(
-                              color: Color(0xFFF3E8FF),
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(
-                              Icons.corporate_fare_rounded,
-                              color: Color(0xFF7C3AED),
-                              size: 20,
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          const Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                          Row(
                             children: [
-                              Text(
-                                'Office Team',
-                                style: TextStyle(
-                                  fontSize: 17,
-                                  fontWeight: FontWeight.bold,
-                                  color: Color(0xFF0F172A),
+                              Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: const BoxDecoration(
+                                  color: Color(0xFFF3E8FF),
+                                  shape: BoxShape.circle,
                                 ),
-                              ),
-                              Text(
-                                'Direct reporting under Sales Manager (SM)',
-                                style: TextStyle(
-                                  fontSize: 10.5,
+                                child: const Icon(
+                                  Icons.corporate_fare_rounded,
                                   color: Color(0xFF7C3AED),
-                                  fontWeight: FontWeight.w600,
+                                  size: 20,
                                 ),
                               ),
-                            ],
-                          ),
-                        ],
-                      ),
-                      IconButton(
-                        onPressed: () => Navigator.pop(ctx),
-                        icon: const Icon(Icons.close_rounded),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  // Summary Banner
-                  // Container(
-                  //   padding: const EdgeInsets.all(12),
-                  //   decoration: BoxDecoration(
-                  //     color: const Color(0xFFF5EEFD),
-                  //     borderRadius: BorderRadius.circular(16),
-                  //     border: Border.all(color: const Color(0xFFE9D5FF)),
-                  //   ),
-                  //   child: Row(
-                  //     mainAxisAlignment: MainAxisAlignment.spaceAround,
-                  //     children: [
-                  //       _buildOfficeStatItem(
-                  //         'CALLERS',
-                  //         '${_officeTelecallers.length}',
-                  //         const Color(0xFF7C3AED),
-                  //       ),
-                  //       _buildOfficeStatItem(
-                  //         'CALLS TODAY',
-                  //         '$totalCalls',
-                  //         const Color(0xFF0284C7),
-                  //       ),
-                  //       _buildOfficeStatItem(
-                  //         'LEADS',
-                  //         '$totalLeads',
-                  //         const Color(0xFF0F766E),
-                  //       ),
-                  //       _buildOfficeStatItem(
-                  //         'ADMISSIONS',
-                  //         '$totalAdmissions',
-                  //         const Color(0xFF16A34A),
-                  //       ),
-                  //     ],
-                  //   ),
-                  // ),
-                  // const SizedBox(height: 16),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        'Office Team',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF0F172A),
-                        ),
-                      ),
-                      ElevatedButton.icon(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF7C3AED),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 6,
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          visualDensity: VisualDensity.compact,
-                        ),
-                        onPressed: () =>
-                            _openAddTelecallerDialog(context, setModalState),
-                        icon: const Icon(
-                          Icons.person_add_rounded,
-                          color: Colors.white,
-                          size: 14,
-                        ),
-                        label: const Text(
-                          'Add Member',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  Expanded(
-                    child: ListView.separated(
-                      itemCount: _officeTelecallers.length,
-                      separatorBuilder: (context, index) =>
-                          const SizedBox(height: 12),
-                      itemBuilder: (context, index) {
-                        final tc = _officeTelecallers[index];
-                        final int admissions = tc['admissions'] as int? ?? 0;
-                        final int incentivePerAdmission =
-                            tc['incentive_per_admission'] as int? ?? 500;
-                        final int baseSalary =
-                            tc['base_salary'] as int? ?? 18000;
-                        final int projectedPayout =
-                            baseSalary + (admissions * incentivePerAdmission);
-
-                        return Container(
-                          padding: const EdgeInsets.all(14),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(color: const Color(0xFFE2E8F0)),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.02),
-                                blurRadius: 6,
-                                offset: const Offset(0, 2),
-                              ),
-                            ],
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
+                              const SizedBox(width: 10),
+                              const Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Row(
-                                    children: [
-                                      Container(
-                                        padding: const EdgeInsets.all(8),
-                                        decoration: const BoxDecoration(
-                                          color: Color(0xFFEDE9FE),
-                                          shape: BoxShape.circle,
-                                        ),
-                                        child: const Icon(
-                                          Icons.headset_mic_rounded,
-                                          color: Color(0xFF7C3AED),
-                                          size: 16,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 8),
-                                      Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            tc['name']?.toString() ??
-                                                'Telecaller',
-                                            style: const TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 13,
-                                              color: Color(0xFF0F172A),
-                                            ),
-                                          ),
-                                          Text(
-                                            (tc['shift'] ??
-                                                    tc['district'] ??
-                                                    'Office Team')
-                                                .toString(),
-                                            style: const TextStyle(
-                                              fontSize: 10,
-                                              color: AppColors.textSecondary,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ],
+                                  Text(
+                                    'Office Team',
+                                    style: TextStyle(
+                                      fontSize: 17,
+                                      fontWeight: FontWeight.bold,
+                                      color: Color(0xFF0F172A),
+                                    ),
                                   ),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 8,
-                                      vertical: 4,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFFF1F5F9),
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    child: Text(
-                                      'Target: ${tc['monthly_target']} Adm.',
-                                      style: const TextStyle(
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.w700,
-                                        color: Color(0xFF334155),
-                                      ),
+                                  Text(
+                                    'Direct reporting under Sales Manager (SM)',
+                                    style: TextStyle(
+                                      fontSize: 10.5,
+                                      color: Color(0xFF7C3AED),
+                                      fontWeight: FontWeight.w600,
                                     ),
                                   ),
                                 ],
                               ),
-                              const SizedBox(height: 10),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 10,
-                                  vertical: 8,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFFF8FAFC),
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceAround,
-                                  children: [
-                                    _buildMiniStat(
-                                      'Calls Today',
-                                      '${tc['calls_today']}',
-                                    ),
-                                    _buildMiniStat(
-                                      'Leads Gen.',
-                                      '${tc['leads_generated']}',
-                                    ),
-                                    _buildMiniStat('Admissions', '$admissions'),
-                                  ],
-                                ),
+                            ],
+                          ),
+                          IconButton(
+                            onPressed: () => Navigator.pop(ctx),
+                            icon: const Icon(Icons.close_rounded),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Office Team (${_officeTelecallers.length})',
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF0F172A),
+                            ),
+                          ),
+                          ElevatedButton.icon(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF7C3AED),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 6,
                               ),
-                              const SizedBox(height: 10),
-                              // Salary & Incentive options display
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 10,
-                                  vertical: 8,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              visualDensity: VisualDensity.compact,
+                            ),
+                            onPressed: () => _openAddTelecallerDialog(
+                              context,
+                              setModalState,
+                            ),
+                            icon: const Icon(
+                              Icons.person_add_rounded,
+                              color: Colors.white,
+                              size: 14,
+                            ),
+                            label: const Text(
+                              'Add Member',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      Expanded(
+                        child:
+                            provider.isLoadingTelecallers &&
+                                _officeTelecallers.isEmpty
+                            ? const Center(
+                                child: CircularProgressIndicator(
+                                  color: Color(0xFF7C3AED),
                                 ),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFFF0FDF4),
-                                  borderRadius: BorderRadius.circular(10),
-                                  border: Border.all(
-                                    color: const Color(0xFFBBF7D0),
-                                  ),
-                                ),
-                                child: Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
+                              )
+                            : _officeTelecallers.isEmpty
+                            ? Center(
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          'Base: \u20B9${NumberFormat('#,##,###').format(baseSalary)} | Incentive: \u20B9$incentivePerAdmission/Adm.',
-                                          style: const TextStyle(
-                                            fontSize: 10,
-                                            fontWeight: FontWeight.w700,
-                                            color: Color(0xFF166534),
-                                          ),
-                                        ),
-                                        Text(
-                                          'Projected Payout: \u20B9${NumberFormat('#,##,###').format(projectedPayout)}',
-                                          style: const TextStyle(
-                                            fontSize: 11,
-                                            fontWeight: FontWeight.w900,
-                                            color: Color(0xFF15803D),
-                                          ),
-                                        ),
-                                      ],
+                                    Container(
+                                      padding: const EdgeInsets.all(16),
+                                      decoration: BoxDecoration(
+                                        color: const Color(
+                                          0xFF7C3AED,
+                                        ).withOpacity(0.08),
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: const Icon(
+                                        Icons.people_outline_rounded,
+                                        size: 32,
+                                        color: Color(0xFF7C3AED),
+                                      ),
                                     ),
-                                    InkWell(
-                                      onTap: () =>
-                                          _openEditSalaryIncentiveDialog(
-                                            context,
-                                            tc,
-                                            setModalState,
-                                          ),
-                                      child: Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 8,
-                                          vertical: 4,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: Colors.white,
-                                          borderRadius: BorderRadius.circular(
-                                            8,
-                                          ),
-                                          border: Border.all(
-                                            color: const Color(0xFF16A34A),
-                                          ),
-                                        ),
-                                        child: const Row(
-                                          children: [
-                                            Icon(
-                                              Icons.edit_rounded,
-                                              size: 11,
-                                              color: Color(0xFF16A34A),
-                                            ),
-                                            SizedBox(width: 3),
-                                            Text(
-                                              'Set Options',
-                                              style: TextStyle(
-                                                fontSize: 9.5,
-                                                fontWeight: FontWeight.bold,
-                                                color: Color(0xFF16A34A),
-                                              ),
-                                            ),
-                                          ],
-                                        ),
+                                    const SizedBox(height: 12),
+                                    const Text(
+                                      'No Office Team members found',
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.bold,
+                                        color: Color(0xFF0F172A),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    const Text(
+                                      'Tap "Add Member" to create an Office Team member.',
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: AppColors.textSecondary,
                                       ),
                                     ),
                                   ],
                                 ),
+                              )
+                            : ListView.separated(
+                                itemCount: _officeTelecallers.length,
+                                separatorBuilder: (context, index) =>
+                                    const SizedBox(height: 12),
+                                itemBuilder: (context, index) {
+                                  final tc = _officeTelecallers[index];
+                                  final int admissions =
+                                      tc['admissions'] as int? ?? 0;
+                                  final int incentivePerAdmission =
+                                      tc['incentive_per_admission'] as int? ??
+                                      500;
+                                  final int baseSalary =
+                                      tc['base_salary'] as int? ?? 18000;
+                                  final int projectedPayout =
+                                      baseSalary +
+                                      (admissions * incentivePerAdmission);
+
+                                  return Container(
+                                    padding: const EdgeInsets.all(14),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      borderRadius: BorderRadius.circular(16),
+                                      border: Border.all(
+                                        color: const Color(0xFFE2E8F0),
+                                      ),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.black.withOpacity(0.02),
+                                          blurRadius: 6,
+                                          offset: const Offset(0, 2),
+                                        ),
+                                      ],
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Row(
+                                          children: [
+                                            Container(
+                                              padding: const EdgeInsets.all(8),
+                                              decoration: const BoxDecoration(
+                                                color: Color(0xFFEDE9FE),
+                                                shape: BoxShape.circle,
+                                              ),
+                                              child: const Icon(
+                                                Icons.person_rounded,
+                                                color: Color(0xFF7C3AED),
+                                                size: 16,
+                                              ),
+                                            ),
+                                            const SizedBox(width: 8),
+                                            Expanded(
+                                              child: Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                children: [
+                                                  Text(
+                                                    tc['name']?.toString() ??
+                                                        'Member',
+                                                    style: const TextStyle(
+                                                      fontWeight:
+                                                          FontWeight.bold,
+                                                      fontSize: 13,
+                                                      color: Color(0xFF0F172A),
+                                                    ),
+                                                  ),
+                                                  Text(
+                                                    ((tc['district'] != null &&
+                                                                tc['district']
+                                                                    .toString()
+                                                                    .isNotEmpty)
+                                                            ? tc['district']
+                                                            : ((tc['employee_id'] !=
+                                                                          null &&
+                                                                      tc['employee_id']
+                                                                          .toString()
+                                                                          .isNotEmpty)
+                                                                  ? tc['employee_id']
+                                                                  : 'Office Team'))
+                                                        .toString(),
+                                                    style: const TextStyle(
+                                                      fontSize: 10,
+                                                      color: AppColors
+                                                          .textSecondary,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 10),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 10,
+                                            vertical: 8,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFFF0FDF4),
+                                            borderRadius: BorderRadius.circular(
+                                              10,
+                                            ),
+                                            border: Border.all(
+                                              color: const Color(0xFFBBF7D0),
+                                            ),
+                                          ),
+                                          child: Row(
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.spaceBetween,
+                                            children: [
+                                              Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                children: [
+                                                  Text(
+                                                    'Base: \u20B9${NumberFormat('#,##,###').format(baseSalary)} | Incentive: \u20B9$incentivePerAdmission/Adm.',
+                                                    style: const TextStyle(
+                                                      fontSize: 10,
+                                                      fontWeight:
+                                                          FontWeight.w700,
+                                                      color: Color(0xFF166534),
+                                                    ),
+                                                  ),
+                                                  Text(
+                                                    'Projected Payout: \u20B9${NumberFormat('#,##,###').format(projectedPayout)}',
+                                                    style: const TextStyle(
+                                                      fontSize: 11,
+                                                      fontWeight:
+                                                          FontWeight.w900,
+                                                      color: Color(0xFF15803D),
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                              InkWell(
+                                                onTap: () =>
+                                                    _openEditSalaryIncentiveDialog(
+                                                      context,
+                                                      tc,
+                                                      setModalState,
+                                                    ),
+                                                child: Container(
+                                                  padding:
+                                                      const EdgeInsets.symmetric(
+                                                        horizontal: 8,
+                                                        vertical: 4,
+                                                      ),
+                                                  decoration: BoxDecoration(
+                                                    color: Colors.white,
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          8,
+                                                        ),
+                                                    border: Border.all(
+                                                      color: const Color(
+                                                        0xFF16A34A,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                  child: const Row(
+                                                    children: [
+                                                      Icon(
+                                                        Icons.edit_rounded,
+                                                        size: 11,
+                                                        color: Color(
+                                                          0xFF16A34A,
+                                                        ),
+                                                      ),
+                                                      SizedBox(width: 3),
+                                                      Text(
+                                                        'Set Options',
+                                                        style: TextStyle(
+                                                          fontSize: 9.5,
+                                                          fontWeight:
+                                                              FontWeight.bold,
+                                                          color: Color(
+                                                            0xFF16A34A,
+                                                          ),
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                },
                               ),
-                            ],
-                          ),
-                        );
-                      },
-                    ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
+                );
+              },
             );
           },
         );
@@ -5042,6 +4724,7 @@ class ManagementDashboardView extends StatelessWidget {
                               ...provider.smAsms.map(
                                 (asm) => _buildKeralaPerformanceRow(
                                   code: asm.code,
+                                  name: asm.name,
                                   districts: asm.districtsDisplay,
                                   leads: isDaily
                                       ? asm.dailyTarget
@@ -5052,8 +4735,18 @@ class ManagementDashboardView extends StatelessWidget {
                                   percentage: isDaily
                                       ? asm.dailyCompletionPercentage
                                       : asm.monthlyCompletionPercentage,
-                                  isOfficeTeam: asm.code.toUpperCase() == 'OFFICE' ||
+                                  isOfficeTeam:
+                                      asm.code.toUpperCase() == 'OFFICE' ||
                                       asm.team.toLowerCase().contains('office'),
+                                  onTap: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) =>
+                                            AsmDetailsScreen(asm: asm),
+                                      ),
+                                    );
+                                  },
                                 ),
                               )
                             else
@@ -5164,13 +4857,20 @@ class ManagementDashboardView extends StatelessWidget {
                                                         ?.monthlyAchieved ??
                                                     0));
                                           final int totalTarget =
-                                              (data.target != null && data.target!.monthlyTarget > 0)
+                                              (data.target != null &&
+                                                  data.target!.monthlyTarget >
+                                                      0)
                                               ? data.target!.monthlyTarget
                                               : (data.monthlyTargetLeads > 0
-                                                  ? data.monthlyTargetLeads
-                                                  : (asms.isNotEmpty
-                                                      ? asms.fold(0, (sum, a) => sum + a.monthlyTarget)
-                                                      : 0));
+                                                    ? data.monthlyTargetLeads
+                                                    : (asms.isNotEmpty
+                                                          ? asms.fold(
+                                                              0,
+                                                              (sum, a) =>
+                                                                  sum +
+                                                                  a.monthlyTarget,
+                                                            )
+                                                          : 0));
                                           final int totalPct = totalTarget == 0
                                               ? 0
                                               : ((totalAchieved / totalTarget) *
@@ -5225,18 +4925,32 @@ class ManagementDashboardView extends StatelessWidget {
                                                           ?.monthlyAchieved ??
                                                       0));
                                       final int totalTarget = isDaily
-                                          ? ((data.target != null && data.target!.dailyTarget > 0)
-                                              ? data.target!.dailyTarget
-                                              : (asms.isNotEmpty
-                                                  ? asms.fold(0, (sum, a) => sum + a.dailyTarget)
-                                                  : 0))
-                                          : ((data.target != null && data.target!.monthlyTarget > 0)
-                                              ? data.target!.monthlyTarget
-                                              : (data.monthlyTargetLeads > 0
-                                                  ? data.monthlyTargetLeads
-                                                  : (asms.isNotEmpty
-                                                      ? asms.fold(0, (sum, a) => sum + a.monthlyTarget)
-                                                      : 0)));
+                                          ? ((data.target != null &&
+                                                    data.target!.dailyTarget >
+                                                        0)
+                                                ? data.target!.dailyTarget
+                                                : (asms.isNotEmpty
+                                                      ? asms.fold(
+                                                          0,
+                                                          (sum, a) =>
+                                                              sum +
+                                                              a.dailyTarget,
+                                                        )
+                                                      : 0))
+                                          : ((data.target != null &&
+                                                    data.target!.monthlyTarget >
+                                                        0)
+                                                ? data.target!.monthlyTarget
+                                                : (data.monthlyTargetLeads > 0
+                                                      ? data.monthlyTargetLeads
+                                                      : (asms.isNotEmpty
+                                                            ? asms.fold(
+                                                                0,
+                                                                (sum, a) =>
+                                                                    sum +
+                                                                    a.monthlyTarget,
+                                                              )
+                                                            : 0)));
 
                                       final int totalPct = totalTarget == 0
                                           ? 0
@@ -5249,7 +4963,7 @@ class ManagementDashboardView extends StatelessWidget {
                                               0.0,
                                               1.0,
                                             )
-                                          : 0.7;
+                                          : 0.0;
 
                                       return Column(
                                         crossAxisAlignment:
@@ -6252,6 +5966,84 @@ class ManagementDashboardView extends StatelessWidget {
     );
   }
 
+  List<AsmBdeModel> _resolveAsmBdes(OperationsProvider provider) {
+    const dummyIds = {
+      '672430000000000000000011',
+      '672430000000000000000012',
+      '672430000000000000000013',
+    };
+    final List<AsmBdeModel> result = [];
+    final Set<String> seenKeys = {};
+
+    void addBde(AsmBdeModel bde) {
+      if (dummyIds.contains(bde.id)) return;
+      final key =
+          (bde.id.isNotEmpty
+                  ? bde.id
+                  : (bde.employeeId.isNotEmpty
+                        ? bde.employeeId
+                        : (bde.email.isNotEmpty ? bde.email : bde.name)))
+              .toLowerCase();
+      if (key.isEmpty || seenKeys.contains(key)) return;
+      seenKeys.add(key);
+      result.add(bde);
+    }
+
+    for (final b in provider.asmBdes) {
+      addBde(b);
+    }
+
+    final rawSub = data.rawJson?['team_subordinate_status'];
+    if (rawSub is Map) {
+      final rawBdes = rawSub['bdes'] ?? rawSub['BDE'];
+      if (rawBdes is List) {
+        for (final e in rawBdes.whereType<Map>()) {
+          addBde(AsmBdeModel.fromJson(Map<String, dynamic>.from(e)));
+        }
+      }
+    }
+
+    final rawTeam = data.rawJson?['team'];
+    if (rawTeam is Map && rawTeam['members'] is List) {
+      for (final e in (rawTeam['members'] as List).whereType<Map>()) {
+        addBde(AsmBdeModel.fromJson(Map<String, dynamic>.from(e)));
+      }
+    }
+
+    final subBdes =
+        data.teamSubordinateStatus?['bdes'] ??
+        data.teamSubordinateStatus?['BDE'];
+    if (subBdes != null) {
+      for (final s in subBdes) {
+        addBde(
+          AsmBdeModel(
+            id: s.id.toString(),
+            employeeId: '',
+            name: s.name,
+            email: '',
+            contactNumber: '',
+            designation: s.designation.isNotEmpty
+                ? s.designation
+                : 'Business Development Executive',
+            team: data.teamName ?? '',
+            district: user.district?.toString() ?? '',
+            reportsTo: user.name?.toString() ?? 'ASM',
+            leadsAssigned: int.tryParse(s.leadsAssigned) ?? 0,
+            admissionsClosed: 0,
+            conversionRate: s.conversionPercentage,
+            status: s.onlineStatus.isNotEmpty ? s.onlineStatus : 'active',
+          ),
+        );
+      }
+    }
+
+    for (final h in provider.hierarchyBdes) {
+      addBde(AsmBdeModel.fromJson(h));
+    }
+
+    return result;
+  }
+
   // --- ASM (AREA SALES MANAGER) DEDICATED DASHBOARD VIEW ---
   Widget _buildAsmDashboard(BuildContext context, OperationsProvider provider) {
     final team =
@@ -6264,20 +6056,18 @@ class ManagementDashboardView extends StatelessWidget {
         ? user.district.toString()
         : 'Kerala Region';
 
-    final int totalBdeLeads = provider.asmBdes.fold(
-      0,
-      (sum, b) => sum + b.leadsAssigned,
-    );
-    final int totalBdeAdmissions = provider.asmBdes.fold(
+    final bdes = _resolveAsmBdes(provider);
+    final int totalBdeLeads = bdes.fold(0, (sum, b) => sum + b.leadsAssigned);
+    final int totalBdeAdmissions = bdes.fold(
       0,
       (sum, b) => sum + b.admissionsClosed,
     );
     final int teamLeads =
         data.teamMetrics?.teamLeads ??
-        (totalBdeLeads > 0 ? totalBdeLeads : 120);
+        (totalBdeLeads > 0 ? totalBdeLeads : data.totalLeadsCount);
     final int teamAdmissions =
         data.teamMetrics?.teamAdmissions ??
-        (totalBdeAdmissions > 0 ? totalBdeAdmissions : 35);
+        (totalBdeAdmissions > 0 ? totalBdeAdmissions : data.admittedLeadsCount);
     final String teamConversion =
         data.teamMetrics?.teamConversion ??
         (teamLeads > 0
@@ -6336,10 +6126,6 @@ class ManagementDashboardView extends StatelessWidget {
             provider,
             pendingApprovals,
           ),
-          const SizedBox(height: 24),
-
-          // 5. Territory / District Target Breakdown
-          _buildAsmTerritoryBreakdown(context),
           const SizedBox(height: 40),
         ],
       ),
@@ -6358,27 +6144,21 @@ class ManagementDashboardView extends StatelessWidget {
             ? data.monthlyTargetLeads
             : (data.target?.targetLeads != null && data.target!.targetLeads > 0
                   ? data.target!.targetLeads
-                  : 120));
+                  : 0));
 
-    final int targetAdmissions =
-        provider.customMonthlyTargetAdmissions ??
-        (data.monthlyTargetAdmissions > 0
-            ? data.monthlyTargetAdmissions
-            : (data.target?.targetAdmissions != null &&
-                      data.target!.targetAdmissions > 0
-                  ? data.target!.targetAdmissions
-                  : 35));
+    final int monthlyAchieved =
+        (data.target != null && data.target!.monthlyAchieved > 0)
+        ? data.target!.monthlyAchieved
+        : achievedLeads;
 
-    final double completionPercent = targetAdmissions > 0
-        ? ((achievedAdmissions / targetAdmissions) * 100).clamp(0.0, 100.0)
-        : (targetLeads > 0
-              ? ((achievedLeads / targetLeads) * 100).clamp(0.0, 100.0)
-              : 0.0);
+    final int dailyTarget = data.dailyTargetLeads;
+    final int dailyAchieved = data.dailyAchievedLeads;
 
-    final int pendingAdmissions = (targetAdmissions - achievedAdmissions).clamp(
-      0,
-      999999,
-    );
+    final double completionPercent = targetLeads > 0
+        ? ((monthlyAchieved / targetLeads) * 100).clamp(0.0, 100.0)
+        : 0.0;
+
+    final int pendingLeads = (targetLeads - monthlyAchieved).clamp(0, 999999);
 
     return Container(
       padding: const EdgeInsets.all(18),
@@ -6397,7 +6177,7 @@ class ManagementDashboardView extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header row with "Set Monthly Target"
+          // Header row
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -6432,7 +6212,7 @@ class ManagementDashboardView extends StatelessWidget {
                             ),
                           ),
                           Text(
-                            'Territory admissions & lead performance',
+                            'Daily & monthly territory lead performance',
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
@@ -6468,7 +6248,7 @@ class ManagementDashboardView extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     const Text(
-                      'ADMISSIONS COMPLETION',
+                      'LEADS COMPLETION',
                       style: TextStyle(
                         fontSize: 10,
                         fontWeight: FontWeight.w700,
@@ -6506,7 +6286,7 @@ class ManagementDashboardView extends StatelessWidget {
                       text: TextSpan(
                         children: [
                           TextSpan(
-                            text: '$achievedAdmissions',
+                            text: '$monthlyAchieved',
                             style: const TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
@@ -6514,7 +6294,7 @@ class ManagementDashboardView extends StatelessWidget {
                             ),
                           ),
                           TextSpan(
-                            text: ' / $targetAdmissions Admissions',
+                            text: ' / $targetLeads Leads',
                             style: const TextStyle(
                               fontSize: 11,
                               color: Colors.white70,
@@ -6524,7 +6304,7 @@ class ManagementDashboardView extends StatelessWidget {
                       ),
                     ),
                     Text(
-                      '$pendingAdmissions Remaining',
+                      '$pendingLeads Remaining',
                       style: const TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
@@ -6538,7 +6318,7 @@ class ManagementDashboardView extends StatelessWidget {
           ),
           const SizedBox(height: 14),
 
-          // 2-column detail tiles: Leads Target & Admissions Target
+          // 2-column detail tiles: Daily Leads & Monthly Leads
           Row(
             children: [
               Expanded(
@@ -6553,7 +6333,7 @@ class ManagementDashboardView extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const Text(
-                        'MONTHLY ADMISSIONS',
+                        'DAILY LEADS',
                         style: TextStyle(
                           fontSize: 9.5,
                           fontWeight: FontWeight.bold,
@@ -6562,7 +6342,7 @@ class ManagementDashboardView extends StatelessWidget {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        '$achievedAdmissions / $targetAdmissions',
+                        '$dailyAchieved / $dailyTarget',
                         style: const TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.bold,
@@ -6571,7 +6351,7 @@ class ManagementDashboardView extends StatelessWidget {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        'Target: $targetAdmissions closed',
+                        'Target: $dailyTarget leads',
                         style: const TextStyle(
                           fontSize: 9.5,
                           color: Color(0xFF15803D),
@@ -6603,7 +6383,7 @@ class ManagementDashboardView extends StatelessWidget {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        '$achievedLeads / $targetLeads',
+                        '$monthlyAchieved / $targetLeads',
                         style: const TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.bold,
@@ -6688,396 +6468,128 @@ class ManagementDashboardView extends StatelessWidget {
     String defaultDistrict,
     String defaultTeam,
   ) {
-    final bdes = provider.asmBdes;
+    final bdes = _resolveAsmBdes(provider);
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Row(
-              children: [
-                const Text(
-                  'REGIONAL BDE TEAM',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.textSecondary,
-                    letterSpacing: 0.8,
-                  ),
-                ),
-                const SizedBox(width: 6),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 7,
-                    vertical: 2,
-                  ),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF0F766E).withOpacity(0.12),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Text(
-                    '${bdes.length}',
-                    style: const TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF0F766E),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            Row(
-              children: [
-                OutlinedButton.icon(
-                  onPressed: () =>
-                      _showAssignTaskToAsmSheet(context, isForBde: true),
-                  icon: const Icon(
-                    Icons.assignment_turned_in_outlined,
-                    size: 14,
-                    color: Color(0xFF0F766E),
-                  ),
-                  label: const Text(
-                    'Assign Task',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF0F766E),
-                    ),
-                  ),
-                  style: OutlinedButton.styleFrom(
-                    side: const BorderSide(color: Color(0xFF0F766E)),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 6,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                ElevatedButton.icon(
-                  onPressed: () => showCreateBdeSheet(
-                    context,
-                    defaultDistrict: defaultDistrict,
-                    defaultTeam: defaultTeam,
-                  ),
-                  icon: const Icon(
-                    Icons.person_add_alt_1_rounded,
-                    size: 14,
-                    color: Colors.white,
-                  ),
-                  label: const Text(
-                    'Add BDE',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF0F766E),
-                    elevation: 0,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 6,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final double maxWidth = constraints.maxWidth;
+        final bool isVeryNarrow = maxWidth < 340;
 
-        if (bdes.isEmpty)
-          Container(
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: const Color(0xFFE2E8F0)),
-            ),
-            child: Center(
-              child: Column(
+        return SizedBox(
+          width: maxWidth,
+          child: Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            runAlignment: WrapAlignment.start,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              Row(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(
-                    Icons.group_off_outlined,
-                    size: 36,
-                    color: Color(0xFF94A3B8),
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'No Regional BDEs Registered',
+                  Text(
+                    'REGIONAL BDE TEAM',
                     style: TextStyle(
+                      fontSize: isVeryNarrow ? 10 : 11,
                       fontWeight: FontWeight.bold,
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  const Text(
-                    'Add Business Development Executives to start assigning leads',
-                    style: TextStyle(
-                      fontSize: 11,
                       color: AppColors.textSecondary,
+                      letterSpacing: 0.8,
                     ),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(width: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF0F766E).withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      '${bdes.length}',
+                      style: const TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF0F766E),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
                   OutlinedButton.icon(
+                    onPressed: () =>
+                        _showAssignTaskToAsmSheet(context, isForBde: true),
+                    icon: const Icon(
+                      Icons.assignment_turned_in_outlined,
+                      size: 13,
+                      color: Color(0xFF0F766E),
+                    ),
+                    label: const Text(
+                      'Assign Task',
+                      style: TextStyle(
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF0F766E),
+                      ),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: Color(0xFF0F766E)),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 5,
+                      ),
+                      minimumSize: Size.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
+                  ),
+                  ElevatedButton.icon(
                     onPressed: () => showCreateBdeSheet(
                       context,
                       defaultDistrict: defaultDistrict,
                       defaultTeam: defaultTeam,
                     ),
-                    icon: const Icon(Icons.add, size: 16),
-                    label: const Text('Add BDE Now'),
+                    icon: const Icon(
+                      Icons.person_add_alt_1_rounded,
+                      size: 13,
+                      color: Colors.white,
+                    ),
+                    label: const Text(
+                      'Add BDE',
+                      style: TextStyle(
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF0F766E),
+                      elevation: 0,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 5,
+                      ),
+                      minimumSize: Size.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
                   ),
                 ],
               ),
-            ),
-          )
-        else
-          ...bdes.map((bde) {
-            return Container(
-              margin: const EdgeInsets.only(bottom: 12),
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: const Color(0xFFE2E8F0)),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.02),
-                    blurRadius: 8,
-                    offset: const Offset(0, 3),
-                  ),
-                ],
-              ),
-              child: GestureDetector(
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => BdeDetailsScreen(bde: bde),
-                    ),
-                  );
-                },
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Row(
-                          children: [
-                            CircleAvatar(
-                              radius: 18,
-                              backgroundColor: const Color(
-                                0xFF0F766E,
-                              ).withOpacity(0.12),
-                              child: Text(
-                                bde.name.isNotEmpty
-                                    ? bde.name.substring(0, 1).toUpperCase()
-                                    : 'B',
-                                style: const TextStyle(
-                                  color: Color(0xFF0F766E),
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 13,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    Text(
-                                      bde.name,
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 13.5,
-                                        color: AppColors.textPrimary,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 6),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 6,
-                                        vertical: 1.5,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: const Color(0xFFF1F5F9),
-                                        borderRadius: BorderRadius.circular(6),
-                                      ),
-                                      child: Text(
-                                        bde.employeeId,
-                                        style: const TextStyle(
-                                          fontSize: 9.5,
-                                          fontWeight: FontWeight.bold,
-                                          color: Color(0xFF475569),
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  '${bde.zone.isNotEmpty ? '${bde.zone} • ' : ''}${bde.district} • ${bde.team}',
-                                  style: const TextStyle(
-                                    fontSize: 10.5,
-                                    color: AppColors.textSecondary,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 3,
-                          ),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFECFDF5),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: const Color(0xFFA7F3D0)),
-                          ),
-                          child: Text(
-                            bde.status.toUpperCase(),
-                            style: const TextStyle(
-                              fontSize: 9.5,
-                              fontWeight: FontWeight.bold,
-                              color: Color(0xFF059669),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    // Performance Row: Leads Assigned, Admissions Closed, Conversion Rate
-                    // Row(
-                    //   children: [
-                    //     Expanded(
-                    //       child: Container(
-                    //         padding: const EdgeInsets.symmetric(
-                    //           vertical: 8,
-                    //           horizontal: 10,
-                    //         ),
-                    //         decoration: BoxDecoration(
-                    //           color: const Color(0xFFF8FAFC),
-                    //           borderRadius: BorderRadius.circular(10),
-                    //           border: Border.all(color: const Color(0xFFE2E8F0)),
-                    //         ),
-                    //         child: Column(
-                    //           crossAxisAlignment: CrossAxisAlignment.start,
-                    //           children: [
-                    //             const Text(
-                    //               'LEADS',
-                    //               style: TextStyle(
-                    //                 fontSize: 9,
-                    //                 fontWeight: FontWeight.w700,
-                    //                 color: Color(0xFF64748B),
-                    //               ),
-                    //             ),
-                    //             const SizedBox(height: 2),
-                    //             Text(
-                    //               '${bde.leadsAssigned}',
-                    //               style: const TextStyle(
-                    //                 fontSize: 13,
-                    //                 fontWeight: FontWeight.bold,
-                    //                 color: Color(0xFF0F172A),
-                    //               ),
-                    //             ),
-                    //           ],
-                    //         ),
-                    //       ),
-                    //     ),
-                    //     const SizedBox(width: 8),
-                    //     Expanded(
-                    //       child: Container(
-                    //         padding: const EdgeInsets.symmetric(
-                    //           vertical: 8,
-                    //           horizontal: 10,
-                    //         ),
-                    //         decoration: BoxDecoration(
-                    //           color: const Color(0xFFF8FAFC),
-                    //           borderRadius: BorderRadius.circular(10),
-                    //           border: Border.all(color: const Color(0xFFE2E8F0)),
-                    //         ),
-                    //         child: Column(
-                    //           crossAxisAlignment: CrossAxisAlignment.start,
-                    //           children: [
-                    //             const Text(
-                    //               'ADMISSIONS',
-                    //               style: TextStyle(
-                    //                 fontSize: 9,
-                    //                 fontWeight: FontWeight.w700,
-                    //                 color: Color(0xFF64748B),
-                    //               ),
-                    //             ),
-                    //             const SizedBox(height: 2),
-                    //             Text(
-                    //               '${bde.admissionsClosed}',
-                    //               style: const TextStyle(
-                    //                 fontSize: 13,
-                    //                 fontWeight: FontWeight.bold,
-                    //                 color: Color(0xFF0F172A),
-                    //               ),
-                    //             ),
-                    //           ],
-                    //         ),
-                    //       ),
-                    //     ),
-                    //     const SizedBox(width: 8),
-                    //     Expanded(
-                    //       child: Container(
-                    //         padding: const EdgeInsets.symmetric(
-                    //           vertical: 8,
-                    //           horizontal: 10,
-                    //         ),
-                    //         decoration: BoxDecoration(
-                    //           color: const Color(0xFFF0FDF4),
-                    //           borderRadius: BorderRadius.circular(10),
-                    //           border: Border.all(color: const Color(0xFFBBF7D0)),
-                    //         ),
-                    //         child: Column(
-                    //           crossAxisAlignment: CrossAxisAlignment.start,
-                    //           children: [
-                    //             const Text(
-                    //               'CONVERSION',
-                    //               style: TextStyle(
-                    //                 fontSize: 9,
-                    //                 fontWeight: FontWeight.w700,
-                    //                 color: Color(0xFF16A34A),
-                    //               ),
-                    //             ),
-                    //             const SizedBox(height: 2),
-                    //             Text(
-                    //               bde.conversionRate,
-                    //               style: const TextStyle(
-                    //                 fontSize: 13,
-                    //                 fontWeight: FontWeight.bold,
-                    //                 color: Color(0xFF15803D),
-                    //               ),
-                    //             ),
-                    //           ],
-                    //         ),
-                    //       ),
-                    //     ),
-                    //   ],
-                    // ),
-                  ],
-                ),
-              ),
-            );
-          }),
-      ],
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -7481,112 +6993,18 @@ class ManagementDashboardView extends StatelessWidget {
     );
   }
 
-  Widget _buildAsmTerritoryBreakdown(BuildContext context) {
-    final reports = data.territoryReport;
-    if (reports == null || reports.isEmpty) return const SizedBox.shrink();
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'TERRITORY & DISTRICT TARGET BREAKDOWN',
-          style: TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.bold,
-            color: AppColors.textSecondary,
-            letterSpacing: 0.8,
-          ),
-        ),
-        const SizedBox(height: 10),
-        ...reports.map((item) {
-          final int leads = item.leadsCount;
-          final int bdes = item.bdesCount;
-          final String conv = item.conversionPercentage;
-
-          return Container(
-            margin: const EdgeInsets.only(bottom: 10),
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0xFFE2E8F0)),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(7),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF0F766E).withOpacity(0.1),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        Icons.location_on_outlined,
-                        size: 16,
-                        color: Color(0xFF0F766E),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          item.territoryName,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 13,
-                            color: AppColors.textPrimary,
-                          ),
-                        ),
-                        Text(
-                          '$bdes Active BDEs assigned',
-                          style: const TextStyle(
-                            fontSize: 10.5,
-                            color: AppColors.textSecondary,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(
-                      '$leads Leads',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 13,
-                        color: Color(0xFF0F766E),
-                      ),
-                    ),
-                    Text(
-                      'Conv: $conv',
-                      style: const TextStyle(
-                        fontSize: 10.5,
-                        fontWeight: FontWeight.w600,
-                        color: Color(0xFF16A34A),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          );
-        }),
-      ],
-    );
-  }
-
   // --- BDM / ASM DASHBOARD VIEW ---
   Widget _buildBdmDashboard(BuildContext context, String role) {
     final team = data.teamName ?? 'Regional Team';
     final teamMetrics = data.teamMetrics;
     final bdeStatuses = role == 'ASM'
-        ? (data.teamSubordinateStatus?['BDM'] ?? [])
-        : (data.teamSubordinateStatus?['BDE'] ?? []);
+        ? (data.teamSubordinateStatus?['bdes'] ??
+              data.teamSubordinateStatus?['BDE'] ??
+              data.teamSubordinateStatus?['BDM'] ??
+              [])
+        : (data.teamSubordinateStatus?['bdes'] ??
+              data.teamSubordinateStatus?['BDE'] ??
+              []);
 
     return SingleChildScrollView(
       physics: const AlwaysScrollableScrollPhysics(),

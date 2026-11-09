@@ -6,6 +6,7 @@ import '../../models/asm_bde_model.dart';
 import '../../models/task_model.dart';
 import '../../models/wallet_approval_request_model.dart';
 import '../../providers/operations_provider.dart';
+import '../../utils/helpers.dart';
 
 class BdeDetailsScreen extends StatefulWidget {
   final AsmBdeModel bde;
@@ -115,6 +116,93 @@ class _BdeDetailsScreenState extends State<BdeDetailsScreen> {
         );
       }
     }
+  }
+
+  void _confirmDeleteBde(BuildContext context, AsmBdeModel bde) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: Colors.red.shade600),
+            const SizedBox(width: 8),
+            const Text(
+              'Delete BDE Account?',
+              style: TextStyle(
+                color: Color(0xFF0F172A),
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          'Are you sure you want to permanently delete account for ${bde.name} (${bde.employeeId})? This action cannot be undone.',
+          style: const TextStyle(
+            color: Color(0xFF64748B),
+            fontSize: 12.5,
+            height: 1.4,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel', style: TextStyle(color: Color(0xFF64748B))),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            onPressed: () async {
+              Navigator.pop(ctx); // Close confirmation
+
+              showDialog(
+                context: context,
+                barrierDismissible: false,
+                builder: (context) => AlertDialog(
+                  backgroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  content: const Row(
+                    children: [
+                      CircularProgressIndicator(color: Colors.red),
+                      SizedBox(width: 20),
+                      Text(
+                        'Deleting BDE account...',
+                        style: TextStyle(color: Color(0xFF0F172A), fontSize: 13),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+
+              final res = await OperationsProvider.instance.deleteSubordinateAccount(bde.employeeId);
+
+              if (context.mounted) {
+                Navigator.pop(context); // Close loading dialog
+                if (res['success'] == true) {
+                  UiHelpers.showSnackBar(
+                    context,
+                    res['message']?.toString() ?? 'Account ${bde.employeeId} deleted successfully.',
+                    Colors.green,
+                  );
+                  Navigator.pop(context); // Go back to BDEs list
+                } else {
+                  UiHelpers.showSnackBar(
+                    context,
+                    res['message']?.toString() ?? 'Failed to delete account.',
+                    Colors.redAccent,
+                  );
+                }
+              }
+            },
+            child: const Text('Delete Permanently', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
   }
 
   // Forward to SM confirmation dialog
@@ -327,6 +415,36 @@ class _BdeDetailsScreenState extends State<BdeDetailsScreen> {
                 ),
               ],
             ),
+            actions: [
+              PopupMenuButton<String>(
+                icon: const Icon(Icons.more_vert_rounded, color: Color(0xFF0F172A)),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                onSelected: (val) {
+                  if (val == 'delete') {
+                    _confirmDeleteBde(context, bde);
+                  }
+                },
+                itemBuilder: (ctx) => [
+                  const PopupMenuItem(
+                    value: 'delete',
+                    child: Row(
+                      children: [
+                        Icon(Icons.delete_outline_rounded, color: Colors.redAccent, size: 18),
+                        SizedBox(width: 8),
+                        Text(
+                          'Delete Account',
+                          style: TextStyle(
+                            color: Colors.redAccent,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
           body: RefreshIndicator(
             color: const Color(0xFF0F766E),
@@ -760,8 +878,230 @@ class _BdeDetailsScreenState extends State<BdeDetailsScreen> {
     );
   }
 
+  void _showEditTargetsSheet(BuildContext context, AsmBdeModel bde) {
+    final dailyController = TextEditingController(
+      text: bde.dailyTarget > 0 ? bde.dailyTarget.toString() : '',
+    );
+    final monthlyController = TextEditingController(
+      text: bde.monthlyTarget > 0 ? bde.monthlyTarget.toString() : '',
+    );
+    bool isSaving = false;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            final keyboardPadding = MediaQuery.of(context).viewInsets.bottom;
+
+            return Padding(
+              padding: EdgeInsets.only(
+                left: 20,
+                right: 20,
+                top: 14,
+                bottom: keyboardPadding > 0 ? keyboardPadding + 16 : 24,
+              ),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 44,
+                        height: 5,
+                        margin: const EdgeInsets.only(bottom: 12),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFCBD5E1),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                    ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF0F766E).withOpacity(0.12),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                Icons.track_changes_rounded,
+                                color: Color(0xFF0F766E),
+                                size: 20,
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'Update BDE Targets',
+                                  style: TextStyle(
+                                    fontSize: 17,
+                                    fontWeight: FontWeight.bold,
+                                    color: Color(0xFF0F172A),
+                                  ),
+                                ),
+                                Text(
+                                  '${bde.name} (${bde.employeeId})',
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    color: Color(0xFF64748B),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                        IconButton(
+                          onPressed: () => Navigator.pop(ctx),
+                          icon: const Icon(Icons.close_rounded, color: Color(0xFF64748B)),
+                        ),
+                      ],
+                    ),
+                    const Divider(color: Color(0xFFE2E8F0), height: 22),
+
+                    const Text(
+                      'DAILY TARGET (LEADS) *',
+                      style: TextStyle(
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF64748B),
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    TextField(
+                      controller: dailyController,
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                      decoration: InputDecoration(
+                        hintText: 'e.g. 5',
+                        hintStyle: const TextStyle(fontSize: 13, color: Color(0xFF94A3B8)),
+                        prefixIcon: const Icon(Icons.today_rounded, size: 20, color: Color(0xFF0F766E)),
+                        filled: true,
+                        fillColor: const Color(0xFFF8FAFC),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFCBD5E1))),
+                        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+                        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF0F766E), width: 1.5)),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+
+                    const Text(
+                      'MONTHLY TARGET (LEADS) *',
+                      style: TextStyle(
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF64748B),
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    TextField(
+                      controller: monthlyController,
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                      decoration: InputDecoration(
+                        hintText: 'e.g. 50',
+                        hintStyle: const TextStyle(fontSize: 13, color: Color(0xFF94A3B8)),
+                        prefixIcon: const Icon(Icons.calendar_month_rounded, size: 20, color: Color(0xFF2563EB)),
+                        filled: true,
+                        fillColor: const Color(0xFFF8FAFC),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFCBD5E1))),
+                        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+                        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF2563EB), width: 1.5)),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+
+                    SizedBox(
+                      width: double.infinity,
+                      height: 48,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF0F766E),
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        onPressed: isSaving
+                            ? null
+                            : () async {
+                                final dVal = int.tryParse(dailyController.text.trim()) ?? 0;
+                                final mVal = int.tryParse(monthlyController.text.trim()) ?? 0;
+
+                                if (dVal <= 0 && mVal <= 0) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Please enter a valid daily or monthly target'),
+                                      backgroundColor: Colors.redAccent,
+                                    ),
+                                  );
+                                  return;
+                                }
+
+                                setSheetState(() => isSaving = true);
+
+                                final res = await OperationsProvider.instance.updateBdeTargets(
+                                  employeeId: bde.employeeId.isNotEmpty ? bde.employeeId : bde.id,
+                                  bdeName: bde.name,
+                                  dailyTarget: dVal > 0 ? dVal : null,
+                                  monthlyTarget: mVal > 0 ? mVal : null,
+                                );
+
+                                if (context.mounted) {
+                                  Navigator.pop(ctx);
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(res['message']?.toString() ?? 'Targets updated!'),
+                                      backgroundColor: res['success'] == true
+                                          ? const Color(0xFF0F766E)
+                                          : Colors.redAccent,
+                                    ),
+                                  );
+                                }
+                              },
+                        child: isSaving
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                              )
+                            : const Text(
+                                'Save Targets',
+                                style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                              ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
   Widget _buildPerformanceSection(AsmBdeModel bde) {
-    final double ratio = bde.totalLeads > 0
+    final double monthlyRatio = bde.monthlyTarget > 0
+        ? (bde.monthlyAchieved / bde.monthlyTarget).clamp(0.0, 1.0)
+        : 0.0;
+    final double dailyRatio = bde.dailyTarget > 0
+        ? (bde.dailyAchieved / bde.dailyTarget).clamp(0.0, 1.0)
+        : 0.0;
+    final double overallRatio = bde.totalLeads > 0
         ? (bde.admissions / bde.totalLeads).clamp(0.0, 1.0)
         : 0.0;
 
@@ -783,21 +1123,62 @@ class _BdeDetailsScreenState extends State<BdeDetailsScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
+          Row(
             children: [
-              Icon(
+              const Icon(
                 Icons.analytics_outlined,
                 size: 16,
                 color: Color(0xFF0F766E),
               ),
-              SizedBox(width: 6),
-              Text(
-                'PERFORMANCE METRICS',
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF64748B),
-                  letterSpacing: 0.8,
+              const SizedBox(width: 6),
+              const Expanded(
+                child: Text(
+                  'PERFORMANCE & TARGETS',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF64748B),
+                    letterSpacing: 0.6,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              InkWell(
+                onTap: () => _showEditTargetsSheet(context, bde),
+                borderRadius: BorderRadius.circular(8),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 5,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF0F766E).withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: const Color(0xFF0F766E).withOpacity(0.25),
+                    ),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.edit_outlined,
+                        size: 12,
+                        color: Color(0xFF0F766E),
+                      ),
+                      SizedBox(width: 4),
+                      Text(
+                        'Edit Targets',
+                        style: TextStyle(
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF0F766E),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ],
@@ -807,9 +1188,9 @@ class _BdeDetailsScreenState extends State<BdeDetailsScreen> {
             children: [
               Expanded(
                 child: _buildMetricTile(
-                  label: 'TOTAL LEADS',
-                  value: '${bde.totalLeads}',
-                  icon: Icons.assignment_ind_outlined,
+                  label: 'DAILY TARGET',
+                  value: '${bde.dailyAchieved}/${bde.dailyTarget}',
+                  icon: Icons.today_rounded,
                   color: const Color(0xFF0F766E),
                   bgColor: const Color(0xFFF0FDFA),
                 ),
@@ -817,9 +1198,9 @@ class _BdeDetailsScreenState extends State<BdeDetailsScreen> {
               const SizedBox(width: 10),
               Expanded(
                 child: _buildMetricTile(
-                  label: 'ADMISSIONS',
-                  value: '${bde.admissions}',
-                  icon: Icons.school_outlined,
+                  label: 'MONTHLY TARGET',
+                  value: '${bde.monthlyAchieved}/${bde.monthlyTarget}',
+                  icon: Icons.calendar_month_rounded,
                   color: const Color(0xFF2563EB),
                   bgColor: const Color(0xFFEFF6FF),
                 ),
@@ -827,8 +1208,8 @@ class _BdeDetailsScreenState extends State<BdeDetailsScreen> {
               const SizedBox(width: 10),
               Expanded(
                 child: _buildMetricTile(
-                  label: 'CONVERSION',
-                  value: bde.displayConversionRate,
+                  label: 'OVERALL LEADS',
+                  value: '${bde.completedLeads}/${bde.totalLeads}',
                   icon: Icons.trending_up_rounded,
                   color: const Color(0xFF16A34A),
                   bgColor: const Color(0xFFF0FDF4),
@@ -836,11 +1217,34 @@ class _BdeDetailsScreenState extends State<BdeDetailsScreen> {
               ),
             ],
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 16),
+          // Daily Progress Bar
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Daily Progress (${bde.dailyPending} pending)',
+                style: const TextStyle(
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF64748B),
+                ),
+              ),
+              Text(
+                '${bde.dailyCompletionPercentage}%',
+                style: const TextStyle(
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF0F766E),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
           ClipRRect(
             borderRadius: BorderRadius.circular(6),
             child: LinearProgressIndicator(
-              value: ratio,
+              value: dailyRatio,
               minHeight: 7,
               backgroundColor: const Color(0xFFF1F5F9),
               valueColor: const AlwaysStoppedAnimation<Color>(
@@ -848,7 +1252,43 @@ class _BdeDetailsScreenState extends State<BdeDetailsScreen> {
               ),
             ),
           ),
+          const SizedBox(height: 12),
+          // Monthly Progress Bar
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Monthly Progress (${bde.monthlyPending} pending)',
+                style: const TextStyle(
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF64748B),
+                ),
+              ),
+              Text(
+                '${bde.monthlyCompletionPercentage}%',
+                style: const TextStyle(
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF2563EB),
+                ),
+              ),
+            ],
+          ),
           const SizedBox(height: 6),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(6),
+            child: LinearProgressIndicator(
+              value: monthlyRatio,
+              minHeight: 7,
+              backgroundColor: const Color(0xFFF1F5F9),
+              valueColor: const AlwaysStoppedAnimation<Color>(
+                Color(0xFF2563EB),
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          // Overall / Conversion Progress Bar
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -869,6 +1309,18 @@ class _BdeDetailsScreenState extends State<BdeDetailsScreen> {
                 ),
               ),
             ],
+          ),
+          const SizedBox(height: 6),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(6),
+            child: LinearProgressIndicator(
+              value: overallRatio,
+              minHeight: 7,
+              backgroundColor: const Color(0xFFF1F5F9),
+              valueColor: const AlwaysStoppedAnimation<Color>(
+                Color(0xFF16A34A),
+              ),
+            ),
           ),
         ],
       ),

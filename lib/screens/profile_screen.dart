@@ -1,15 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../constants/colors.dart';
-import '../models/training_video_model.dart';
 import '../models/user_profile_model.dart';
 import '../providers/auth_provider.dart';
 import '../providers/operations_provider.dart';
 import '../providers/user_profile_provider.dart';
 import 'login_screen.dart';
 import 'training_videos_screen.dart';
-import 'leave_screen.dart';
+// import 'leave_screen.dart';
 import 'attendance_history_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -129,7 +126,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         CircularProgressIndicator(color: Colors.red),
                         SizedBox(width: 20),
                         Text(
-                          'Purging user account databases...',
+                          'Permanently deleting account...',
                           style: TextStyle(
                             color: AppColors.textPrimary,
                             fontSize: 13,
@@ -140,18 +137,35 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                 );
 
-                await Future.delayed(const Duration(milliseconds: 1500));
-                await AuthProvider.instance.logout();
+                final res = await AuthProvider.instance.deleteAccount();
 
                 if (mounted) {
                   navigator.pop(); // Close deleting dialog
-                  navigator.pushReplacementNamed(LoginScreen.path);
-                  messenger.showSnackBar(
-                    const SnackBar(
-                      backgroundColor: Colors.redAccent,
-                      content: Text('Account has been deleted successfully.'),
-                    ),
-                  );
+                  if (res['success'] == true) {
+                    navigator.pushNamedAndRemoveUntil(
+                      LoginScreen.path,
+                      (route) => false,
+                    );
+                    messenger.showSnackBar(
+                      SnackBar(
+                        backgroundColor: Colors.redAccent,
+                        content: Text(
+                          res['message']?.toString() ??
+                              'Account has been permanently deleted.',
+                        ),
+                      ),
+                    );
+                  } else {
+                    messenger.showSnackBar(
+                      SnackBar(
+                        backgroundColor: Colors.redAccent,
+                        content: Text(
+                          res['message']?.toString() ??
+                              'Failed to delete account. Please try again.',
+                        ),
+                      ),
+                    );
+                  }
                 }
               },
               child: const Text(
@@ -379,10 +393,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildLeaveSection(
-    OperationsProvider provider,
-    UserProfileModel profile,
-  ) {
+  /*
+  Widget _buildLeaveSection(OperationsProvider provider, UserProfileModel profile) {
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
@@ -436,6 +448,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
     );
   }
+  */
 
   @override
   Widget build(BuildContext context) {
@@ -537,7 +550,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               child: ListenableBuilder(
                 listenable: OperationsProvider.instance,
                 builder: (context, _) {
-                  final provider = OperationsProvider.instance;
+                  // final provider = OperationsProvider.instance;
 
                   return RefreshIndicator(
                     color: AppColors.accentTeal,
@@ -686,7 +699,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
                           // Leave Management Section
                           // _buildLeaveSection(provider, profile),
-                          const SizedBox(height: 20),
+                          // const SizedBox(height: 20),
 
                           // Detail Section C: Settings & Account Actions
                           _buildSettingsSection(),

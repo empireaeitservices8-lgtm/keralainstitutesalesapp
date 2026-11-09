@@ -1,24 +1,133 @@
 import 'package:flutter/material.dart';
+import '../services/common/navigation_services.dart';
 
 class UiHelpers {
+  static OverlayEntry? _currentToastEntry;
+
+  /// Displays a floating top toast banner above all modal sheets, dialogs, and navigation stacks.
+  static void showToast(
+    String message, {
+    bool isError = true,
+    BuildContext? context,
+    Duration duration = const Duration(seconds: 4),
+  }) {
+    final overlayState = context != null
+        ? (Overlay.maybeOf(context) ?? navigatorKey.currentState?.overlay)
+        : navigatorKey.currentState?.overlay;
+
+    if (overlayState == null) return;
+
+    try {
+      _currentToastEntry?.remove();
+    } catch (_) {}
+    _currentToastEntry = null;
+
+    late OverlayEntry entry;
+    entry = OverlayEntry(
+      builder: (ctx) {
+        return Positioned(
+          top: MediaQuery.of(ctx).padding.top + 16,
+          left: 16,
+          right: 16,
+          child: Material(
+            color: Colors.transparent,
+            child: TweenAnimationBuilder<double>(
+              tween: Tween(begin: 0.0, end: 1.0),
+              duration: const Duration(milliseconds: 250),
+              curve: Curves.easeOutCubic,
+              builder: (context, value, child) {
+                return Transform.translate(
+                  offset: Offset(0, -16 * (1 - value)),
+                  child: Opacity(
+                    opacity: value,
+                    child: child,
+                  ),
+                );
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                decoration: BoxDecoration(
+                  color: isError ? const Color(0xFFDC2626) : const Color(0xFF0F766E),
+                  borderRadius: BorderRadius.circular(14),
+                  boxShadow: [
+                    BoxShadow(
+                      color: (isError ? const Color(0xFFDC2626) : const Color(0xFF0F766E))
+                          .withOpacity(0.35),
+                      blurRadius: 16,
+                      offset: const Offset(0, 6),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Icon(
+                      isError
+                          ? Icons.error_outline_rounded
+                          : Icons.check_circle_outline_rounded,
+                      color: Colors.white,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        message,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          height: 1.35,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+
+    _currentToastEntry = entry;
+    overlayState.insert(entry);
+
+    Future.delayed(duration, () {
+      if (_currentToastEntry == entry) {
+        try {
+          entry.remove();
+        } catch (_) {}
+        _currentToastEntry = null;
+      }
+    });
+  }
+
   static void showSnackBar(
     BuildContext context,
     String message,
     Color bgColor, {
     Color textColor = Colors.black87,
   }) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          message,
-          style: TextStyle(color: textColor, fontWeight: FontWeight.bold),
+    final bool isError = bgColor == Colors.redAccent ||
+        bgColor == Colors.red ||
+        bgColor == Colors.orange ||
+        bgColor == Colors.orangeAccent;
+    showToast(message, isError: isError, context: context);
+
+    try {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            message,
+            style: TextStyle(color: textColor, fontWeight: FontWeight.bold),
+          ),
+          backgroundColor: bgColor,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          duration: const Duration(seconds: 3),
         ),
-        backgroundColor: bgColor,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        duration: const Duration(seconds: 2),
-      ),
-    );
+      );
+    } catch (_) {}
   }
 
   static void showMessengerSnackBar(
@@ -27,18 +136,26 @@ class UiHelpers {
     Color bgColor, {
     Color textColor = Colors.black87,
   }) {
-    messenger.showSnackBar(
-      SnackBar(
-        content: Text(
-          message,
-          style: TextStyle(color: textColor, fontWeight: FontWeight.bold),
+    final bool isError = bgColor == Colors.redAccent ||
+        bgColor == Colors.red ||
+        bgColor == Colors.orange ||
+        bgColor == Colors.orangeAccent;
+    showToast(message, isError: isError);
+
+    try {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            message,
+            style: TextStyle(color: textColor, fontWeight: FontWeight.bold),
+          ),
+          backgroundColor: bgColor,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          duration: const Duration(seconds: 3),
         ),
-        backgroundColor: bgColor,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        duration: const Duration(seconds: 2),
-      ),
-    );
+      );
+    } catch (_) {}
   }
 
   static DateTime parseUtcDateTime(String str) {

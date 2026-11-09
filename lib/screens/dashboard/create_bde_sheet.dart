@@ -4,9 +4,8 @@ import '../../providers/operations_provider.dart';
 import '../../utils/helpers.dart';
 
 void showCreateBdeSheet(BuildContext context, {String? defaultDistrict, String? defaultTeam}) {
-  if (OperationsProvider.instance.districtsList.isEmpty) {
-    OperationsProvider.instance.fetchDistricts();
-  }
+  // Always fetch ASM-specific districts from /api/asm/districts
+  OperationsProvider.instance.fetchAsmDistricts(isRefresh: true);
 
   final formKey = GlobalKey<FormState>();
 
@@ -15,12 +14,8 @@ void showCreateBdeSheet(BuildContext context, {String? defaultDistrict, String? 
   final phoneController = TextEditingController();
   final passwordController = TextEditingController();
 
-  final List<String> keralaDistricts =
-      OperationsProvider.instance.allDistrictNames;
-
-  String? selectedDistrict = (defaultDistrict != null && keralaDistricts.contains(defaultDistrict))
-      ? defaultDistrict
-      : null;
+  String? selectedDistrict = defaultDistrict;
+  String? bdeValidationError;
 
   bool isPasswordVisible = false;
   bool isSubmitting = false;
@@ -36,6 +31,11 @@ void showCreateBdeSheet(BuildContext context, {String? defaultDistrict, String? 
       return StatefulBuilder(
         builder: (context, setModalState) {
           final keyboardPadding = MediaQuery.of(context).viewInsets.bottom;
+          final ops = OperationsProvider.instance;
+          final List<String> districtOptions = ops.asmDistrictNames;
+          if (selectedDistrict != null && !districtOptions.contains(selectedDistrict)) {
+            districtOptions.insert(0, selectedDistrict!);
+          }
 
           return Padding(
             padding: EdgeInsets.only(
@@ -115,6 +115,40 @@ void showCreateBdeSheet(BuildContext context, {String? defaultDistrict, String? 
                       ],
                     ),
                     const Divider(color: Color(0xFFE2E8F0), height: 22),
+
+                    if (bdeValidationError != null && bdeValidationError!.isNotEmpty) ...[
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFEF2F2),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: const Color(0xFFFCA5A5)),
+                        ),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Icon(Icons.error_outline_rounded, color: Color(0xFFDC2626), size: 18),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                bdeValidationError!,
+                                style: const TextStyle(
+                                  color: Color(0xFFB91C1C),
+                                  fontSize: 12.5,
+                                  fontWeight: FontWeight.w600,
+                                  height: 1.35,
+                                ),
+                              ),
+                            ),
+                            InkWell(
+                              onTap: () => setModalState(() => bdeValidationError = null),
+                              child: const Icon(Icons.close_rounded, color: Color(0xFF991B1B), size: 16),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                    ],
 
                     // 1. Full Name
                     TextFormField(
@@ -214,10 +248,25 @@ void showCreateBdeSheet(BuildContext context, {String? defaultDistrict, String? 
                       isExpanded: true,
                       decoration: InputDecoration(
                         labelText: 'Assigned District *',
-                        hintText: 'Select Assigned District',
+                        hintText: ops.isLoadingAsmDistricts
+                            ? 'Loading districts...'
+                            : 'Select Assigned District',
                         hintStyle: const TextStyle(fontSize: 13, color: Color(0xFF94A3B8)),
                         prefixIcon: const Icon(Icons.location_on_outlined, size: 20, color: Color(0xFF0F766E)),
                         prefixIconConstraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+                        suffixIcon: ops.isLoadingAsmDistricts
+                            ? const Padding(
+                                padding: EdgeInsets.all(12.0),
+                                child: SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Color(0xFF0F766E),
+                                  ),
+                                ),
+                              )
+                            : null,
                         filled: true,
                         fillColor: const Color(0xFFF8FAFC),
                         contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
@@ -225,7 +274,7 @@ void showCreateBdeSheet(BuildContext context, {String? defaultDistrict, String? 
                         enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
                         focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF0F766E), width: 1.5)),
                       ),
-                      items: keralaDistricts.map((d) {
+                      items: districtOptions.map((d) {
                         return DropdownMenuItem<String>(
                           value: d,
                           child: Text(
@@ -237,7 +286,7 @@ void showCreateBdeSheet(BuildContext context, {String? defaultDistrict, String? 
                         );
                       }).toList(),
                       selectedItemBuilder: (BuildContext context) {
-                        return keralaDistricts.map((d) {
+                        return districtOptions.map((d) {
                           return Align(
                             alignment: Alignment.centerLeft,
                             child: Text(
@@ -355,14 +404,15 @@ void showCreateBdeSheet(BuildContext context, {String? defaultDistrict, String? 
                                     );
                                   }
                                 } else {
-                                  setModalState(() => isSubmitting = false);
-                                  if (context.mounted) {
-                                    UiHelpers.showSnackBar(
-                                      context,
-                                      message,
-                                      Colors.redAccent,
-                                    );
-                                  }
+                                  setModalState(() {
+                                    isSubmitting = false;
+                                    bdeValidationError = message;
+                                  });
+                                  UiHelpers.showToast(
+                                    message,
+                                    isError: true,
+                                    context: ctx,
+                                  );
                                 }
                               },
                         child: isSubmitting

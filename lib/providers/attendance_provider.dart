@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:intl/intl.dart';
@@ -236,25 +238,33 @@ class AttendanceProvider extends ChangeNotifier {
           } else if (data['attendance'] is Map &&
               (data['attendance']['sessions'] is List ||
                   data['attendance']['punches'] is List)) {
-            todayRecords = (data['attendance']['sessions'] ??
-                data['attendance']['punches']) as List<dynamic>;
+            todayRecords =
+                (data['attendance']['sessions'] ??
+                        data['attendance']['punches'])
+                    as List<dynamic>;
           }
           if (data['record'] is Map) {
             record = Map<String, dynamic>.from(data['record'] as Map);
           } else if (data['attendance'] is Map) {
             record = Map<String, dynamic>.from(data['attendance'] as Map);
-            final punches = (record['sessions'] is List &&
+            final punches =
+                (record['sessions'] is List &&
                     (record['sessions'] as List).isNotEmpty)
                 ? (record['sessions'] as List)
-                : (record['punches'] is List ? (record['punches'] as List) : null);
+                : (record['punches'] is List
+                      ? (record['punches'] as List)
+                      : null);
             if (punches != null && punches.isNotEmpty && punches.last is Map) {
-              final parentHours = record['hours_worked'] ??
+              final parentHours =
+                  record['hours_worked'] ??
                   record['hours_worked_formatted'] ??
                   record['working_hours'];
               final lastPunch = Map<String, dynamic>.from(punches.last as Map);
               record = {...record, ...lastPunch};
-              if (UiHelpers.parseWorkingHours(lastPunch['hours_worked'] ??
-                          lastPunch['hours_worked_formatted']) ==
+              if (UiHelpers.parseWorkingHours(
+                        lastPunch['hours_worked'] ??
+                            lastPunch['hours_worked_formatted'],
+                      ) ==
                       0.0 &&
                   UiHelpers.parseWorkingHours(parentHours) > 0.0) {
                 record['hours_worked'] = parentHours;
@@ -266,15 +276,18 @@ class AttendanceProvider extends ChangeNotifier {
               data.containsKey('checked_in')) {
             record = Map<String, dynamic>.from(data);
             if (todayRecords.isNotEmpty && todayRecords.last is Map) {
-              final parentHours = record['hours_worked'] ??
+              final parentHours =
+                  record['hours_worked'] ??
                   record['hours_worked_formatted'] ??
                   record['working_hours'];
               final lastPunch = Map<String, dynamic>.from(
                 todayRecords.last as Map,
               );
               record = {...record, ...lastPunch};
-              if (UiHelpers.parseWorkingHours(lastPunch['hours_worked'] ??
-                          lastPunch['hours_worked_formatted']) ==
+              if (UiHelpers.parseWorkingHours(
+                        lastPunch['hours_worked'] ??
+                            lastPunch['hours_worked_formatted'],
+                      ) ==
                       0.0 &&
                   UiHelpers.parseWorkingHours(parentHours) > 0.0) {
                 record['hours_worked'] = parentHours;
@@ -293,11 +306,14 @@ class AttendanceProvider extends ChangeNotifier {
 
         final String apiStatus =
             (data['status'] ?? record?['status'] ?? 'absent').toString();
-        final String parentDate = (data['date'] ??
-                (data['attendance'] is Map ? data['attendance']['date'] : null) ??
-                record?['date'] ??
-                '')
-            .toString();
+        final String parentDate =
+            (data['date'] ??
+                    (data['attendance'] is Map
+                        ? data['attendance']['date']
+                        : null) ??
+                    record?['date'] ??
+                    '')
+                .toString();
 
         if (todayRecords.isEmpty && record != null) {
           todayRecords = [record];
@@ -392,15 +408,33 @@ class AttendanceProvider extends ChangeNotifier {
           final todayKey = (record['date'] ?? '').toString().isNotEmpty
               ? record['date'].toString()
               : DateFormat('yyyy-MM-dd').format(DateTime.now());
+          final inTimeLabel = DateFormat(
+            'hh:mm a',
+          ).format(checkInTime).toUpperCase();
+          final outTimeLabel = checkOutTime != null
+              ? DateFormat('hh:mm a').format(checkOutTime).toUpperCase()
+              : '';
 
           if (checkInSelfie.isEmpty) {
             checkInSelfie =
+                prefs.getString(
+                  'attendance_selfie_in_${todayKey}_$inTimeLabel',
+                ) ??
                 prefs.getString('attendance_selfie_in_$todayKey') ??
                 prefs.getString(_keyCheckInSelfie) ??
                 _currentAttendance.checkInSelfie;
           }
-          if (checkOutSelfie.isEmpty) {
+          if (checkOutTime == null) {
+            // Active session has not checked out yet — never inherit previous session's check-out selfie
+            checkOutSelfie = '';
+          } else if (checkOutSelfie.isEmpty) {
             checkOutSelfie =
+                prefs.getString(
+                  'attendance_selfie_out_${todayKey}_$outTimeLabel',
+                ) ??
+                prefs.getString(
+                  'attendance_selfie_out_for_in_${todayKey}_$inTimeLabel',
+                ) ??
                 prefs.getString('attendance_selfie_out_$todayKey') ??
                 prefs.getString(_keyCheckOutSelfie) ??
                 (_currentAttendance.checkOutSelfie ?? '');
@@ -508,17 +542,32 @@ class AttendanceProvider extends ChangeNotifier {
               'attendance_selfie_in_$todayKey',
               checkInSelfie,
             );
+            await prefs.setString(
+              'attendance_selfie_in_${todayKey}_$inTimeLabel',
+              checkInSelfie,
+            );
           }
           if (checkOutTime != null) {
             await prefs.setString(
               _keyCheckOutTime,
               checkOutTime.toIso8601String(),
             );
+          } else {
+            await prefs.remove(_keyCheckOutTime);
+            await prefs.remove(_keyCheckOutSelfie);
           }
-          if (checkOutSelfie.isNotEmpty) {
+          if (checkOutSelfie.isNotEmpty && checkOutTime != null) {
             await prefs.setString(_keyCheckOutSelfie, checkOutSelfie);
             await prefs.setString(
               'attendance_selfie_out_$todayKey',
+              checkOutSelfie,
+            );
+            await prefs.setString(
+              'attendance_selfie_out_${todayKey}_$outTimeLabel',
+              checkOutSelfie,
+            );
+            await prefs.setString(
+              'attendance_selfie_out_for_in_${todayKey}_$inTimeLabel',
               checkOutSelfie,
             );
           }
@@ -569,7 +618,7 @@ class AttendanceProvider extends ChangeNotifier {
 
   /// Perform Check-In
   Future<bool> checkIn({
-    required String selfiePath,
+    String selfiePath = '',
     required double lat,
     required double lng,
     required String deviceInfo,
@@ -579,16 +628,21 @@ class AttendanceProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final formData = FormData.fromMap({
+      final mapData = <String, dynamic>{
         'lat': lat,
         'lng': lng,
         'device_info': deviceInfo,
         'source_mode': sourceMode,
-        'selfie': await MultipartFile.fromFile(
-          selfiePath,
-          filename: selfiePath.split('/').last,
-        ),
-      });
+      };
+      if (selfiePath.isNotEmpty && File(selfiePath).existsSync()) {
+        try {
+          mapData['selfie'] = await MultipartFile.fromFile(
+            selfiePath,
+            filename: selfiePath.split('/').last,
+          );
+        } catch (_) {}
+      }
+      final formData = FormData.fromMap(mapData);
 
       // Call API
       await ApiClient.instance.post(ApiEndpoints.checkIn, data: formData);
@@ -620,8 +674,17 @@ class AttendanceProvider extends ChangeNotifier {
       await prefs.setDouble(_keyCheckInLat, lat);
       await prefs.setDouble(_keyCheckInLng, lng);
       await prefs.setString(_keyCheckInSelfie, selfiePath);
+      await prefs.remove(_keyCheckOutTime);
+      await prefs.remove(_keyCheckOutSelfie);
       final todayKey = DateFormat('yyyy-MM-dd').format(DateTime.now());
+      final inTimeLabel = DateFormat(
+        'hh:mm a',
+      ).format(checkInTime).toUpperCase();
       await prefs.setString('attendance_selfie_in_$todayKey', selfiePath);
+      await prefs.setString(
+        'attendance_selfie_in_${todayKey}_$inTimeLabel',
+        selfiePath,
+      );
 
       _isSubmitting = false;
       notifyListeners();
@@ -636,7 +699,7 @@ class AttendanceProvider extends ChangeNotifier {
 
   /// Perform Check-Out
   Future<bool> checkOut({
-    required String selfiePath,
+    String selfiePath = '',
     required double lat,
     required double lng,
   }) async {
@@ -646,14 +709,16 @@ class AttendanceProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final formData = FormData.fromMap({
-        'lat': lat,
-        'lng': lng,
-        'selfie': await MultipartFile.fromFile(
-          selfiePath,
-          filename: selfiePath.split('/').last,
-        ),
-      });
+      final mapData = <String, dynamic>{'lat': lat, 'lng': lng};
+      if (selfiePath.isNotEmpty && File(selfiePath).existsSync()) {
+        try {
+          mapData['selfie'] = await MultipartFile.fromFile(
+            selfiePath,
+            filename: selfiePath.split('/').last,
+          );
+        } catch (_) {}
+      }
+      final formData = FormData.fromMap(mapData);
 
       // Call API
       await ApiClient.instance.post(ApiEndpoints.checkOut, data: formData);
@@ -678,7 +743,21 @@ class AttendanceProvider extends ChangeNotifier {
       await prefs.setString(_keyCheckOutTime, checkOutTime.toIso8601String());
       await prefs.setString(_keyCheckOutSelfie, selfiePath);
       final todayKey = DateFormat('yyyy-MM-dd').format(DateTime.now());
+      final outTimeLabel = DateFormat(
+        'hh:mm a',
+      ).format(checkOutTime).toUpperCase();
+      final inTimeLabel = DateFormat(
+        'hh:mm a',
+      ).format(_currentAttendance.checkInTime).toUpperCase();
       await prefs.setString('attendance_selfie_out_$todayKey', selfiePath);
+      await prefs.setString(
+        'attendance_selfie_out_${todayKey}_$outTimeLabel',
+        selfiePath,
+      );
+      await prefs.setString(
+        'attendance_selfie_out_for_in_${todayKey}_$inTimeLabel',
+        selfiePath,
+      );
       await prefs.setDouble(_keyWorkingHours, workingHours);
 
       _isSubmitting = false;
@@ -725,8 +804,9 @@ class AttendanceProvider extends ChangeNotifier {
     String fallbackStatus = '',
   }) {
     final todayStr = DateFormat('yyyy-MM-dd').format(DateTime.now());
-    final effectiveDate =
-        (fallbackDate.isNotEmpty && fallbackDate != 'null') ? fallbackDate : todayStr;
+    final effectiveDate = (fallbackDate.isNotEmpty && fallbackDate != 'null')
+        ? fallbackDate
+        : todayStr;
     final List<Map<String, dynamic>> enriched = [];
 
     for (final item in rawList) {
@@ -734,43 +814,53 @@ class AttendanceProvider extends ChangeNotifier {
       final map = Map<String, dynamic>.from(item);
 
       // If item itself is a day wrapper with sessions/punches, unwrap its sessions
-      final nestedList = (map['sessions'] is List && (map['sessions'] as List).isNotEmpty)
+      final nestedList =
+          (map['sessions'] is List && (map['sessions'] as List).isNotEmpty)
           ? (map['sessions'] as List)
           : ((map['punches'] is List && (map['punches'] as List).isNotEmpty)
-              ? (map['punches'] as List)
-              : null);
+                ? (map['punches'] as List)
+                : null);
 
       if (nestedList != null) {
         final dayDate = (map['date'] ?? effectiveDate).toString();
-        final dayStatus = (map['status'] ?? map['shift_status'] ?? fallbackStatus).toString();
+        final dayStatus =
+            (map['status'] ?? map['shift_status'] ?? fallbackStatus).toString();
         for (final s in nestedList) {
           if (s is Map) {
             final sessionMap = Map<String, dynamic>.from(s);
             sessionMap['date'] ??= dayDate;
             sessionMap['employee_id'] ??= map['employee_id'];
             sessionMap['name'] ??= map['name'];
-            final co = (sessionMap['check_out_time'] ?? sessionMap['check_out'] ?? '')
-                .toString()
-                .trim();
-            if (sessionMap['status'] == null && sessionMap['status_text'] == null) {
-              sessionMap['status'] = (co.isNotEmpty && co != '--:--' && co != 'null')
+            final co =
+                (sessionMap['check_out_time'] ?? sessionMap['check_out'] ?? '')
+                    .toString()
+                    .trim();
+            if (sessionMap['status'] == null &&
+                sessionMap['status_text'] == null) {
+              sessionMap['status'] =
+                  (co.isNotEmpty && co != '--:--' && co != 'null')
                   ? 'COMPLETED'
                   : (dayStatus.isNotEmpty && dayStatus.toLowerCase() != 'absent'
-                      ? dayStatus
-                      : 'ONLINE');
+                        ? dayStatus
+                        : 'ONLINE');
             }
             enriched.add(sessionMap);
           }
         }
       } else {
         map['date'] ??= effectiveDate;
-        final co = (map['check_out_time'] ?? map['check_out'] ?? '').toString().trim();
-        if (map['status'] == null && map['status_text'] == null && map['shift_status'] == null) {
+        final co = (map['check_out_time'] ?? map['check_out'] ?? '')
+            .toString()
+            .trim();
+        if (map['status'] == null &&
+            map['status_text'] == null &&
+            map['shift_status'] == null) {
           map['status'] = (co.isNotEmpty && co != '--:--' && co != 'null')
               ? 'COMPLETED'
-              : (fallbackStatus.isNotEmpty && fallbackStatus.toLowerCase() != 'absent'
-                  ? fallbackStatus
-                  : 'ONLINE');
+              : (fallbackStatus.isNotEmpty &&
+                        fallbackStatus.toLowerCase() != 'absent'
+                    ? fallbackStatus
+                    : 'ONLINE');
         }
         enriched.add(map);
       }

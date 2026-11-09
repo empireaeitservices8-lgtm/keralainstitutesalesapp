@@ -7,6 +7,7 @@ import '../utils/validators.dart';
 import '../utils/helpers.dart';
 import 'dashboard/dashboard_screen.dart';
 import 'set_password_screen.dart';
+import 'forgot_password_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   static const String path = '/login';
@@ -63,68 +64,9 @@ class _LoginScreenState extends State<LoginScreen> {
 
 
 
-  // Handle Forgot Password Popup
+  // Handle Forgot Password Navigation
   void _showForgotPasswordDialog() {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (context) {
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(24.0),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text(
-                      'Account Recovery',
-                      style: TextStyle(
-                        color: AppColors.textPrimary,
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.close_rounded, color: AppColors.textSecondary),
-                      onPressed: () => Navigator.pop(context),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                const Text(
-                  'Password resets are managed by the Regional IT Administration for security compliance. Please contact your system administrator to request a password reset or unlock your account.',
-                  style: TextStyle(color: AppColors.textSecondary, fontSize: 13, height: 1.5),
-                ),
-                const SizedBox(height: 24),
-                
-                SizedBox(
-                  width: double.infinity,
-                  height: 48,
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.accentTeal,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      elevation: 0,
-                    ),
-                    onPressed: () => Navigator.pop(context),
-                    child: const Text(
-                      'Dismiss',
-                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
+    Navigator.pushNamed(context, ForgotPasswordScreen.path);
   }
 
 

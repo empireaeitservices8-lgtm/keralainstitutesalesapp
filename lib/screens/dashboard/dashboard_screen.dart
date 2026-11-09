@@ -5,6 +5,8 @@ import '../../providers/attendance_provider.dart';
 import '../../providers/operations_provider.dart';
 import '../../providers/home_provider.dart';
 import '../tasks/task_screen.dart';
+import '../sm/sm_teams_view.dart';
+import '../asm/asm_teams_view.dart';
 import '../incentive_screen.dart';
 import '../profile_screen.dart';
 import 'home_screen.dart';
@@ -31,9 +33,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
       OperationsProvider.instance.fetchSmAsms();
       OperationsProvider.instance.fetchSmPayoutRequests();
     }
-    if (!isBde && ['ASM', 'BDM', 'SM', 'ADMIN', 'MD'].contains(role)) {
+    if (!isBde) {
       OperationsProvider.instance.fetchOfficeTelecallers();
       OperationsProvider.instance.fetchAsmBdes();
+      OperationsProvider.instance.fetchHierarchyFilters();
     }
     OperationsProvider.instance.fetchBdePendingRequests();
     OperationsProvider.instance.fetchWalletApprovalRequests();
@@ -211,7 +214,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
             currentBody = const HomeScreen();
             break;
           case 1:
-            currentBody = const TaskScreen();
+            currentBody = isSm
+                ? const SmTeamsView()
+                : (isAsm ? const AsmTeamsView() : const TaskScreen());
             break;
           case 2:
             currentBody = const IncentiveScreen();

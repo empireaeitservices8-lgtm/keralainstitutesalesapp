@@ -148,15 +148,35 @@ class HomeProvider extends BaseProvider<HomeDashboardModel> {
         fetchHomeData();
         break;
       case 1:
-        // Centralized fetch for leads tab (includes hierarchy filters and raw tasks)
-        if (_initialTaskTabIndex == 1) {
-          OperationsProvider.instance.fetchCompletedLeads();
-        } else {
-          OperationsProvider.instance.fetchLeads(status: 1);
-        }
         final user = AuthProvider.instance.session;
-        if (user.role != 'BDE') {
-          OperationsProvider.instance.fetchHierarchyFilters();
+        final homeData = state.data;
+        final bool isAsm = user.role == 'ASM' ||
+            homeData?.dashboardType?.toUpperCase() == 'ASM' ||
+            homeData?.designationName.toUpperCase() == 'ASM' ||
+            homeData?.designationName.toLowerCase().contains('area sales') == true ||
+            homeData?.designationName.toLowerCase().contains('area manager') == true ||
+            homeData?.designationName.toLowerCase().contains('asm') == true;
+        final bool isSm = !isAsm &&
+            (user.role == 'SM' ||
+                homeData?.dashboardType?.toUpperCase() == 'SM' ||
+                homeData?.designationName.toUpperCase() == 'SM' ||
+                homeData?.designationName.toLowerCase().contains('state manager') == true ||
+                homeData?.designationName.toLowerCase().contains('sales manager') == true);
+        if (isSm) {
+          OperationsProvider.instance.fetchSmAsms(isRefresh: true);
+        } else if (isAsm) {
+          OperationsProvider.instance.fetchAsmBdes(isRefresh: true);
+          OperationsProvider.instance.fetchHierarchyFilters(isRefresh: true);
+        } else {
+          // Centralized fetch for leads tab (includes hierarchy filters and raw tasks)
+          if (_initialTaskTabIndex == 1) {
+            OperationsProvider.instance.fetchCompletedLeads();
+          } else {
+            OperationsProvider.instance.fetchLeads(status: 1);
+          }
+          if (user.role != 'BDE') {
+            OperationsProvider.instance.fetchHierarchyFilters();
+          }
         }
         break;
       case 2:
@@ -384,7 +404,7 @@ class HomeProvider extends BaseProvider<HomeDashboardModel> {
           );
         }
 
-        // 3. Sync ASM role to AuthProvider if designation or dashboard indicates ASM
+        // 3. Sync ASM / SM role to AuthProvider if designation or dashboard indicates ASM / SM
         final desigLower = model.designationName.toLowerCase();
         final bool isAsm = model.dashboardType?.toUpperCase() == 'ASM' ||
             model.designationName.toUpperCase() == 'ASM' ||
@@ -393,8 +413,25 @@ class HomeProvider extends BaseProvider<HomeDashboardModel> {
             desigLower.contains('area') ||
             desigLower == 'asm' ||
             desigLower.contains('asm');
+        final bool isSm = !isAsm &&
+            (model.dashboardType?.toUpperCase() == 'SM' ||
+                model.designationName.toUpperCase() == 'SM' ||
+                desigLower.contains('state manager') ||
+                desigLower.contains('sales manager') ||
+                desigLower == 'sm');
         if (isAsm && AuthProvider.instance.session.role != 'ASM') {
           AuthProvider.instance.updateSessionRole('ASM');
+        } else if (isSm && AuthProvider.instance.session.role != 'SM') {
+          AuthProvider.instance.updateSessionRole('SM');
+        }
+        if (isAsm || isSm || data['team_subordinate_status'] != null) {
+          OperationsProvider.instance.syncAsmBdesFromHome(data);
+          if (isAsm) {
+            OperationsProvider.instance.fetchAsmBdes(isRefresh: true);
+          }
+          if (isSm) {
+            OperationsProvider.instance.fetchSmAsms(isRefresh: true);
+          }
         }
 
         // 4. Save fresh data to local cache

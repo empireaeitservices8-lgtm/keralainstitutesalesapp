@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:local_auth/local_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -488,6 +489,130 @@ class AuthService {
       return true;
     }
     return false;
+  }
+
+  /// Reset password via /api/forgot-password
+  Future<Map<String, dynamic>> forgotPassword({
+    required String employeeId,
+    required String newPassword,
+    required String confirmPassword,
+  }) async {
+    try {
+      final response = await ApiClient.instance.post(
+        ApiEndpoints.forgotPassword,
+        data: {
+          'employee_id': employeeId.trim(),
+          'new_password': newPassword,
+          'confirm_password': confirmPassword,
+        },
+      );
+
+      final data = response.data;
+      if (data is Map<String, dynamic>) {
+        final bool success = data['success'] == true ||
+            (response.statusCode != null &&
+                response.statusCode! >= 200 &&
+                response.statusCode! < 300);
+        return {
+          'success': success,
+          'message': data['message']?.toString() ?? 'Password reset successfully.',
+        };
+      }
+      return {
+        'success': true,
+        'message': 'Password reset successfully.',
+      };
+    } on DioException catch (e) {
+      String message = 'Failed to reset password. Please try again.';
+      if (e.response?.data is Map<String, dynamic>) {
+        final resData = e.response!.data as Map<String, dynamic>;
+        message = resData['message']?.toString() ??
+            resData['error']?.toString() ??
+            message;
+      } else if (e.message != null && e.message!.isNotEmpty) {
+        message = e.message!;
+      }
+      return {
+        'success': false,
+        'message': message,
+      };
+    } catch (e) {
+      return {
+        'success': false,
+        'message': e.toString().replaceAll('Exception:', '').trim(),
+      };
+    }
+  }
+
+  /// Delete user account permanently via /api/delete-account
+  Future<Map<String, dynamic>> deleteAccount({String? employeeId}) async {
+    final Map<String, dynamic> body = {};
+    if (employeeId != null && employeeId.trim().isNotEmpty) {
+      body['employee_id'] = employeeId.trim();
+    } else {
+      final session = await getSessionDetails();
+      final empId = session['email'] ?? '';
+      if (empId.isNotEmpty && !empId.contains('@')) {
+        body['employee_id'] = empId;
+      }
+    }
+
+    try {
+      Response response;
+      try {
+        response = await ApiClient.instance.post(
+          ApiEndpoints.deleteAccount,
+          data: body.isNotEmpty ? body : null,
+        );
+      } on DioException catch (dioErr) {
+        if (dioErr.response?.statusCode == 405) {
+          // Fallback to DELETE method if backend route requires DELETE
+          response = await ApiClient.instance.delete(
+            ApiEndpoints.deleteAccount,
+            data: body.isNotEmpty ? body : null,
+          );
+        } else {
+          rethrow;
+        }
+      }
+
+      final data = response.data;
+      if (data is Map<String, dynamic>) {
+        final bool success = data['success'] == true ||
+            (response.statusCode != null &&
+                response.statusCode! >= 200 &&
+                response.statusCode! < 300);
+        return {
+          'success': success,
+          'message': data['message']?.toString() ?? 'Account permanently deleted.',
+          'data': data['data'],
+        };
+      }
+
+      return {
+        'success': true,
+        'message': 'Account permanently deleted.',
+      };
+    } on DioException catch (e) {
+      String message = 'Failed to delete account. Please try again.';
+      if (e.response?.data is Map<String, dynamic>) {
+        final resData = e.response!.data as Map<String, dynamic>;
+        message = resData['message']?.toString() ??
+            resData['error']?.toString() ??
+            message;
+      } else if (e.message != null && e.message!.isNotEmpty) {
+        message = e.message!;
+      }
+      return {
+        'success': false,
+        'message': message,
+      };
+    } catch (e) {
+      return {
+        'success': false,
+        'message': e.toString().replaceAll('Exception:', '').trim(),
+      };
+    }
   }
 
   /// Simulate a Forgot Password service call

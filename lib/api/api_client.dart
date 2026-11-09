@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:dio/dio.dart';
 import '../utils/network_checker.dart';
@@ -212,62 +213,96 @@ class ApiClient {
       final statusCode = response.statusCode;
       final responseData = response.data;
       
-      // Attempt to pull message from API JSON error format
-      String errorMessage = 'A server error occurred. Please try again.';
+      // Attempt to pull exact message from API JSON error format
+      String? serverMessage;
       if (responseData is Map) {
-        if (statusCode == 422 && responseData['errors'] is Map) {
+        if (responseData['message'] != null &&
+            responseData['message'].toString().trim().isNotEmpty) {
+          serverMessage = responseData['message'].toString().trim();
+        } else if (responseData['error'] != null &&
+            responseData['error'].toString().trim().isNotEmpty) {
+          serverMessage = responseData['error'].toString().trim();
+        } else if (responseData['errors'] is Map) {
           final errorsMap = responseData['errors'] as Map;
           if (errorsMap.isNotEmpty) {
-            final firstErrorVal = errorsMap.values.first;
-            if (firstErrorVal is List && firstErrorVal.isNotEmpty) {
-              errorMessage = firstErrorVal.first.toString();
-            } else if (firstErrorVal != null) {
-              errorMessage = firstErrorVal.toString();
+            final firstVal = errorsMap.values.first;
+            if (firstVal is List && firstVal.isNotEmpty) {
+              serverMessage = firstVal.first.toString().trim();
+            } else if (firstVal != null) {
+              serverMessage = firstVal.toString().trim();
             }
-          } else {
-            errorMessage = responseData['message'] ?? responseData['error'] ?? errorMessage;
           }
-        } else {
-          errorMessage = responseData['message'] ?? responseData['error'] ?? errorMessage;
         }
-      } else if (response.statusMessage != null && response.statusMessage!.isNotEmpty) {
-        errorMessage = response.statusMessage!;
+      } else if (responseData is String && responseData.trim().isNotEmpty) {
+        try {
+          final decoded = jsonDecode(responseData);
+          if (decoded is Map) {
+            if (decoded['message'] != null &&
+                decoded['message'].toString().trim().isNotEmpty) {
+              serverMessage = decoded['message'].toString().trim();
+            } else if (decoded['error'] != null &&
+                decoded['error'].toString().trim().isNotEmpty) {
+              serverMessage = decoded['error'].toString().trim();
+            }
+          }
+        } catch (_) {
+          if (!responseData.contains('<!DOCTYPE html>') &&
+              responseData.length < 300) {
+            serverMessage = responseData.trim();
+          }
+        }
       }
 
-      final lowerMsg = errorMessage.toLowerCase();
-      if (statusCode == 401 ||
-          statusCode == 403 ||
-          lowerMsg.contains('unauthenticated') ||
-          lowerMsg.contains('jwt expired') ||
-          lowerMsg.contains('token expired')) {
-        return UnauthorizedException(
-          message: errorMessage,
-          statusCode: statusCode ?? 401,
+      // If server sent a specific error message, use it directly across all status codes!
+      if (serverMessage != null && serverMessage.isNotEmpty) {
+        final lowerMsg = serverMessage.toLowerCase();
+        if (statusCode == 401 ||
+            statusCode == 403 ||
+            lowerMsg.contains('unauthenticated') ||
+            lowerMsg.contains('jwt expired') ||
+            lowerMsg.contains('token expired')) {
+          return UnauthorizedException(
+            message: serverMessage,
+            statusCode: statusCode ?? 401,
+          );
+        }
+        return ApiException(
+          message: serverMessage,
+          statusCode: statusCode,
+          details: responseData,
         );
       }
 
-      // Map common client error responses
+      // Default fallback messages when the server provided no custom message
+      String fallbackMessage = 'A server error occurred. Please try again.';
+      if (response.statusMessage != null && response.statusMessage!.isNotEmpty) {
+        fallbackMessage = response.statusMessage!;
+      }
+
       switch (statusCode) {
         case 400:
-          return ApiException(message: 'Bad Request: $errorMessage', statusCode: 400, details: responseData);
+          return ApiException(message: fallbackMessage.isNotEmpty ? fallbackMessage : 'Bad Request (400)', statusCode: 400, details: responseData);
+        case 401:
+        case 403:
+          return UnauthorizedException(message: 'Authentication failed. Please login again.', statusCode: statusCode ?? 401);
         case 404:
-          return ApiException(message: 'Not Found: $errorMessage', statusCode: 404, details: responseData);
+          return ApiException(message: 'Requested resource not found (404)', statusCode: 404, details: responseData);
         case 409:
-          return ApiException(message: 'Conflict: $errorMessage', statusCode: 409, details: responseData);
+          return ApiException(message: 'Conflict: Request could not be completed', statusCode: 409, details: responseData);
         case 422:
-          return ApiException(message: 'Validation Error: $errorMessage', statusCode: 422, details: responseData);
+          return ApiException(message: 'Validation failed. Please verify your input.', statusCode: 422, details: responseData);
         case 429:
-          return ApiException(message: 'Too Many Requests: Please slow down.', statusCode: 429, details: responseData);
+          return ApiException(message: 'Too many requests. Please slow down and try again.', statusCode: 429, details: responseData);
         case 500:
-          return ApiException(message: 'Internal Server Error. Please contact support.', statusCode: 500, details: responseData);
+          return ApiException(message: 'Internal server error. Please try again later.', statusCode: 500, details: responseData);
         case 502:
-          return ApiException(message: 'Bad Gateway: Server is temporarily unavailable.', statusCode: 502, details: responseData);
+          return ApiException(message: 'Server temporarily unavailable (502).', statusCode: 502, details: responseData);
         case 503:
-          return ApiException(message: 'Service Unavailable. Under maintenance.', statusCode: 503, details: responseData);
+          return ApiException(message: 'Service under maintenance (503).', statusCode: 503, details: responseData);
         case 504:
-          return ApiException(message: 'Gateway Timeout: Connection expired.', statusCode: 504, details: responseData);
+          return ApiException(message: 'Gateway timeout (504). Please check your connection.', statusCode: 504, details: responseData);
         default:
-          return ApiException(message: errorMessage, statusCode: statusCode, details: responseData);
+          return ApiException(message: fallbackMessage, statusCode: statusCode, details: responseData);
       }
     }
 

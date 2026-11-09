@@ -99,6 +99,41 @@ class AuthProvider extends ChangeNotifier {
     return success;
   }
 
+  Future<Map<String, dynamic>> forgotPassword({
+    required String employeeId,
+    required String newPassword,
+    required String confirmPassword,
+  }) async {
+    _isLoading = true;
+    notifyListeners();
+
+    final result = await AuthService.instance.forgotPassword(
+      employeeId: employeeId,
+      newPassword: newPassword,
+      confirmPassword: confirmPassword,
+    );
+
+    _isLoading = false;
+    notifyListeners();
+    return result;
+  }
+
+  Future<Map<String, dynamic>> deleteAccount({String? employeeId}) async {
+    _isLoading = true;
+    notifyListeners();
+
+    final result = await AuthService.instance.deleteAccount(employeeId: employeeId);
+
+    if (result['success'] == true) {
+      await logout(callApi: false);
+    } else {
+      _isLoading = false;
+      notifyListeners();
+    }
+
+    return result;
+  }
+
   void updateSessionRole(String newRole) {
     if (_session.role != newRole) {
       _session = UserSession(

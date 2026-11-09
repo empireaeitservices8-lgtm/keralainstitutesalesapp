@@ -28,6 +28,7 @@ import '../models/leave_model.dart';
 import '../models/eod_model.dart';
 import '../models/training_video_model.dart';
 import '../models/lead_import_response.dart';
+import '../services/auth_service.dart';
 import 'auth_provider.dart';
 import 'user_profile_provider.dart';
 
@@ -88,16 +89,14 @@ class OperationsProvider extends ChangeNotifier {
   // --- 3. SM (Sales Manager) APIs ---
   Future<void> fetchSmAsms({bool isRefresh = false}) async {
     final cleanRole = AuthProvider.instance.session.role.trim().toUpperCase();
-    if (cleanRole != 'SM') {
-      debugPrint(
-        '[fetchSmAsms] Skipping /api/sm/asms because user role ($cleanRole) is not SM',
-      );
+    if (!['SM', 'ADMIN', 'MD', 'ZM'].contains(cleanRole)) {
       debugPrint(
         '[fetchSmAsms] Skipping /api/sm/asms because user role ($cleanRole) is not SM',
       );
       return;
     }
 
+    _smAsms.removeWhere((a) => _dummySmAsmIds.contains(a.id));
     if (!isRefresh && _smAsms.isNotEmpty) return;
     _isLoadingSmAsms = true;
     notifyListeners();
@@ -112,6 +111,7 @@ class OperationsProvider extends ChangeNotifier {
             _smAsms = decoded
                 .whereType<Map>()
                 .map((e) => SmAsmModel.fromJson(Map<String, dynamic>.from(e)))
+                .where((a) => !_dummySmAsmIds.contains(a.id))
                 .toList();
             notifyListeners();
           }
@@ -121,13 +121,21 @@ class OperationsProvider extends ChangeNotifier {
       final response = await ApiClient.instance.get(ApiEndpoints.smAsms);
       if (response.data != null) {
         dynamic raw = response.data;
-        if (raw is Map && raw['data'] is List) {
-          raw = raw['data'];
+        if (raw is Map) {
+          if (raw['data'] is List) {
+            raw = raw['data'];
+          } else if (raw['asms'] is List) {
+            raw = raw['asms'];
+          } else if (raw['team_subordinate_status'] is Map &&
+              raw['team_subordinate_status']['asms'] is List) {
+            raw = raw['team_subordinate_status']['asms'];
+          }
         }
         if (raw is List) {
           _smAsms = raw
               .whereType<Map>()
               .map((e) => SmAsmModel.fromJson(Map<String, dynamic>.from(e)))
+              .where((a) => !_dummySmAsmIds.contains(a.id))
               .toList();
           await prefs.setString(
             'cached_sm_asms',
@@ -140,6 +148,7 @@ class OperationsProvider extends ChangeNotifier {
     } catch (e) {
       debugPrint('Error fetching /api/sm/asms: $e');
     } finally {
+      _smAsms.removeWhere((a) => _dummySmAsmIds.contains(a.id));
       _isLoadingSmAsms = false;
       notifyListeners();
     }
@@ -265,6 +274,8 @@ class OperationsProvider extends ChangeNotifier {
         completedLeads: 0,
         pendingLeads: 0,
         completionPercentage: 0,
+        salary: salary,
+        incentive: incentive,
       );
 
       _smAsms.insert(0, newAsm);
@@ -286,27 +297,183 @@ class OperationsProvider extends ChangeNotifier {
       return {'success': false, 'message': e.message};
     } on ApiException catch (e) {
       debugPrint('[CreateAsm] ApiException: ${e.message}');
+      return {'success': false, 'message': e.message};
+    } catch (e) {
+      debugPrint('[CreateAsm] Error: $e');
+      final errStr = e.toString().replaceAll('Exception: ', '').trim();
+      return {'success': false, 'message': errStr};
+    }
+  }
+
+  /// Update an ASM's daily or monthly target from SM side using PUT /api/sm/asms
+  Future<Map<String, dynamic>> updateAsmTargets({
+    required String employeeId,
+    int? dailyTarget,
+    int? monthlyTarget,
+  }) async {
+    final payload = <String, dynamic>{
+      'employee_id': employeeId,
+      if (dailyTarget != null) 'daily_target': dailyTarget,
+      if (monthlyTarget != null) 'monthly_target': monthlyTarget,
+    };
+
+    debugPrint('====================================================');
+    debugPrint('🎯 [PUT ${ApiEndpoints.smAsms}] Payload: $payload');
+
+    try {
+      final response = await ApiClient.instance.put(
+        ApiEndpoints.smAsms,
+        data: payload,
+      );
+
+      debugPrint('🎯 [PUT ${ApiEndpoints.smAsms}] Status: ${response.statusCode}');
+      debugPrint('🎯 [PUT ${ApiEndpoints.smAsms}] Response: ${response.data}');
+      debugPrint('====================================================');
+
+      // Update local state if present
+      final idx = _smAsms.indexWhere((a) =>
+          a.employeeId.toLowerCase() == employeeId.toLowerCase() ||
+          a.id.toLowerCase() == employeeId.toLowerCase());
+      if (idx != -1) {
+        final existing = _smAsms[idx];
+        final updated = existing.copyWith(
+          dailyTarget: dailyTarget,
+          monthlyTarget: monthlyTarget,
+        );
+        _smAsms[idx] = updated;
+
+        try {
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString(
+            'cached_sm_asms',
+            jsonEncode(_smAsms.map((a) => a.toJson()).toList()),
+          );
+        } catch (_) {}
+
+        notifyListeners();
+      }
+
+      // Also trigger a background fetch to ensure fresh server data
+      fetchSmAsms(isRefresh: true).catchError((_) {});
+
+      return {
+        'success': true,
+        'message': 'Targets updated successfully for $employeeId',
+      };
+    } on NetworkException catch (e) {
+      debugPrint('[updateAsmTargets] NetworkException: ${e.message}');
+      return {'success': false, 'message': e.message};
+    } on ApiException catch (e) {
+      debugPrint('[updateAsmTargets] ApiException: ${e.message}');
       String errMsg = e.message;
       if (e.details != null && e.details is Map) {
         final m = e.details as Map;
         if (m['message'] != null) errMsg = m['message'].toString();
-        if (m['errors'] is Map) {
-          final errs = (m['errors'] as Map).values
-              .map((v) => v is List ? v.join(', ') : v.toString())
-              .join('\n');
-          if (errs.isNotEmpty) errMsg = errs;
-        }
       }
       return {'success': false, 'message': errMsg};
     } catch (e) {
-      debugPrint('[CreateAsm] Error: $e');
-      final errStr = e
-          .toString()
-          .replaceAll('Exception: ', '')
-          .replaceAll('ApiException: ', '')
-          .replaceAll('[400] Bad Request: ', '');
-      return {'success': false, 'message': errStr};
+      debugPrint('[updateAsmTargets] Error: $e');
+      return {'success': false, 'message': e.toString()};
     }
+  }
+
+  /// Update a BDE's daily or monthly target from ASM side using PUT /api/asm/bdes and /api/tasks
+  Future<Map<String, dynamic>> updateBdeTargets({
+    required String employeeId,
+    required String bdeName,
+    int? dailyTarget,
+    int? monthlyTarget,
+  }) async {
+    final payload = <String, dynamic>{
+      'employee_id': employeeId,
+      if (dailyTarget != null) 'daily_target': dailyTarget,
+      if (monthlyTarget != null) 'monthly_target': monthlyTarget,
+    };
+
+    debugPrint('====================================================');
+    debugPrint('🎯 [PUT ${ApiEndpoints.asmBdes}] Payload: $payload');
+
+    // 1. Update via PUT /api/asm/bdes
+    try {
+      final response = await ApiClient.instance.put(
+        ApiEndpoints.asmBdes,
+        data: payload,
+      );
+
+      debugPrint('🎯 [PUT ${ApiEndpoints.asmBdes}] Status: ${response.statusCode}');
+      debugPrint('🎯 [PUT ${ApiEndpoints.asmBdes}] Response: ${response.data}');
+    } catch (e) {
+      debugPrint('⚠️ [updateBdeTargets] PUT ${ApiEndpoints.asmBdes} note: $e');
+    }
+
+    // 2. Also sync to POST /api/tasks for daily and monthly tasks
+    try {
+      if (dailyTarget != null && dailyTarget > 0) {
+        await ApiClient.instance.post(
+          ApiEndpoints.performanceTasks,
+          data: {
+            'employee': bdeName,
+            'employee_id': employeeId,
+            'title': 'Daily Target',
+            'task_template': 'Daily Target',
+            'target': dailyTarget,
+            'target_count': dailyTarget,
+            'daily_target': dailyTarget,
+            'metric_type': 'leads',
+            'frequency': 'daily',
+          },
+        );
+      }
+      if (monthlyTarget != null && monthlyTarget > 0) {
+        await ApiClient.instance.post(
+          ApiEndpoints.performanceTasks,
+          data: {
+            'employee': bdeName,
+            'employee_id': employeeId,
+            'title': 'Monthly Target',
+            'task_template': 'Monthly Target',
+            'target': monthlyTarget,
+            'target_count': monthlyTarget,
+            'monthly_target': monthlyTarget,
+            'metric_type': 'leads',
+            'frequency': 'monthly',
+          },
+        );
+      }
+    } catch (e) {
+      debugPrint('⚠️ [updateBdeTargets] POST ${ApiEndpoints.performanceTasks} note: $e');
+    }
+
+    // 3. Update local state
+    final idx = _asmBdes.indexWhere((b) =>
+        b.employeeId.toLowerCase() == employeeId.toLowerCase() ||
+        b.id.toLowerCase() == employeeId.toLowerCase());
+    if (idx != -1) {
+      final existing = _asmBdes[idx];
+      final updated = existing.copyWith(
+        dailyTarget: dailyTarget,
+        monthlyTarget: monthlyTarget,
+      );
+      _asmBdes[idx] = updated;
+
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString(
+          'cached_asm_bdes',
+          jsonEncode(_asmBdes.map((b) => b.toJson()).toList()),
+        );
+      } catch (_) {}
+
+      notifyListeners();
+    }
+
+    // Refresh from backend
+    fetchAsmBdes(isRefresh: true).catchError((_) {});
+
+    return {
+      'success': true,
+      'message': 'Targets updated successfully for $bdeName ($employeeId)',
+    };
   }
 
   List<String> getDefaultDistrictsForTeam(String code) {
@@ -394,12 +561,10 @@ class OperationsProvider extends ChangeNotifier {
       debugPrint(
         '[fetchOfficeTelecallers] Skipping /api/office/telecallers for role ($cleanRole) - requires ASM, BDM, SM, ADMIN, MD',
       );
-      if (_officeTelecallers.isEmpty) {
-        _officeTelecallers = _getDefaultTelecallers();
-      }
       return;
     }
 
+    _officeTelecallers.removeWhere((t) => _dummyTelecallerIds.contains(t.id));
     if (!isRefresh && _officeTelecallers.isNotEmpty) return;
     _isLoadingTelecallers = true;
     notifyListeners();
@@ -418,6 +583,7 @@ class OperationsProvider extends ChangeNotifier {
                     Map<String, dynamic>.from(e),
                   ),
                 )
+                .where((t) => !_dummyTelecallerIds.contains(t.id))
                 .toList();
             notifyListeners();
           }
@@ -446,7 +612,7 @@ class OperationsProvider extends ChangeNotifier {
         } else if (raw is Map && raw['telecallers'] is List) {
           raw = raw['telecallers'];
         }
-        if (raw is List && raw.isNotEmpty) {
+        if (raw is List) {
           _officeTelecallers = raw
               .whereType<Map>()
               .map(
@@ -454,6 +620,7 @@ class OperationsProvider extends ChangeNotifier {
                   Map<String, dynamic>.from(e),
                 ),
               )
+              .where((t) => !_dummyTelecallerIds.contains(t.id))
               .toList();
           await prefs.setString(
             'cached_office_telecallers',
@@ -466,9 +633,7 @@ class OperationsProvider extends ChangeNotifier {
     } catch (e) {
       debugPrint('❌ Error fetching /api/office/telecallers: $e');
     } finally {
-      if (_officeTelecallers.isEmpty) {
-        _officeTelecallers = _getDefaultTelecallers();
-      }
+      _officeTelecallers.removeWhere((t) => _dummyTelecallerIds.contains(t.id));
       _isLoadingTelecallers = false;
       notifyListeners();
     }
@@ -563,83 +728,27 @@ class OperationsProvider extends ChangeNotifier {
     } on NetworkException catch (e) {
       debugPrint('[CreateTelecaller] NetworkException: ${e.message}');
       return {'success': false, 'message': e.message};
+    } on ApiException catch (e) {
+      debugPrint('[CreateTelecaller] ApiException: ${e.message}');
+      return {'success': false, 'message': e.message};
     } catch (e) {
       debugPrint('[CreateTelecaller] Error: $e');
-      final errStr = e
-          .toString()
-          .replaceAll('Exception: ', '')
-          .replaceAll('ApiException: ', '')
-          .replaceAll('[400] Bad Request: ', '');
+      final errStr = e.toString().replaceAll('Exception: ', '').trim();
       return {'success': false, 'message': errStr};
     }
-  }
-
-  List<OfficeTelecallerModel> _getDefaultTelecallers() {
-    return const [
-      OfficeTelecallerModel(
-        id: '672430000000000000000001',
-        employeeId: 'TC001',
-        name: 'Sneha M.',
-        email: 'sneha.office@kide.com',
-        contactNumber: '+91 98471 22334',
-        district: 'Ernakulam',
-        shift: 'Morning Shift (9 AM - 5 PM)',
-        callsToday: 65,
-        leadsAssigned: 45,
-        admissionsClosed: 12,
-        conversionRate: '26.7%',
-        status: 'active',
-        baseSalary: 18000,
-        incentivePerAdmission: 500,
-        monthlyTarget: 30,
-      ),
-      OfficeTelecallerModel(
-        id: '672430000000000000000002',
-        employeeId: 'TC002',
-        name: 'Priya K.',
-        email: 'priya.office@kide.com',
-        contactNumber: '+91 94472 88990',
-        district: 'Kozhikode',
-        shift: 'General Shift (10 AM - 6 PM)',
-        callsToday: 58,
-        leadsAssigned: 38,
-        admissionsClosed: 8,
-        conversionRate: '21.0%',
-        status: 'active',
-        baseSalary: 18000,
-        incentivePerAdmission: 500,
-        monthlyTarget: 30,
-      ),
-      OfficeTelecallerModel(
-        id: '672430000000000000000003',
-        employeeId: 'TC003',
-        name: 'Arjun V.',
-        email: 'arjun.office@kide.com',
-        contactNumber: '+91 97455 11223',
-        district: 'Thiruvananthapuram',
-        shift: 'Evening Shift (11 AM - 7 PM)',
-        callsToday: 72,
-        leadsAssigned: 50,
-        admissionsClosed: 15,
-        conversionRate: '30.0%',
-        status: 'active',
-        baseSalary: 20000,
-        incentivePerAdmission: 600,
-        monthlyTarget: 35,
-      ),
-    ];
   }
 
   // --- SM Payout & Workflow Requests APIs ---
   Future<void> fetchSmPayoutRequests({bool isRefresh = false}) async {
     final cleanRole = AuthProvider.instance.session.role.trim().toUpperCase();
-    if (cleanRole != 'SM') {
+    if (!['SM', 'ADMIN', 'MD'].contains(cleanRole)) {
       debugPrint(
         '[fetchSmPayoutRequests] Skipping /api/salary/requests because user role ($cleanRole) is not SM',
       );
       return;
     }
 
+    _smPayoutRequests.removeWhere((r) => _dummySmRequestIds.contains(r.id));
     if (!isRefresh && _smPayoutRequests.isNotEmpty) return;
     _isLoadingSmRequests = true;
     notifyListeners();
@@ -658,6 +767,7 @@ class OperationsProvider extends ChangeNotifier {
                     Map<String, dynamic>.from(e),
                   ),
                 )
+                .where((r) => !_dummySmRequestIds.contains(r.id))
                 .toList();
             notifyListeners();
           }
@@ -718,21 +828,18 @@ class OperationsProvider extends ChangeNotifier {
         debugPrint('[WalletRequests] Fetch error: $e');
       }
 
-      if (combined.isNotEmpty) {
-        _smPayoutRequests = combined;
-        await prefs.setString(
-          'cached_sm_requests',
-          jsonEncode(_smPayoutRequests.map((e) => e.toJson()).toList()),
-        );
-        notifyListeners();
-        return;
-      }
+      _smPayoutRequests = combined
+          .where((r) => !_dummySmRequestIds.contains(r.id))
+          .toList();
+      await prefs.setString(
+        'cached_sm_requests',
+        jsonEncode(_smPayoutRequests.map((e) => e.toJson()).toList()),
+      );
+      notifyListeners();
     } catch (e) {
       debugPrint('Error fetching SM requests: $e');
     } finally {
-      if (_smPayoutRequests.isEmpty) {
-        _smPayoutRequests = _getDefaultSmRequests();
-      }
+      _smPayoutRequests.removeWhere((r) => _dummySmRequestIds.contains(r.id));
       _isLoadingSmRequests = false;
       notifyListeners();
     }
@@ -816,255 +923,141 @@ class OperationsProvider extends ChangeNotifier {
     }
   }
 
-  List<SmPayoutRequestModel> _getDefaultSmRequests() {
-    return [
-      SmPayoutRequestModel(
-        id: '6724c0000000000000000001',
-        employeeId: 'ASM001',
-        employeeName: 'Bipin Joseph',
-        designation: 'Area Sales Manager',
-        month: 'October 2026',
-        amount: 45000,
-        status: 'Pending_SM',
-        type: 'Salary',
-        submittedAt: 'Oct 31, 2026',
-        notes: 'Monthly salary approval for October 2026',
-      ),
-      SmPayoutRequestModel(
-        id: '6724d0000000000000000002',
-        employeeId: 'ASM004',
-        employeeName: 'Anjali Krishna',
-        designation: 'Area Sales Manager',
-        amount: 12500,
-        status: 'Pending_SM',
-        type: 'Incentive',
-        submittedAt: 'Oct 31, 2026',
-        notes: 'Central Zone target achievement bonus for October',
-      ),
-      SmPayoutRequestModel(
-        id: '6724c0000000000000000003',
-        employeeId: 'BDE001',
-        employeeName: 'Rahul Das',
-        designation: 'Business Development Executive',
-        month: 'October 2026',
-        amount: 22000,
-        status: 'Pending_SM',
-        type: 'Salary',
-        submittedAt: 'Oct 30, 2026',
-        notes: 'Verified attendance and target completion',
-      ),
-      SmPayoutRequestModel(
-        id: '6724d0000000000000000004',
-        employeeId: 'BDE003',
-        employeeName: 'Deepak S.',
-        designation: 'Business Development Executive',
-        amount: 8000,
-        status: 'Forwarded to Accounts',
-        type: 'Incentive',
-        submittedAt: 'Oct 29, 2026',
-        notes: 'Top team closing spot bonus for 15 admissions',
-      ),
-    ];
-  }
+  static const Set<String> _dummyTelecallerIds = {
+    '672430000000000000000001',
+    '672430000000000000000002',
+    '672430000000000000000003',
+  };
 
-  List<SmAsmModel> _getDefaultAsmList() {
-    return [
-      const SmAsmModel(
-        id: '672322300000000000000001',
-        employeeId: 'ASM001',
-        name: 'Bipin Joseph',
-        email: 'bipin.tvm@kide.com',
-        contactNumber: '+91 90000 00001',
-        designation: 'Area Sales Manager',
-        team: 'TVM Team',
-        districts: ['Thiruvananthapuram', 'Kollam'],
-        zone: 'South Zone',
-        reportsTo: 'SM001',
-        bdesCount: 4,
-        status: 'active',
-        dailyTarget: 12,
-        dailyAchieved: 5,
-        dailyPending: 7,
-        dailyCompletionPercentage: 42,
-        monthlyTarget: 45,
-        monthlyAchieved: 32,
-        monthlyPending: 13,
-        monthlyCompletionPercentage: 71,
-        totalLeads: 120,
-        completedLeads: 85,
-        pendingLeads: 35,
-        completionPercentage: 71,
-      ),
-      const SmAsmModel(
-        id: '672322300000000000000002',
-        employeeId: 'ASM002',
-        name: 'Mathew Thomas',
-        email: 'mathew.ptm@kide.com',
-        contactNumber: '+91 90000 00002',
-        designation: 'Area Sales Manager',
-        team: 'PTM Team',
-        districts: ['Pathanamthitta', 'Alappuzha'],
-        zone: 'South Zone',
-        reportsTo: 'SM001',
-        bdesCount: 3,
-        status: 'active',
-        dailyTarget: 10,
-        dailyAchieved: 4,
-        dailyPending: 6,
-        dailyCompletionPercentage: 40,
-        monthlyTarget: 35,
-        monthlyAchieved: 22,
-        monthlyPending: 13,
-        monthlyCompletionPercentage: 63,
-        totalLeads: 95,
-        completedLeads: 60,
-        pendingLeads: 35,
-        completionPercentage: 63,
-      ),
-      const SmAsmModel(
-        id: '672322300000000000000003',
-        employeeId: 'ASM003',
-        name: 'Suresh Kumar',
-        email: 'suresh.ktm@kide.com',
-        contactNumber: '+91 90000 00003',
-        designation: 'Area Sales Manager',
-        team: 'KTM Team',
-        districts: ['Kottayam', 'Idukki'],
-        zone: 'South Zone',
-        reportsTo: 'SM001',
-        bdesCount: 3,
-        status: 'active',
-        dailyTarget: 8,
-        dailyAchieved: 3,
-        dailyPending: 5,
-        dailyCompletionPercentage: 38,
-        monthlyTarget: 30,
-        monthlyAchieved: 17,
-        monthlyPending: 13,
-        monthlyCompletionPercentage: 57,
-        totalLeads: 80,
-        completedLeads: 46,
-        pendingLeads: 34,
-        completionPercentage: 58,
-      ),
-      const SmAsmModel(
-        id: '672322300000000000000004',
-        employeeId: 'ASM004',
-        name: 'Anjali Krishna',
-        email: 'anjali.ekm@kide.com',
-        contactNumber: '+91 90000 00004',
-        designation: 'Area Sales Manager',
-        team: 'EKM Team',
-        districts: ['Ernakulam', 'Thrissur'],
-        zone: 'Central Zone',
-        reportsTo: 'SM001',
-        bdesCount: 5,
-        status: 'active',
-        dailyTarget: 15,
-        dailyAchieved: 8,
-        dailyPending: 7,
-        dailyCompletionPercentage: 53,
-        monthlyTarget: 50,
-        monthlyAchieved: 40,
-        monthlyPending: 10,
-        monthlyCompletionPercentage: 80,
-        totalLeads: 140,
-        completedLeads: 113,
-        pendingLeads: 27,
-        completionPercentage: 81,
-      ),
-      const SmAsmModel(
-        id: '672322300000000000000005',
-        employeeId: 'ASM005',
-        name: 'Faisal Rahman',
-        email: 'faisal.pkd@kide.com',
-        contactNumber: '+91 90000 00005',
-        designation: 'Area Sales Manager',
-        team: 'PKD Team',
-        districts: ['Palakkad', 'Malappuram'],
-        zone: 'Central Zone',
-        reportsTo: 'SM001',
-        bdesCount: 4,
-        status: 'active',
-        dailyTarget: 11,
-        dailyAchieved: 5,
-        dailyPending: 6,
-        dailyCompletionPercentage: 45,
-        monthlyTarget: 40,
-        monthlyAchieved: 26,
-        monthlyPending: 14,
-        monthlyCompletionPercentage: 65,
-        totalLeads: 110,
-        completedLeads: 72,
-        pendingLeads: 38,
-        completionPercentage: 65,
-      ),
-      const SmAsmModel(
-        id: '672322300000000000000006',
-        employeeId: 'ASM006',
-        name: 'Rinil R.',
-        email: 'rinil.clt@kide.com',
-        contactNumber: '+91 90000 00006',
-        designation: 'Area Sales Manager',
-        team: 'CLT Team',
-        districts: ['Kozhikode', 'Wayanad'],
-        zone: 'North Zone',
-        reportsTo: 'SM001',
-        bdesCount: 4,
-        status: 'active',
-        dailyTarget: 12,
-        dailyAchieved: 6,
-        dailyPending: 6,
-        dailyCompletionPercentage: 50,
-        monthlyTarget: 42,
-        monthlyAchieved: 29,
-        monthlyPending: 13,
-        monthlyCompletionPercentage: 69,
-        totalLeads: 115,
-        completedLeads: 79,
-        pendingLeads: 36,
-        completionPercentage: 69,
-      ),
-      const SmAsmModel(
-        id: '672322300000000000000007',
-        employeeId: 'ASM007',
-        name: 'Deepesh K.',
-        email: 'deepesh.kzd@kide.com',
-        contactNumber: '+91 90000 00007',
-        designation: 'Area Sales Manager',
-        team: 'KZD Team',
-        districts: ['Kannur', 'Kasaragod'],
-        zone: 'North Zone',
-        reportsTo: 'SM001',
-        bdesCount: 3,
-        status: 'active',
-        dailyTarget: 9,
-        dailyAchieved: 3,
-        dailyPending: 6,
-        dailyCompletionPercentage: 33,
-        monthlyTarget: 32,
-        monthlyAchieved: 18,
-        monthlyPending: 14,
-        monthlyCompletionPercentage: 56,
-        totalLeads: 85,
-        completedLeads: 47,
-        pendingLeads: 38,
-        completionPercentage: 55,
-      ),
-    ];
+  static const Set<String> _dummySmRequestIds = {
+    '6724c0000000000000000001',
+    '6724d0000000000000000002',
+    '6724c0000000000000000003',
+    '6724d0000000000000000004',
+  };
+
+  static const Set<String> _dummySmAsmIds = {
+    '672322300000000000000001',
+    '672322300000000000000002',
+    '672322300000000000000003',
+    '672322300000000000000004',
+    '672322300000000000000005',
+    '672322300000000000000006',
+    '672322300000000000000007',
+  };
+
+  static const Set<String> _dummyAsmBdeIds = {
+    '672430000000000000000011',
+    '672430000000000000000012',
+    '672430000000000000000013',
+  };
+
+  static const Set<String> _dummyBdeRequestIds = {
+    '6724d0000000000000000101',
+    '6724d0000000000000000102',
+    '6724c0000000000000000103',
+  };
+
+  static const Set<String> _dummyWalletRequestIds = {
+    '6724d1a00000000000000001',
+    '6724d1a00000000000000002',
+  };
+
+  void syncAsmBdesFromHome(Map<String, dynamic> homeData) {
+    // If _asmBdes is already loaded from /api/asm/bdes with real IDs, do not overwrite with degraded data
+    final hasRealBdes = _asmBdes.any((b) => b.id.isNotEmpty && b.id.length > 10);
+    if (hasRealBdes) {
+      return;
+    }
+
+    final List<AsmBdeModel> collected = [];
+    final Set<String> seenIds = {};
+    final Set<String> seenEmpIds = {};
+    final Set<String> seenEmails = {};
+    final Set<String> seenNames = {};
+
+    void addCandidate(AsmBdeModel bde) {
+      if (_dummyAsmBdeIds.contains(bde.id)) return;
+      final isDup = (bde.id.isNotEmpty && bde.id != '0' && seenIds.contains(bde.id.toLowerCase())) ||
+          (bde.employeeId.isNotEmpty && seenEmpIds.contains(bde.employeeId.toLowerCase())) ||
+          (bde.email.isNotEmpty && seenEmails.contains(bde.email.toLowerCase())) ||
+          (bde.name.trim().isNotEmpty && seenNames.contains(bde.name.trim().toLowerCase()));
+      if (isDup) return;
+
+      if (bde.id.isNotEmpty && bde.id != '0') seenIds.add(bde.id.toLowerCase());
+      if (bde.employeeId.isNotEmpty) seenEmpIds.add(bde.employeeId.toLowerCase());
+      if (bde.email.isNotEmpty) seenEmails.add(bde.email.toLowerCase());
+      if (bde.name.trim().isNotEmpty) seenNames.add(bde.name.trim().toLowerCase());
+
+      collected.add(bde);
+    }
+
+    final subStatus = homeData['team_subordinate_status'];
+    if (subStatus is Map) {
+      final rawBdes = subStatus['bdes'] ?? subStatus['BDE'];
+      if (rawBdes is List) {
+        for (final item in rawBdes.whereType<Map>()) {
+          addCandidate(AsmBdeModel.fromJson(Map<String, dynamic>.from(item)));
+        }
+      }
+
+      final rawAsms = subStatus['asms'] ?? subStatus['ASM'];
+      if (rawAsms is List && rawAsms.isNotEmpty) {
+        final parsedAsms = rawAsms
+            .whereType<Map>()
+            .map((e) => SmAsmModel.fromJson(Map<String, dynamic>.from(e)))
+            .where((a) => !_dummySmAsmIds.contains(a.id))
+            .toList();
+        if (parsedAsms.isNotEmpty) {
+          _smAsms = parsedAsms;
+          SharedPreferences.getInstance().then((prefs) {
+            prefs.setString(
+              'cached_sm_asms',
+              jsonEncode(_smAsms.map((e) => e.toJson()).toList()),
+            );
+          }).catchError((_) {});
+          notifyListeners();
+        }
+      }
+    }
+
+    final teamObj = homeData['team'];
+    if (teamObj is Map && teamObj['members'] is List) {
+      for (final item in (teamObj['members'] as List).whereType<Map>()) {
+        addCandidate(AsmBdeModel.fromJson(Map<String, dynamic>.from(item)));
+      }
+    }
+
+    if (homeData['bdes'] is List) {
+      for (final item in (homeData['bdes'] as List).whereType<Map>()) {
+        addCandidate(AsmBdeModel.fromJson(Map<String, dynamic>.from(item)));
+      }
+    }
+
+    _asmBdes.removeWhere((b) => _dummyAsmBdeIds.contains(b.id));
+    if (collected.isNotEmpty) {
+      _asmBdes = collected;
+      SharedPreferences.getInstance().then((prefs) {
+        prefs.setString(
+          'cached_asm_bdes',
+          jsonEncode(_asmBdes.map((e) => e.toJson()).toList()),
+        );
+      }).catchError((_) {});
+      notifyListeners();
+    }
   }
 
   // --- 4. ASM (Area Sales Manager) APIs ---
   Future<void> fetchAsmBdes({bool isRefresh = false}) async {
     final cleanRole = AuthProvider.instance.session.role.trim().toUpperCase();
-    if (cleanRole == 'BDE' ||
-        !['ASM', 'BDM', 'SM', 'ADMIN', 'MD'].contains(cleanRole)) {
+    if (cleanRole == 'BDE') {
       debugPrint(
-        '[fetchAsmBdes] Skipping /api/asm/bdes because user role ($cleanRole) is not allowed',
+        '[fetchAsmBdes] Skipping /api/asm/bdes because user role ($cleanRole) is BDE',
       );
       return;
     }
 
+    _asmBdes.removeWhere((b) => _dummyAsmBdeIds.contains(b.id));
     if (!isRefresh && _asmBdes.isNotEmpty) return;
     _isLoadingAsmBdes = true;
     notifyListeners();
@@ -1079,6 +1072,7 @@ class OperationsProvider extends ChangeNotifier {
             _asmBdes = decoded
                 .whereType<Map>()
                 .map((e) => AsmBdeModel.fromJson(Map<String, dynamic>.from(e)))
+                .where((b) => !_dummyAsmBdeIds.contains(b.id))
                 .toList();
             notifyListeners();
           }
@@ -1088,18 +1082,59 @@ class OperationsProvider extends ChangeNotifier {
       final response = await ApiClient.instance.get(ApiEndpoints.asmBdes);
       if (response.data != null) {
         dynamic raw = response.data;
-        if (raw is Map && raw['data'] is List) {
-          raw = raw['data'];
+        if (raw is Map) {
+          if (raw['data'] is List) {
+            raw = raw['data'];
+          } else if (raw['data'] is Map && raw['data']['bdes'] is List) {
+            raw = raw['data']['bdes'];
+          } else if (raw['bdes'] is List) {
+            raw = raw['bdes'];
+          } else if (raw['team'] is Map && raw['team']['members'] is List) {
+            raw = raw['team']['members'];
+          } else if (raw['team_subordinate_status'] is Map &&
+              raw['team_subordinate_status']['bdes'] is List) {
+            raw = raw['team_subordinate_status']['bdes'];
+          }
         }
-        if (raw is List && raw.isNotEmpty) {
-          _asmBdes = raw
+        if (raw is List) {
+          final fetched = raw
               .whereType<Map>()
               .map((e) => AsmBdeModel.fromJson(Map<String, dynamic>.from(e)))
+              .where((b) => !_dummyAsmBdeIds.contains(b.id))
               .toList();
-          await prefs.setString(
-            'cached_asm_bdes',
-            jsonEncode(_asmBdes.map((e) => e.toJson()).toList()),
-          );
+          if (fetched.isNotEmpty) {
+            final List<AsmBdeModel> uniqueFetched = [];
+            final Set<String> seenIds = {};
+            final Set<String> seenEmpIds = {};
+            final Set<String> seenEmails = {};
+            final Set<String> seenNames = {};
+
+            void addUnique(AsmBdeModel bde) {
+              if (_dummyAsmBdeIds.contains(bde.id)) return;
+              final isDup = (bde.id.isNotEmpty && bde.id != '0' && seenIds.contains(bde.id.toLowerCase())) ||
+                  (bde.employeeId.isNotEmpty && seenEmpIds.contains(bde.employeeId.toLowerCase())) ||
+                  (bde.email.isNotEmpty && seenEmails.contains(bde.email.toLowerCase())) ||
+                  (bde.name.trim().isNotEmpty && seenNames.contains(bde.name.trim().toLowerCase()));
+              if (isDup) return;
+
+              if (bde.id.isNotEmpty && bde.id != '0') seenIds.add(bde.id.toLowerCase());
+              if (bde.employeeId.isNotEmpty) seenEmpIds.add(bde.employeeId.toLowerCase());
+              if (bde.email.isNotEmpty) seenEmails.add(bde.email.toLowerCase());
+              if (bde.name.trim().isNotEmpty) seenNames.add(bde.name.trim().toLowerCase());
+
+              uniqueFetched.add(bde);
+            }
+
+            for (final b in fetched) {
+              addUnique(b);
+            }
+
+            _asmBdes = uniqueFetched;
+            await prefs.setString(
+              'cached_asm_bdes',
+              jsonEncode(_asmBdes.map((e) => e.toJson()).toList()),
+            );
+          }
           notifyListeners();
           return;
         }
@@ -1107,12 +1142,20 @@ class OperationsProvider extends ChangeNotifier {
     } catch (e) {
       debugPrint('Error fetching /api/asm/bdes: $e');
     } finally {
-      if (_asmBdes.isEmpty) {
-        _asmBdes = _getDefaultAsmBdes();
-      }
+      _asmBdes.removeWhere((b) => _dummyAsmBdeIds.contains(b.id));
       _isLoadingAsmBdes = false;
       notifyListeners();
     }
+  }
+
+  Future<Map<String, dynamic>> deleteSubordinateAccount(String employeeId) async {
+    final res = await AuthService.instance.deleteAccount(employeeId: employeeId);
+    if (res['success'] == true) {
+      _smAsms.removeWhere((a) => a.employeeId.toLowerCase() == employeeId.toLowerCase());
+      _asmBdes.removeWhere((b) => b.employeeId.toLowerCase() == employeeId.toLowerCase());
+      notifyListeners();
+    }
+    return res;
   }
 
   Future<Map<String, dynamic>> createBde({
@@ -1211,22 +1254,24 @@ class OperationsProvider extends ChangeNotifier {
       } catch (_) {}
 
       notifyListeners();
+      fetchAsmBdes(isRefresh: true).catchError((_) {});
+      fetchHierarchyFilters(isRefresh: true).catchError((_) {});
       return {'success': true, 'message': message, 'bde': newBde};
     } on NetworkException catch (e) {
       debugPrint('[CreateBde] NetworkException: ${e.message}');
       return {'success': false, 'message': e.message};
+    } on ApiException catch (e) {
+      debugPrint('[CreateBde] ApiException: ${e.message}');
+      return {'success': false, 'message': e.message};
     } catch (e) {
       debugPrint('[CreateBde] Error: $e');
-      final errStr = e
-          .toString()
-          .replaceAll('Exception: ', '')
-          .replaceAll('ApiException: ', '')
-          .replaceAll('[400] Bad Request: ', '');
+      final errStr = e.toString().replaceAll('Exception: ', '').trim();
       return {'success': false, 'message': errStr};
     }
   }
 
   Future<void> fetchBdePendingRequests({bool isRefresh = false}) async {
+    _bdePayoutRequests.removeWhere((r) => _dummyBdeRequestIds.contains(r.id));
     if (!isRefresh && _bdePayoutRequests.isNotEmpty) return;
     _isLoadingBdeRequests = true;
     notifyListeners();
@@ -1245,6 +1290,7 @@ class OperationsProvider extends ChangeNotifier {
                     Map<String, dynamic>.from(e),
                   ),
                 )
+                .where((r) => !_dummyBdeRequestIds.contains(r.id))
                 .toList();
             notifyListeners();
           }
@@ -1252,6 +1298,7 @@ class OperationsProvider extends ChangeNotifier {
       }
 
       final List<SmPayoutRequestModel> combined = [];
+      bool fetchedAny = false;
 
       // 1. Wallet / Incentive Requests (Pending_ASM / Pending)
       try {
@@ -1259,6 +1306,7 @@ class OperationsProvider extends ChangeNotifier {
           ApiEndpoints.walletRequests,
           queryParameters: {'status': 'Pending_ASM'},
         );
+        fetchedAny = true;
         if (walRes.data != null) {
           dynamic raw = walRes.data;
           if (raw is Map && raw['data'] is List) raw = raw['data'];
@@ -1285,6 +1333,7 @@ class OperationsProvider extends ChangeNotifier {
           ApiEndpoints.salaryRequests,
           queryParameters: {'status': 'Pending_ASM'},
         );
+        fetchedAny = true;
         if (salRes.data != null) {
           dynamic raw = salRes.data;
           if (raw is Map && raw['data'] is List) raw = raw['data'];
@@ -1305,8 +1354,10 @@ class OperationsProvider extends ChangeNotifier {
         debugPrint('[BdeSalaryRequests] Fetch error: $e');
       }
 
-      if (combined.isNotEmpty) {
-        _bdePayoutRequests = combined;
+      if (fetchedAny) {
+        _bdePayoutRequests = combined
+            .where((r) => !_dummyBdeRequestIds.contains(r.id))
+            .toList();
         await prefs.setString(
           'cached_bde_requests',
           jsonEncode(_bdePayoutRequests.map((e) => e.toJson()).toList()),
@@ -1317,9 +1368,7 @@ class OperationsProvider extends ChangeNotifier {
     } catch (e) {
       debugPrint('Error fetching BDE requests: $e');
     } finally {
-      if (_bdePayoutRequests.isEmpty) {
-        _bdePayoutRequests = _getDefaultBdeRequests();
-      }
+      _bdePayoutRequests.removeWhere((r) => _dummyBdeRequestIds.contains(r.id));
       _isLoadingBdeRequests = false;
       notifyListeners();
     }
@@ -1499,6 +1548,9 @@ class OperationsProvider extends ChangeNotifier {
     bool isRefresh = false,
   }) async {
     if (_isLoadingWalletRequests) return;
+    _walletApprovalRequests.removeWhere(
+      (r) => _dummyWalletRequestIds.contains(r.id),
+    );
     if (!isRefresh && _walletApprovalRequests.isNotEmpty) return;
 
     _isLoadingWalletRequests = true;
@@ -1514,7 +1566,9 @@ class OperationsProvider extends ChangeNotifier {
             final decoded = jsonDecode(cached);
             if (decoded is Map<String, dynamic>) {
               final resp = WalletApprovalResponse.fromJson(decoded);
-              _walletApprovalRequests = resp.data;
+              _walletApprovalRequests = resp.data
+                  .where((r) => !_dummyWalletRequestIds.contains(r.id))
+                  .toList();
               _walletApprovalSummary = resp.summary;
               notifyListeners();
             }
@@ -1544,7 +1598,9 @@ class OperationsProvider extends ChangeNotifier {
         if (raw is Map) {
           final map = Map<String, dynamic>.from(raw);
           final resp = WalletApprovalResponse.fromJson(map);
-          _walletApprovalRequests = resp.data;
+          _walletApprovalRequests = resp.data
+              .where((r) => !_dummyWalletRequestIds.contains(r.id))
+              .toList();
           _walletApprovalSummary = resp.summary;
           await prefs.setString(
             'cached_wallet_approval_requests',
@@ -1558,10 +1614,9 @@ class OperationsProvider extends ChangeNotifier {
       debugPrint('[WalletRequests] Error: $e');
       _walletRequestsError = e.toString();
     } finally {
-      if (_walletApprovalRequests.isEmpty && _walletRequestsError != null) {
-        _walletApprovalRequests = _getDefaultWalletApprovalRequests();
-        _walletApprovalSummary = _getDefaultWalletApprovalSummary();
-      }
+      _walletApprovalRequests.removeWhere(
+        (r) => _dummyWalletRequestIds.contains(r.id),
+      );
       _isLoadingWalletRequests = false;
       notifyListeners();
     }
@@ -2269,7 +2324,10 @@ class OperationsProvider extends ChangeNotifier {
       ];
     }
 
-    // Set Mock Wallet Approval Requests if empty
+    // Load cached Wallet Approval Requests if empty
+    _walletApprovalRequests.removeWhere(
+      (r) => _dummyWalletRequestIds.contains(r.id),
+    );
     if (_walletApprovalRequests.isEmpty) {
       final cached = prefs.getString('cached_wallet_approval_requests');
       if (cached != null) {
@@ -2277,14 +2335,12 @@ class OperationsProvider extends ChangeNotifier {
           final decoded = jsonDecode(cached);
           if (decoded is Map<String, dynamic>) {
             final resp = WalletApprovalResponse.fromJson(decoded);
-            _walletApprovalRequests = resp.data;
+            _walletApprovalRequests = resp.data
+                .where((r) => !_dummyWalletRequestIds.contains(r.id))
+                .toList();
             _walletApprovalSummary = resp.summary;
           }
         } catch (_) {}
-      }
-      if (_walletApprovalRequests.isEmpty) {
-        _walletApprovalRequests = _getDefaultWalletApprovalRequests();
-        _walletApprovalSummary = _getDefaultWalletApprovalSummary();
       }
     }
 
@@ -3175,6 +3231,97 @@ class OperationsProvider extends ChangeNotifier {
 
   List<DistrictModel> _districtsList = [];
   List<DistrictModel> get districtsList => _districtsList;
+
+  List<DistrictModel> _asmDistrictsList = [];
+  List<DistrictModel> get asmDistrictsList => _asmDistrictsList;
+  bool _isLoadingAsmDistricts = false;
+  bool get isLoadingAsmDistricts => _isLoadingAsmDistricts;
+
+  List<String> get asmDistrictNames {
+    if (_asmDistrictsList.isNotEmpty) {
+      return _asmDistrictsList.map((d) => d.name).toSet().toList();
+    }
+    return allDistrictNames;
+  }
+
+  Future<void> fetchAsmDistricts({bool isRefresh = false}) async {
+    if (_isLoadingAsmDistricts) return;
+    if (!isRefresh && _asmDistrictsList.isNotEmpty) return;
+
+    final prefs = await SharedPreferences.getInstance();
+    if (_asmDistrictsList.isEmpty) {
+      final cachedStr = prefs.getString('cached_asm_districts_list');
+      if (cachedStr != null) {
+        try {
+          final decoded = jsonDecode(cachedStr);
+          if (decoded is List) {
+            _asmDistrictsList = decoded
+                .whereType<Map>()
+                .map((e) => DistrictModel.fromJson(Map<String, dynamic>.from(e)))
+                .toList();
+            notifyListeners();
+          }
+        } catch (_) {}
+      }
+    }
+
+    _isLoadingAsmDistricts = true;
+    notifyListeners();
+    try {
+      final response = await ApiClient.instance.get(ApiEndpoints.asmDistricts);
+      debugPrint('====================================================');
+      debugPrint(
+        '📍 [GET ${ApiEndpoints.asmDistricts}] Status: ${response.statusCode}',
+      );
+      debugPrint('📍 [GET ${ApiEndpoints.asmDistricts}] Response Body:');
+      try {
+        debugPrint(const JsonEncoder.withIndent('  ').convert(response.data));
+      } catch (_) {
+        debugPrint('${response.data}');
+      }
+      debugPrint('====================================================');
+
+      if (response.data != null) {
+        dynamic rawData = response.data;
+        if (rawData is Map && rawData.containsKey('data')) {
+          rawData = rawData['data'];
+        }
+        final List<dynamic> list;
+        if (rawData is List) {
+          list = rawData;
+        } else if (rawData is Map && rawData['districts'] is List) {
+          list = rawData['districts'] as List<dynamic>;
+        } else {
+          list = [];
+        }
+
+        if (list.isNotEmpty) {
+          _asmDistrictsList = list.map((d) {
+            if (d is String) {
+              return DistrictModel(id: d, name: d, zone: '');
+            } else if (d is Map) {
+              final map = Map<String, dynamic>.from(d);
+              final name = (map['name'] ?? map['district'] ?? map['title'] ?? '').toString();
+              final id = (map['id'] ?? map['_id'] ?? name).toString();
+              final zone = (map['zone'] ?? map['zone_name'] ?? '').toString();
+              return DistrictModel(id: id, name: name, zone: zone);
+            }
+            return DistrictModel(id: d.toString(), name: d.toString(), zone: '');
+          }).where((d) => d.name.trim().isNotEmpty).toList();
+
+          await prefs.setString(
+            'cached_asm_districts_list',
+            jsonEncode(_asmDistrictsList.map((e) => e.toJson()).toList()),
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('[fetchAsmDistricts] API call error: $e');
+    } finally {
+      _isLoadingAsmDistricts = false;
+      notifyListeners();
+    }
+  }
 
   Future<void> fetchZones({bool isRefresh = false}) async {
     if (_isLoadingZones) return;

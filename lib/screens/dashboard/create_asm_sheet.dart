@@ -2,7 +2,6 @@ import '../../models/home_dashboard_model.dart';
 import '../../providers/home_provider.dart';
 import 'package:flutter/material.dart';
 import '../../constants/colors.dart';
-import '../../models/zone_model.dart';
 import '../../providers/operations_provider.dart';
 import '../../utils/helpers.dart';
 
@@ -12,7 +11,7 @@ void showCreateAsmSheet(BuildContext context, {List<HomeTeamItem>? teams}) {
     OperationsProvider.instance.fetchZones();
   }
 
-    final List<HomeTeamItem> effectiveTeams = (teams != null && teams.isNotEmpty)
+  final List<HomeTeamItem> effectiveTeams = (teams != null && teams.isNotEmpty)
       ? teams
       : (HomeProvider.instance.state.data?.teams ?? const <HomeTeamItem>[]);
 
@@ -24,10 +23,15 @@ void showCreateAsmSheet(BuildContext context, {List<HomeTeamItem>? teams}) {
     HomeTeamItem(teamName: 'PKD', district: 'Thrissur, Palakkad'),
     HomeTeamItem(teamName: 'CLT', district: 'Malappuram, Kozhikode, Wayanad'),
     HomeTeamItem(teamName: 'KZD', district: 'Kannur, Kasaragod'),
-    HomeTeamItem(teamName: 'Office Team', district: 'Direct Admissions, Re-admissions'),
+    HomeTeamItem(
+      teamName: 'Office Team',
+      district: 'Direct Admissions, Re-admissions',
+    ),
   ];
 
-  final List<HomeTeamItem> finalTeams = effectiveTeams.isNotEmpty ? effectiveTeams : fallbackTeams;
+  final List<HomeTeamItem> finalTeams = effectiveTeams.isNotEmpty
+      ? effectiveTeams
+      : fallbackTeams;
 
   final formKey = GlobalKey<FormState>();
 
@@ -44,15 +48,8 @@ void showCreateAsmSheet(BuildContext context, {List<HomeTeamItem>? teams}) {
   String? selectedZone;
   String? selectedTeamCode;
   bool isPasswordVisible = false;
+  String? serverValidationMessage;
   bool isSubmitting = false;
-
-  final Map<String, String> defaultZoneTeamCode = {
-    'South Zone': 'TVM',
-    'Central Zone': 'EKM',
-    'North Zone': 'CLT',
-  };
-
-  final List<String> availableZones = OperationsProvider.instance.zoneNames;
 
   showModalBottomSheet(
     context: context,
@@ -103,7 +100,9 @@ void showCreateAsmSheet(BuildContext context, {List<HomeTeamItem>? teams}) {
                               Container(
                                 padding: const EdgeInsets.all(9),
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFF0F766E).withOpacity(0.12),
+                                  color: const Color(
+                                    0xFF0F766E,
+                                  ).withOpacity(0.12),
                                   shape: BoxShape.circle,
                                 ),
                                 child: const Icon(
@@ -129,7 +128,10 @@ void showCreateAsmSheet(BuildContext context, {List<HomeTeamItem>? teams}) {
                                       'Add Regional Area Sales Manager to Kerala Team',
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
-                                      style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: AppColors.textSecondary,
+                                      ),
                                     ),
                                   ],
                                 ),
@@ -139,11 +141,48 @@ void showCreateAsmSheet(BuildContext context, {List<HomeTeamItem>? teams}) {
                         ),
                         IconButton(
                           onPressed: () => Navigator.pop(ctx),
-                          icon: const Icon(Icons.close_rounded, color: AppColors.textSecondary),
+                          icon: const Icon(
+                            Icons.close_rounded,
+                            color: AppColors.textSecondary,
+                          ),
                         ),
                       ],
                     ),
                     const Divider(color: Color(0xFFE2E8F0), height: 22),
+
+                    if (serverValidationMessage != null && serverValidationMessage!.isNotEmpty) ...[
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFEF2F2),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: const Color(0xFFFCA5A5)),
+                        ),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Icon(Icons.error_outline_rounded, color: Color(0xFFDC2626), size: 18),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                serverValidationMessage!,
+                                style: const TextStyle(
+                                  color: Color(0xFFB91C1C),
+                                  fontSize: 12.5,
+                                  fontWeight: FontWeight.w600,
+                                  height: 1.35,
+                                ),
+                              ),
+                            ),
+                            InkWell(
+                              onTap: () => setModalState(() => serverValidationMessage = null),
+                              child: const Icon(Icons.close_rounded, color: Color(0xFF991B1B), size: 16),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                    ],
 
                     // SECTION 1: Personal & Contact Info
                     _buildSectionHeader('1. PERSONAL & CONTACT DETAILS'),
@@ -158,14 +197,40 @@ void showCreateAsmSheet(BuildContext context, {List<HomeTeamItem>? teams}) {
                       decoration: InputDecoration(
                         labelText: 'Full Name *',
                         hintText: 'Enter full name (e.g. Bipin Joseph)',
-                        hintStyle: const TextStyle(fontSize: 13, color: Color(0xFF94A3B8)),
-                        prefixIcon: const Icon(Icons.person_outline_rounded, size: 20, color: Color(0xFF0F766E)),
+                        hintStyle: const TextStyle(
+                          fontSize: 13,
+                          color: Color(0xFF94A3B8),
+                        ),
+                        prefixIcon: const Icon(
+                          Icons.person_outline_rounded,
+                          size: 20,
+                          color: Color(0xFF0F766E),
+                        ),
                         filled: true,
                         fillColor: const Color(0xFFF8FAFC),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFCBD5E1))),
-                        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
-                        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF0F766E), width: 1.5)),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 14,
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(
+                            color: Color(0xFFCBD5E1),
+                          ),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(
+                            color: Color(0xFFE2E8F0),
+                          ),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(
+                            color: Color(0xFF0F766E),
+                            width: 1.5,
+                          ),
+                        ),
                       ),
                       validator: (val) {
                         if (val == null || val.trim().isEmpty) {
@@ -188,20 +253,48 @@ void showCreateAsmSheet(BuildContext context, {List<HomeTeamItem>? teams}) {
                       decoration: InputDecoration(
                         labelText: 'Official Email *',
                         hintText: 'e.g. bipin.tvm@kide.com',
-                        hintStyle: const TextStyle(fontSize: 13, color: Color(0xFF94A3B8)),
-                        prefixIcon: const Icon(Icons.email_outlined, size: 20, color: Color(0xFF0F766E)),
+                        hintStyle: const TextStyle(
+                          fontSize: 13,
+                          color: Color(0xFF94A3B8),
+                        ),
+                        prefixIcon: const Icon(
+                          Icons.email_outlined,
+                          size: 20,
+                          color: Color(0xFF0F766E),
+                        ),
                         filled: true,
                         fillColor: const Color(0xFFF8FAFC),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFCBD5E1))),
-                        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
-                        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF0F766E), width: 1.5)),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 14,
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(
+                            color: Color(0xFFCBD5E1),
+                          ),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(
+                            color: Color(0xFFE2E8F0),
+                          ),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(
+                            color: Color(0xFF0F766E),
+                            width: 1.5,
+                          ),
+                        ),
                       ),
                       validator: (val) {
                         if (val == null || val.trim().isEmpty) {
                           return 'Please enter official email';
                         }
-                        final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+                        final emailRegex = RegExp(
+                          r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
+                        );
                         if (!emailRegex.hasMatch(val.trim())) {
                           return 'Please enter a valid email address';
                         }
@@ -219,14 +312,40 @@ void showCreateAsmSheet(BuildContext context, {List<HomeTeamItem>? teams}) {
                       decoration: InputDecoration(
                         labelText: 'Contact Number *',
                         hintText: 'e.g. +91 90000 00001 or 9000000001',
-                        hintStyle: const TextStyle(fontSize: 13, color: Color(0xFF94A3B8)),
-                        prefixIcon: const Icon(Icons.phone_outlined, size: 20, color: Color(0xFF0F766E)),
+                        hintStyle: const TextStyle(
+                          fontSize: 13,
+                          color: Color(0xFF94A3B8),
+                        ),
+                        prefixIcon: const Icon(
+                          Icons.phone_outlined,
+                          size: 20,
+                          color: Color(0xFF0F766E),
+                        ),
                         filled: true,
                         fillColor: const Color(0xFFF8FAFC),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFCBD5E1))),
-                        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
-                        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF0F766E), width: 1.5)),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 14,
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(
+                            color: Color(0xFFCBD5E1),
+                          ),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(
+                            color: Color(0xFFE2E8F0),
+                          ),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(
+                            color: Color(0xFF0F766E),
+                            width: 1.5,
+                          ),
+                        ),
                       ),
                       validator: (val) {
                         if (val == null || val.trim().isEmpty) {
@@ -249,14 +368,40 @@ void showCreateAsmSheet(BuildContext context, {List<HomeTeamItem>? teams}) {
                       decoration: InputDecoration(
                         labelText: 'ASM ID (optional)',
                         hintText: 'e.g. ASM004 (auto-assigned if blank)',
-                        hintStyle: const TextStyle(fontSize: 13, color: Color(0xFF94A3B8)),
-                        prefixIcon: const Icon(Icons.badge_outlined, size: 20, color: Color(0xFF0F766E)),
+                        hintStyle: const TextStyle(
+                          fontSize: 13,
+                          color: Color(0xFF94A3B8),
+                        ),
+                        prefixIcon: const Icon(
+                          Icons.badge_outlined,
+                          size: 20,
+                          color: Color(0xFF0F766E),
+                        ),
                         filled: true,
                         fillColor: const Color(0xFFF8FAFC),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFCBD5E1))),
-                        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
-                        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF0F766E), width: 1.5)),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 14,
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(
+                            color: Color(0xFFCBD5E1),
+                          ),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(
+                            color: Color(0xFFE2E8F0),
+                          ),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(
+                            color: Color(0xFF0F766E),
+                            width: 1.5,
+                          ),
+                        ),
                       ),
                     ),
                     const SizedBox(height: 12),
@@ -270,16 +415,42 @@ void showCreateAsmSheet(BuildContext context, {List<HomeTeamItem>? teams}) {
                           textInputAction: TextInputAction.next,
                           keyboardType: TextInputType.number,
                           decoration: InputDecoration(
-                            labelText: 'Salary (₹)',
+                            labelText: 'Salary ()',
                             hintText: 'e.g. 25000',
-                            hintStyle: const TextStyle(fontSize: 13, color: Color(0xFF94A3B8)),
-                            prefixIcon: const Icon(Icons.currency_rupee_rounded, size: 20, color: Color(0xFF0F766E)),
+                            hintStyle: const TextStyle(
+                              fontSize: 13,
+                              color: Color(0xFF94A3B8),
+                            ),
+                            prefixIcon: const Icon(
+                              Icons.currency_rupee_rounded,
+                              size: 20,
+                              color: Color(0xFF0F766E),
+                            ),
                             filled: true,
                             fillColor: const Color(0xFFF8FAFC),
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFCBD5E1))),
-                            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
-                            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF0F766E), width: 1.5)),
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 14,
+                            ),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: const BorderSide(
+                                color: Color(0xFFCBD5E1),
+                              ),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: const BorderSide(
+                                color: Color(0xFFE2E8F0),
+                              ),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: const BorderSide(
+                                color: Color(0xFF0F766E),
+                                width: 1.5,
+                              ),
+                            ),
                           ),
                         );
                         Widget incentiveField() => TextFormField(
@@ -287,26 +458,61 @@ void showCreateAsmSheet(BuildContext context, {List<HomeTeamItem>? teams}) {
                           textInputAction: TextInputAction.next,
                           keyboardType: TextInputType.number,
                           decoration: InputDecoration(
-                            labelText: 'Incentive (₹)',
+                            labelText: 'Incentive (â‚¹)',
                             hintText: 'e.g. 1000',
-                            hintStyle: const TextStyle(fontSize: 13, color: Color(0xFF94A3B8)),
-                            prefixIcon: const Icon(Icons.card_giftcard_rounded, size: 20, color: Color(0xFF0F766E)),
+                            hintStyle: const TextStyle(
+                              fontSize: 13,
+                              color: Color(0xFF94A3B8),
+                            ),
+                            prefixIcon: const Icon(
+                              Icons.card_giftcard_rounded,
+                              size: 20,
+                              color: Color(0xFF0F766E),
+                            ),
                             filled: true,
                             fillColor: const Color(0xFFF8FAFC),
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFCBD5E1))),
-                            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
-                            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF0F766E), width: 1.5)),
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 14,
+                            ),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: const BorderSide(
+                                color: Color(0xFFCBD5E1),
+                              ),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: const BorderSide(
+                                color: Color(0xFFE2E8F0),
+                              ),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: const BorderSide(
+                                color: Color(0xFF0F766E),
+                                width: 1.5,
+                              ),
+                            ),
                           ),
                         );
                         if (isCompact) {
-                          return Column(children: [salaryField(), const SizedBox(height: 12), incentiveField()]);
+                          return Column(
+                            children: [
+                              salaryField(),
+                              const SizedBox(height: 12),
+                              incentiveField(),
+                            ],
+                          );
                         }
-                        return Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                          Expanded(child: salaryField()),
-                          const SizedBox(width: 12),
-                          Expanded(child: incentiveField()),
-                        ]);
+                        return Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(child: salaryField()),
+                            const SizedBox(width: 12),
+                            Expanded(child: incentiveField()),
+                          ],
+                        );
                       },
                     ),
                     const SizedBox(height: 18),
@@ -324,11 +530,20 @@ void showCreateAsmSheet(BuildContext context, {List<HomeTeamItem>? teams}) {
                       decoration: InputDecoration(
                         labelText: 'Initial Password *',
                         hintText: 'Enter password (min 6 characters)',
-                        hintStyle: const TextStyle(fontSize: 13, color: Color(0xFF94A3B8)),
-                        prefixIcon: const Icon(Icons.lock_outline_rounded, size: 20, color: Color(0xFF0F766E)),
+                        hintStyle: const TextStyle(
+                          fontSize: 13,
+                          color: Color(0xFF94A3B8),
+                        ),
+                        prefixIcon: const Icon(
+                          Icons.lock_outline_rounded,
+                          size: 20,
+                          color: Color(0xFF0F766E),
+                        ),
                         suffixIcon: IconButton(
                           icon: Icon(
-                            isPasswordVisible ? Icons.visibility_rounded : Icons.visibility_off_rounded,
+                            isPasswordVisible
+                                ? Icons.visibility_rounded
+                                : Icons.visibility_off_rounded,
                             color: const Color(0xFF64748B),
                             size: 20,
                           ),
@@ -340,10 +555,29 @@ void showCreateAsmSheet(BuildContext context, {List<HomeTeamItem>? teams}) {
                         ),
                         filled: true,
                         fillColor: const Color(0xFFF8FAFC),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFCBD5E1))),
-                        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
-                        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF0F766E), width: 1.5)),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 14,
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(
+                            color: Color(0xFFCBD5E1),
+                          ),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(
+                            color: Color(0xFFE2E8F0),
+                          ),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(
+                            color: Color(0xFF0F766E),
+                            width: 1.5,
+                          ),
+                        ),
                       ),
                       validator: (val) {
                         if (val == null || val.trim().isEmpty) {
@@ -364,15 +598,44 @@ void showCreateAsmSheet(BuildContext context, {List<HomeTeamItem>? teams}) {
                       decoration: InputDecoration(
                         labelText: 'Team Code *',
                         hintText: 'Select Team Code',
-                        hintStyle: const TextStyle(fontSize: 13, color: Color(0xFF94A3B8)),
-                        prefixIcon: const Icon(Icons.groups_outlined, size: 20, color: Color(0xFF0F766E)),
-                        prefixIconConstraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+                        hintStyle: const TextStyle(
+                          fontSize: 13,
+                          color: Color(0xFF94A3B8),
+                        ),
+                        prefixIcon: const Icon(
+                          Icons.groups_outlined,
+                          size: 20,
+                          color: Color(0xFF0F766E),
+                        ),
+                        prefixIconConstraints: const BoxConstraints(
+                          minWidth: 40,
+                          minHeight: 40,
+                        ),
                         filled: true,
                         fillColor: const Color(0xFFF8FAFC),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFCBD5E1))),
-                        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
-                        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF0F766E), width: 1.5)),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 14,
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(
+                            color: Color(0xFFCBD5E1),
+                          ),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(
+                            color: Color(0xFFE2E8F0),
+                          ),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(
+                            color: Color(0xFF0F766E),
+                            width: 1.5,
+                          ),
+                        ),
                       ),
                       items: finalTeams.map((team) {
                         return DropdownMenuItem<String>(
@@ -393,7 +656,10 @@ void showCreateAsmSheet(BuildContext context, {List<HomeTeamItem>? teams}) {
                               team.dropdownDisplay,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(fontSize: 13, color: Color(0xFF0F172A)),
+                              style: const TextStyle(
+                                fontSize: 13,
+                                color: Color(0xFF0F172A),
+                              ),
                             ),
                           );
                         }).toList();
@@ -408,91 +674,16 @@ void showCreateAsmSheet(BuildContext context, {List<HomeTeamItem>? teams}) {
                         setModalState(() {
                           selectedTeamCode = val;
                           if (val != null) {
-                            selectedZone = OperationsProvider.instance.getDefaultZoneForTeam(val);
+                            selectedZone = OperationsProvider.instance
+                                .getDefaultZoneForTeam(val);
                           }
                         });
                       },
                     ),
                     const SizedBox(height: 18),
 
-                    // SECTION 3: Territory & Jurisdiction
-                    _buildSectionHeader('3. TERRITORY & JURISDICTION'),
-                    const SizedBox(height: 10),
-
-                    // Assigned Zone Dropdown
-                    DropdownButtonFormField<String>(
-                      value: selectedZone,
-                      isExpanded: true,
-                      decoration: InputDecoration(
-                        labelText: 'Assigned Zone *',
-                        hintText: 'Select Operational Zone',
-                        hintStyle: const TextStyle(fontSize: 13, color: Color(0xFF94A3B8)),
-                        prefixIcon: const Icon(Icons.map_outlined, size: 20, color: Color(0xFF0F766E)),
-                        prefixIconConstraints: const BoxConstraints(minWidth: 40, minHeight: 40),
-                        filled: true,
-                        fillColor: const Color(0xFFF8FAFC),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFCBD5E1))),
-                        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
-                        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF0F766E), width: 1.5)),
-                      ),
-                      items: availableZones.map((zoneName) {
-                        final desc = OperationsProvider.instance.zones
-                            .firstWhere(
-                              (z) => z.name == zoneName,
-                              orElse: () => ZoneModel(id: '', name: zoneName),
-                            )
-                            .description;
-                        return DropdownMenuItem(
-                          value: zoneName,
-                          child: Text(
-                            desc.isNotEmpty ? '$zoneName ($desc)' : zoneName,
-                            style: const TextStyle(fontSize: 13),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        );
-                      }).toList(),
-                      selectedItemBuilder: (BuildContext context) {
-                        return availableZones.map((zoneName) {
-                          final desc = OperationsProvider.instance.zones
-                              .firstWhere(
-                                (z) => z.name == zoneName,
-                                orElse: () => ZoneModel(id: '', name: zoneName),
-                              )
-                              .description;
-                          return Align(
-                            alignment: Alignment.centerLeft,
-                            child: Text(
-                              desc.isNotEmpty ? '$zoneName ($desc)' : zoneName,
-                              style: const TextStyle(fontSize: 13, color: Color(0xFF0F172A)),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          );
-                        }).toList();
-                      },
-                      validator: (val) {
-                        if (val == null || val.isEmpty) {
-                          return 'Please assign an operational zone';
-                        }
-                        return null;
-                      },
-                      onChanged: (val) {
-                        if (val != null) {
-                          setModalState(() {
-                            selectedZone = val;
-                            if (selectedTeamCode == null || selectedTeamCode!.isEmpty) {
-                              selectedTeamCode = defaultZoneTeamCode[val];
-                            }
-                          });
-                        }
-                      },
-                    ),
-                    const SizedBox(height: 18),
-
-                    // SECTION 4: Targets
-                    _buildSectionHeader('4. PERFORMANCE TARGETS'),
+                    // SECTION 3: Targets
+                    _buildSectionHeader('3. PERFORMANCE TARGETS'),
                     const SizedBox(height: 10),
 
                     LayoutBuilder(
@@ -520,18 +711,48 @@ void showCreateAsmSheet(BuildContext context, {List<HomeTeamItem>? teams}) {
                                 controller: monthlyTargetController,
                                 textInputAction: TextInputAction.next,
                                 keyboardType: TextInputType.number,
-                                autovalidateMode: AutovalidateMode.onUserInteraction,
+                                autovalidateMode:
+                                    AutovalidateMode.onUserInteraction,
                                 decoration: InputDecoration(
                                   hintText: 'e.g. 45',
-                                  hintStyle: const TextStyle(fontSize: 13, color: Color(0xFF94A3B8)),
-                                  prefixIcon: const Icon(Icons.flag_outlined, size: 18, color: Color(0xFF0F766E)),
-                                  prefixIconConstraints: const BoxConstraints(minWidth: 38, minHeight: 38),
+                                  hintStyle: const TextStyle(
+                                    fontSize: 13,
+                                    color: Color(0xFF94A3B8),
+                                  ),
+                                  prefixIcon: const Icon(
+                                    Icons.flag_outlined,
+                                    size: 18,
+                                    color: Color(0xFF0F766E),
+                                  ),
+                                  prefixIconConstraints: const BoxConstraints(
+                                    minWidth: 38,
+                                    minHeight: 38,
+                                  ),
                                   filled: true,
                                   fillColor: const Color(0xFFF8FAFC),
-                                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFCBD5E1))),
-                                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
-                                  focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF0F766E), width: 1.5)),
+                                  contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 12,
+                                  ),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    borderSide: const BorderSide(
+                                      color: Color(0xFFCBD5E1),
+                                    ),
+                                  ),
+                                  enabledBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    borderSide: const BorderSide(
+                                      color: Color(0xFFE2E8F0),
+                                    ),
+                                  ),
+                                  focusedBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    borderSide: const BorderSide(
+                                      color: Color(0xFF0F766E),
+                                      width: 1.5,
+                                    ),
+                                  ),
                                 ),
                                 validator: (val) {
                                   if (val == null || val.trim().isEmpty) {
@@ -569,18 +790,48 @@ void showCreateAsmSheet(BuildContext context, {List<HomeTeamItem>? teams}) {
                                 controller: dailyTargetController,
                                 textInputAction: TextInputAction.done,
                                 keyboardType: TextInputType.number,
-                                autovalidateMode: AutovalidateMode.onUserInteraction,
+                                autovalidateMode:
+                                    AutovalidateMode.onUserInteraction,
                                 decoration: InputDecoration(
                                   hintText: 'e.g. 12',
-                                  hintStyle: const TextStyle(fontSize: 13, color: Color(0xFF94A3B8)),
-                                  prefixIcon: const Icon(Icons.today_outlined, size: 18, color: Color(0xFF0F766E)),
-                                  prefixIconConstraints: const BoxConstraints(minWidth: 38, minHeight: 38),
+                                  hintStyle: const TextStyle(
+                                    fontSize: 13,
+                                    color: Color(0xFF94A3B8),
+                                  ),
+                                  prefixIcon: const Icon(
+                                    Icons.today_outlined,
+                                    size: 18,
+                                    color: Color(0xFF0F766E),
+                                  ),
+                                  prefixIconConstraints: const BoxConstraints(
+                                    minWidth: 38,
+                                    minHeight: 38,
+                                  ),
                                   filled: true,
                                   fillColor: const Color(0xFFF8FAFC),
-                                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFCBD5E1))),
-                                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
-                                  focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF0F766E), width: 1.5)),
+                                  contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 12,
+                                  ),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    borderSide: const BorderSide(
+                                      color: Color(0xFFCBD5E1),
+                                    ),
+                                  ),
+                                  enabledBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    borderSide: const BorderSide(
+                                      color: Color(0xFFE2E8F0),
+                                    ),
+                                  ),
+                                  focusedBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    borderSide: const BorderSide(
+                                      color: Color(0xFF0F766E),
+                                      width: 1.5,
+                                    ),
+                                  ),
                                 ),
                                 validator: (val) {
                                   if (val == null || val.trim().isEmpty) {
@@ -643,13 +894,16 @@ void showCreateAsmSheet(BuildContext context, {List<HomeTeamItem>? teams}) {
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.transparent,
                             shadowColor: Colors.transparent,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
                           ),
                           onPressed: isSubmitting
                               ? null
                               : () async {
                                   // Validate Form fields
-                                  final isValid = formKey.currentState?.validate() ?? false;
+                                  final isValid =
+                                      formKey.currentState?.validate() ?? false;
 
                                   if (!isValid) {
                                     UiHelpers.showSnackBar(
@@ -660,7 +914,8 @@ void showCreateAsmSheet(BuildContext context, {List<HomeTeamItem>? teams}) {
                                     return;
                                   }
 
-                                  if (selectedTeamCode == null || selectedTeamCode!.trim().isEmpty) {
+                                  if (selectedTeamCode == null ||
+                                      selectedTeamCode!.trim().isEmpty) {
                                     UiHelpers.showSnackBar(
                                       context,
                                       'Please select a Team Code.',
@@ -672,32 +927,51 @@ void showCreateAsmSheet(BuildContext context, {List<HomeTeamItem>? teams}) {
                                   final name = nameController.text.trim();
                                   final email = emailController.text.trim();
                                   final phone = phoneController.text.trim();
-                                  final password = passwordController.text.trim();
+                                  final password = passwordController.text
+                                      .trim();
                                   final asmId = asmIdController.text.trim();
-                                  final salary = int.tryParse(salaryController.text.trim()) ?? 0;
-                                  final incentive = int.tryParse(incentiveController.text.trim()) ?? 0;
-                                  final mTarget = int.tryParse(monthlyTargetController.text.trim()) ?? 45;
-                                  final dTarget = int.tryParse(dailyTargetController.text.trim()) ?? 12;
+                                  final salary =
+                                      int.tryParse(
+                                        salaryController.text.trim(),
+                                      ) ??
+                                      0;
+                                  final incentive =
+                                      int.tryParse(
+                                        incentiveController.text.trim(),
+                                      ) ??
+                                      0;
+                                  final mTarget =
+                                      int.tryParse(
+                                        monthlyTargetController.text.trim(),
+                                      ) ??
+                                      45;
+                                  final dTarget =
+                                      int.tryParse(
+                                        dailyTargetController.text.trim(),
+                                      ) ??
+                                      12;
 
                                   setModalState(() => isSubmitting = true);
 
-                                  final res = await OperationsProvider.instance.createAsm(
-                                    name: name,
-                                    email: email,
-                                    phone: phone,
-                                    teamCode: selectedTeamCode!,
-                                    password: password,
-                                    zone: selectedZone,
-                                    monthlyTarget: mTarget,
-                                    dailyTarget: dTarget,
-                                    asmId: asmId.isNotEmpty ? asmId : null,
-                                    salary: salary,
-                                    incentive: incentive,
-                                  );
+                                  final res = await OperationsProvider.instance
+                                      .createAsm(
+                                        name: name,
+                                        email: email,
+                                        phone: phone,
+                                        teamCode: selectedTeamCode!,
+                                        password: password,
+                                        zone: selectedZone,
+                                        monthlyTarget: mTarget,
+                                        dailyTarget: dTarget,
+                                        asmId: asmId.isNotEmpty ? asmId : null,
+                                        salary: salary,
+                                        incentive: incentive,
+                                      );
 
                                   if (ctx.mounted) {
                                     final bool success = res['success'] == true;
-                                    final String message = res['message']?.toString() ??
+                                    final String message =
+                                        res['message']?.toString() ??
                                         (success
                                             ? 'ASM $name created successfully!'
                                             : 'Failed to create ASM. Please try again.');
@@ -711,11 +985,14 @@ void showCreateAsmSheet(BuildContext context, {List<HomeTeamItem>? teams}) {
                                         Colors.green,
                                       );
                                     } else {
-                                      setModalState(() => isSubmitting = false);
-                                      UiHelpers.showSnackBar(
-                                        context,
+                                      setModalState(() {
+                                        isSubmitting = false;
+                                        serverValidationMessage = message;
+                                      });
+                                      UiHelpers.showToast(
                                         message,
-                                        Colors.redAccent,
+                                        isError: true,
+                                        context: ctx,
                                       );
                                     }
                                   }
@@ -724,19 +1001,30 @@ void showCreateAsmSheet(BuildContext context, {List<HomeTeamItem>? teams}) {
                               ? const SizedBox(
                                   width: 22,
                                   height: 22,
-                                  child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                                  child: CircularProgressIndicator(
+                                    color: Colors.white,
+                                    strokeWidth: 2,
+                                  ),
                                 )
                               : const Row(
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
-                                    Icon(Icons.check_circle_outline_rounded, color: Colors.white, size: 20),
+                                    Icon(
+                                      Icons.check_circle_outline_rounded,
+                                      color: Colors.white,
+                                      size: 20,
+                                    ),
                                     SizedBox(width: 8),
                                     Flexible(
                                       child: FittedBox(
                                         fit: BoxFit.scaleDown,
                                         child: Text(
                                           'Create Area Sales Manager',
-                                          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 14,
+                                          ),
                                         ),
                                       ),
                                     ),
