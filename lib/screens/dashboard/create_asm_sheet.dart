@@ -150,9 +150,13 @@ void showCreateAsmSheet(BuildContext context, {List<HomeTeamItem>? teams}) {
                     ),
                     const Divider(color: Color(0xFFE2E8F0), height: 22),
 
-                    if (serverValidationMessage != null && serverValidationMessage!.isNotEmpty) ...[
+                    if (serverValidationMessage != null &&
+                        serverValidationMessage!.isNotEmpty) ...[
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 11,
+                        ),
                         decoration: BoxDecoration(
                           color: const Color(0xFFFEF2F2),
                           borderRadius: BorderRadius.circular(12),
@@ -161,7 +165,11 @@ void showCreateAsmSheet(BuildContext context, {List<HomeTeamItem>? teams}) {
                         child: Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Icon(Icons.error_outline_rounded, color: Color(0xFFDC2626), size: 18),
+                            const Icon(
+                              Icons.error_outline_rounded,
+                              color: Color(0xFFDC2626),
+                              size: 18,
+                            ),
                             const SizedBox(width: 10),
                             Expanded(
                               child: Text(
@@ -175,8 +183,14 @@ void showCreateAsmSheet(BuildContext context, {List<HomeTeamItem>? teams}) {
                               ),
                             ),
                             InkWell(
-                              onTap: () => setModalState(() => serverValidationMessage = null),
-                              child: const Icon(Icons.close_rounded, color: Color(0xFF991B1B), size: 16),
+                              onTap: () => setModalState(
+                                () => serverValidationMessage = null,
+                              ),
+                              child: const Icon(
+                                Icons.close_rounded,
+                                color: Color(0xFF991B1B),
+                                size: 16,
+                              ),
                             ),
                           ],
                         ),
@@ -361,50 +375,50 @@ void showCreateAsmSheet(BuildContext context, {List<HomeTeamItem>? teams}) {
                     const SizedBox(height: 18),
 
                     // ASM ID
-                    TextFormField(
-                      controller: asmIdController,
-                      textInputAction: TextInputAction.next,
-                      keyboardType: TextInputType.text,
-                      decoration: InputDecoration(
-                        labelText: 'ASM ID (optional)',
-                        hintText: 'e.g. ASM004 (auto-assigned if blank)',
-                        hintStyle: const TextStyle(
-                          fontSize: 13,
-                          color: Color(0xFF94A3B8),
-                        ),
-                        prefixIcon: const Icon(
-                          Icons.badge_outlined,
-                          size: 20,
-                          color: Color(0xFF0F766E),
-                        ),
-                        filled: true,
-                        fillColor: const Color(0xFFF8FAFC),
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 14,
-                          vertical: 14,
-                        ),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(
-                            color: Color(0xFFCBD5E1),
-                          ),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(
-                            color: Color(0xFFE2E8F0),
-                          ),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(
-                            color: Color(0xFF0F766E),
-                            width: 1.5,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
+                    // TextFormField(
+                    //   controller: asmIdController,
+                    //   textInputAction: TextInputAction.next,
+                    //   keyboardType: TextInputType.text,
+                    //   decoration: InputDecoration(
+                    //     labelText: 'ASM ID (optional)',
+                    //     hintText: 'e.g. ASM004 (auto-assigned if blank)',
+                    //     hintStyle: const TextStyle(
+                    //       fontSize: 13,
+                    //       color: Color(0xFF94A3B8),
+                    //     ),
+                    //     prefixIcon: const Icon(
+                    //       Icons.badge_outlined,
+                    //       size: 20,
+                    //       color: Color(0xFF0F766E),
+                    //     ),
+                    //     filled: true,
+                    //     fillColor: const Color(0xFFF8FAFC),
+                    //     contentPadding: const EdgeInsets.symmetric(
+                    //       horizontal: 14,
+                    //       vertical: 14,
+                    //     ),
+                    //     border: OutlineInputBorder(
+                    //       borderRadius: BorderRadius.circular(12),
+                    //       borderSide: const BorderSide(
+                    //         color: Color(0xFFCBD5E1),
+                    //       ),
+                    //     ),
+                    //     enabledBorder: OutlineInputBorder(
+                    //       borderRadius: BorderRadius.circular(12),
+                    //       borderSide: const BorderSide(
+                    //         color: Color(0xFFE2E8F0),
+                    //       ),
+                    //     ),
+                    //     focusedBorder: OutlineInputBorder(
+                    //       borderRadius: BorderRadius.circular(12),
+                    //       borderSide: const BorderSide(
+                    //         color: Color(0xFF0F766E),
+                    //         width: 1.5,
+                    //       ),
+                    //     ),
+                    //   ),
+                    // ),
+                    // const SizedBox(height: 12),
 
                     // Salary & Incentive (side by side)
                     LayoutBuilder(
@@ -415,10 +429,10 @@ void showCreateAsmSheet(BuildContext context, {List<HomeTeamItem>? teams}) {
                           textInputAction: TextInputAction.next,
                           keyboardType: TextInputType.number,
                           decoration: InputDecoration(
-                            labelText: 'Salary ()',
+                            labelText: 'Salary',
                             hintText: 'e.g. 25000',
                             hintStyle: const TextStyle(
-                              fontSize: 13,
+                              fontSize: 12,
                               color: Color(0xFF94A3B8),
                             ),
                             prefixIcon: const Icon(
@@ -458,10 +472,10 @@ void showCreateAsmSheet(BuildContext context, {List<HomeTeamItem>? teams}) {
                           textInputAction: TextInputAction.next,
                           keyboardType: TextInputType.number,
                           decoration: InputDecoration(
-                            labelText: 'Incentive (â‚¹)',
+                            labelText: 'Incentive',
                             hintText: 'e.g. 1000',
                             hintStyle: const TextStyle(
-                              fontSize: 13,
+                              fontSize: 12,
                               color: Color(0xFF94A3B8),
                             ),
                             prefixIcon: const Icon(

@@ -40,10 +40,10 @@ class _RequestsApprovalsScreenState extends State<RequestsApprovalsScreen> {
     final isAsm =
         user.role.toUpperCase() == 'ASM' ||
         user.role.toLowerCase().contains('area');
-    final isSm = !isAsm && (
-        user.role.toUpperCase() == 'SM' ||
-        user.role.toLowerCase().contains('sales manager')
-    );
+    final isSm =
+        !isAsm &&
+        (user.role.toUpperCase() == 'SM' ||
+            user.role.toLowerCase().contains('sales manager'));
     final isAccounts =
         user.role.toUpperCase() == 'ACCOUNTS' ||
         user.role.toUpperCase() == 'ADMIN';
@@ -852,16 +852,17 @@ class _RequestsApprovalsScreenState extends State<RequestsApprovalsScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          mainAxisAlignment: MainAxisAlignment.start,
                           children: [
                             Text(
                               stage.stage,
                               style: const TextStyle(
-                                fontSize: 11,
+                                fontSize: 8,
                                 fontWeight: FontWeight.bold,
                                 color: Color(0xFF0F172A),
                               ),
                             ),
+                            const SizedBox(width: 7),
                             if (stage.actionAt != null)
                               Text(
                                 _formatDate(stage.actionAt!),
